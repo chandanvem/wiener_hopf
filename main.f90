@@ -66,7 +66,7 @@ PROGRAM main
 !! Only two calls:
 
   call initialize  !! this subrtn reads and initializes data
-!!  call solve  !! this subrtn is the main solver
+  !! call solve  !! this subrtn is the main solver
 
 
 CONTAINS
@@ -88,52 +88,138 @@ CONTAINS
 !! the basic data file:
 
     open(1,file='input.list.p')
+
     read(1,*) vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
+    print *, 'vortswitch=', vortswitch
+
     read(1,*) M1  !! core jet Mach number
+    print *, 'M1=', M1
+
     read(1,*) M2  !! coflow Mach number
+    print *, 'M2=', M2
+
     read(1,*) M3  !! ambient flow Mach number
+    print *, 'M3=', M3
+
     read(1,*) h   !! the width of the core jet, h = Ri/Ro
+    print *, 'width of the core jet h=', h
+
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
        read(1,*) Zo  !! starting point of inc instability (-ve)
     end if
+
     read(1,*) w0  !! the Helmholtz number
+    print *, 'Helmholtz number omega=', w0
+
     read(1,*) kap1  !! sqrt(temp ratio)
+    print *, 'Sqrt of temperature ratio=', kap1
+ 
     read(1,*) kap2  !! density ratio
+    print*, 'Density ratio=', kap2
+
     read(1,*) circmod  !! the circumferential mode no
+    print*, 'Azimuthal wavenumber (circmod)=', circmod
+
     read(1,*) sz1
+    print*, 'sz1 (First instability zero) =', sz1
+
+
     read(1,*) sz2
+    print*, 'sz2 (Second instability zero) =', sz2
+
+
     read(1,*) sp1
+    print*, 'sp1 (Instability pole) =', sp1
+
+
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
        read(1,*) mu0  !! upstream inc acoustic mode
+       print*, 'Incident Vorticity mode activated'
     else
        read(1,*) mup
+       print*, '================== Non-incident vorticity mode ====================='
+       print*,''
+       print*, 'mu for the incident mode =',mup
     end if
+
     read(1,*) offset  !! the offset between the two integration contours
+    print*,'Offset between the IFT and K split contours=', offset
+
+ 
     read(1,*) tol  !! the tolerance of the adaptive contour integration routine
+    print*,'Tolerance for adaptive contour integration =', tol
+
     read(1,*) Nzbc  !! zeros needed to be removed from the kernel
+    print*,'Number of zeros to be removed from kernel =', Nzbc
+
     read(1,*) Npbc  !! poles needed to be removed from the kernel
+    print*,'Number of poles to be removed from kernel =', Npbc
+
     read(1,*) Nzsp  !! supersonic zeros
+    print*,'Number of supersonic zeros =', Nzsp
+
     read(1,*) Npsp  !! supersonic poles
+    print*,'Number of supersonic poles =', Npsp
+
     if (vortswitch == 2) then
        if (Npsp == 0) then
           print*, "For vortswitch mode 2, at least one upstream supersonic pole needed! Exiting..."
           STOP
        end if
     end if
+
+    print*,''
+    print*,'','====== Mesh and contour parameters ======',''
+    
     read(1,*) max_points
+    print*,'Number of kernel points in each loop =', max_points
+
     read(1,*) theta  !! the stretching parameter for kernel contour meshpoints
+    print*,'Stretching parameter for kernel contour =', theta
+
     read(1,*) Nmax
+    print*,'Number of IFT points in each loop Nmax =', Nmax
+
     read(1,*) Rmin
     read(1,*) Rmax
     read(1,*) Zmin
     read(1,*) Zmax
+   
     read(1,*) Nmeshr
     read(1,*) Nmeshz
+
+    print*,'Dimensions of domain in R = [',Rmin,Rmax,']' 
+    print*,'Dimensions of domain in Z = [',Zmin,Zmax,']' 
+    print*,'Nr x Nz =',Nmeshr,'x',Nmeshz
+
+    print*,'=============================='
+
     read(1,*) asymplim
+    print*,'Asymptotic limit of ??? = ',asymplim
+
     read(1,*) asymplim1
+    print*,'Asymptotic limit of ??? = ',asymplim1
+
     read(1,*) vparm  !! Default = 1.0 (0,1)
+    print*,'Vortex shedding parameter gamma = ',vparm 
+      
+
+!!============================
     read(1,*) prswitch  !! 0 = Potential; 1 = Pressure
+
+    if (prswitch == 0) then
+       print*,'Solution in potential mode'
+    elseif (prswitch == 1) then
+       print*,'Solution in pressure mode '
+    end if
+!!============================
     read(1,*) reflswitch  !! 1 = Reflection mode: incident mode not added
+    if (reflswitch == 1) then
+       print*,'Reflection mode: incident mode not added'
+    else 
+       print*,'Reflection mode: incident mode added'
+    end if
+!!============================
     read(1,*) farswitch  !! 1 = Far-field mode: compute directivity; 2 = 1 + nearfield of sup zeros in polar mode
 
     if ((farswitch == 1) .OR. (farswitch == 2)) then
@@ -145,6 +231,8 @@ CONTAINS
        print*, "For farswitch mode 2, non-zero number of supersonic zero needed! Exiting..."
        STOP
     end if
+
+!!=====================================================
 
     read(1,*) restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
 
@@ -178,6 +266,9 @@ CONTAINS
     end do
 
     close(1)
+
+!!================================================================
+
 
     PI = 4._dpk*ATAN(1.)
     delr = 0._dpk   !! for real omega
