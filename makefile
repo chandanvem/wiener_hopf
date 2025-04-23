@@ -17,3 +17,5 @@ clean:
 	rm *.o -f
 	rm le -f
 	rm -rf main
+	rm -rf *.out
+	rm -rf mesh_polar.*
