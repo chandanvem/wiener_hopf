@@ -66,7 +66,7 @@ PROGRAM main
 !! Only two calls:
 
   call initialize  !! this subrtn reads and initializes data
-  !! call solve  !! this subrtn is the main solver
+  call solve  !! this subrtn is the main solver
 
 
 CONTAINS
@@ -1450,7 +1450,7 @@ CONTAINS
 
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
 
-!! the factor \Psi_{mn}(1) of (4.13) [see the JFM]:
+!! the factor \Psi_{mn}(1) of (4.1) [see the JFM 2008]:
 
        psi = wr*resp*(1._dpk - M2*mup)*Trsin(1._dpk,mup,2)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*mup*(-Zo))
 
