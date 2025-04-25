@@ -19,3 +19,4 @@ clean:
 	rm -rf main
 	rm -rf *.out
 	rm -rf mesh_polar.*
+	rm -rf supinstabilitypr_*
