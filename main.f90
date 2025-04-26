@@ -239,31 +239,40 @@ CONTAINS
 !! read the zeros & poles that need to be excluded, if any:
 !! USE: when the effect of particular modes need to be studied individually
     
-    if (Nzbc > 0) allocate(szbc(Nzbc))
-    if (Npbc > 0) allocate(spbc(Npbc))
+    if (Nzbc > 0) then
+        allocate(szbc(Nzbc))
+        do i1 = 1, Nzbc
+           read(1,*) szbc(i1)
+!          print*, szbc(i1)
+        end do
+    end if
 
-    do i1 = 1, Nzbc
-       read(1,*) szbc(i1)
-!       print*, szbc(i1)
-    end do
 
-    do i1 = 1, Npbc
-       read(1,*) spbc(i1)
-!       print*, spbc(i1)
-    end do
+    if (Npbc > 0) then
+       allocate(spbc(Npbc))
 
-    if (Nzsp > 0) allocate(szsp(Nzsp))
-    if (Npsp > 0) allocate(spsp(Npsp))
+       do i1 = 1, Npbc
+          read(1,*) spbc(i1)
+!         print*, spbc(i1)
+       end do
+    end if
 
-    do i1 = 1, Nzsp
-       read(1,*) szsp(i1)
-!       print*, szsp(i1)
-    end do
+    if (Nzsp > 0) then
+        allocate(szsp(Nzsp))
+        do i1 = 1, Nzsp
+          read(1,*) szsp(i1)
+!         print*, szsp(i1)
+        end do
+   end if
 
-    do i1 = 1, Npsp
-       read(1,*) spsp(i1)
-!       print*, spsp(i1)
-    end do
+   
+   if (Npsp > 0) then 
+       allocate(spsp(Npsp))
+       do i1 = 1, Npsp
+         read(1,*) spsp(i1)
+!        print*, spsp(i1)
+       end do
+  end if
 
     close(1)
 
