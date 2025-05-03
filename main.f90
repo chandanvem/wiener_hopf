@@ -18,7 +18,7 @@ PROGRAM main
   complex(dpk), allocatable, dimension(:)    :: initpoints  !! location of the starting pts
   complex(dpk), allocatable, dimension(:)    :: intpanel  !! integral value at each panel
   integer, allocatable, dimension(:)         :: Npanel  !! number of times a panel is divided
-  integer                                    :: max_points !! number of starting pts for kernel contour
+  integer                                    :: num_ker_pts_loop !! number of starting pts for kernel contour
   integer                                    :: N1, totinitpts, totiftpts
   integer                                    :: prswitch, restart, reflswitch, farswitch, vortswitch
   integer                                    :: num_zeros_s1_s2, num_poles_s1_s2  !! num  zeros & poles in between s_1- s_2
@@ -26,7 +26,7 @@ PROGRAM main
   integer                                    :: Nphi  !! polar mesh resolution for directivity computation
   complex(dpk), allocatable, dimension(:)    :: szi  !! the points defining the IFT contour
   complex(dpk), allocatable, dimension(:)    :: szk  !! the points defining the Kernel contour
-  complex(dpk), allocatable, dimension(:)    :: szbc, spbc, szsp, spsp
+  complex(dpk), allocatable, dimension(:)    :: zeros_list_bw_s1_s2, poles_list_bw_s1_s2, szsp, spsp
   complex(dpk), allocatable, dimension(:)    :: fplusz, fplusz_temp
   complex(dpk)                               :: kmmup, kpsz1, kpsz2, kpsp1
   complex(dpk), allocatable, dimension(:)    :: kzsp
@@ -48,7 +48,7 @@ PROGRAM main
   real(dpk)                                  :: Zo  !! start point of incident vorticity (negative)
   integer                                    :: Nmeshr, Nmeshz !! 400X400 -> Seg Fault!!
   real(dpk)                                  :: circmod
-  real(dpk)                                  :: vparm  !! Vortex shedding parameter
+  real(dpk)                                  :: vs_param_gamma  !! Vortex shedding parameter
   complex(dpk)                               :: sz1 !! instability zero 1
   complex(dpk)                               :: sz2 !! instability zero 2
   complex(dpk)                               :: sp1 !! instability pole 1
@@ -56,7 +56,7 @@ PROGRAM main
   complex(dpk)                               :: mu0 !! incident axial wave no (for incident vort)
   complex(dpk)                               :: resp!! portion of residue (for inc vort)
   complex(dpk)                               :: psi
-  integer                                    :: Nmax !! number of points for IFT contour
+  integer                                    :: num_IFT_pts_loop !! number of points for IFT contour
   complex(dpk), allocatable, dimension(:)    :: iftpoints
   complex(dpk), allocatable, dimension(:,:)  :: pressure
   complex(dpk), allocatable, dimension(:,:)  :: acoupressure,totpressure,inspressure1,inspressure2,initpressure
@@ -171,14 +171,14 @@ CONTAINS
     print*,''
     print*,'','====== Mesh and contour parameters ======',''
     
-    read(1,*) max_points
-    print*,'Number of kernel points in each loop =', max_points
+    read(1,*) num_ker_pts_loop
+    print*,'Number of kernel points in each loop =', num_ker_pts_loop
 
     read(1,*) theta  !! the stretching parameter for kernel contour meshpoints
     print*,'Stretching parameter for kernel contour =', theta
 
-    read(1,*) Nmax
-    print*,'Number of IFT points in each loop Nmax =', Nmax
+    read(1,*) num_IFT_pts_loop
+    print*,'Number of IFT points in each loop num_IFT_pts_loop =', num_IFT_pts_loop
 
     read(1,*) Rmin
     read(1,*) Rmax
@@ -200,8 +200,8 @@ CONTAINS
     read(1,*) asymplim1
     print*,'Asymptotic limit of ??? = ',asymplim1
 
-    read(1,*) vparm  !! Default = 1.0 (0,1)
-    print*,'Vortex shedding parameter gamma = ',vparm 
+    read(1,*) vs_param_gamma  !! Default = 1.0 (0,1)
+    print*,'Vortex shedding parameter gamma = ',vs_param_gamma 
       
 
 !!============================
@@ -240,20 +240,20 @@ CONTAINS
 !! USE: when the effect of particular modes need to be studied individually
     
     if (num_zeros_s1_s2 > 0) then
-        allocate(szbc(num_zeros_s1_s2))
+        allocate(zeros_list_bw_s1_s2(num_zeros_s1_s2))
         do i1 = 1, num_zeros_s1_s2
-           read(1,*) szbc(i1)
-!          print*, szbc(i1)
+           read(1,*) zeros_list_bw_s1_s2(i1)
+!          print*, zeros_list_bw_s1_s2(i1)
         end do
     end if
 
 
     if (num_poles_s1_s2 > 0) then
-       allocate(spbc(num_poles_s1_s2))
+       allocate(poles_list_bw_s1_s2(num_poles_s1_s2))
 
        do i1 = 1, num_poles_s1_s2
-          read(1,*) spbc(i1)
-!         print*, spbc(i1)
+          read(1,*) poles_list_bw_s1_s2(i1)
+!         print*, poles_list_bw_s1_s2(i1)
        end do
     end if
 
@@ -432,11 +432,11 @@ CONTAINS
 
 !! compute the various contour parameters:
 
-    N1 = max_points  !! for each of the two kernel contour loops
+    N1 = num_ker_pts_loop  !! for each of the two kernel contour loops
 
     totinitpts = 2*N1 + 3  !! total number of kernel contor pts
 
-    totiftpts = 2*Nmax + 3  !! total number of IFT contor pts
+    totiftpts = 2*num_IFT_pts_loop + 3  !! total number of IFT contor pts
 
 !! print the contour points:
 
@@ -543,10 +543,10 @@ CONTAINS
 
 !! length of each panel (IFT contour):
 
-    panel_len1 = (REAL(szi(3))-REAL(szi(1)))/(Nmax+1)
-    panel_len2 = (REAL(szi(5))-REAL(szi(3)))/(Nmax+1)
+    panel_len1 = (REAL(szi(3))-REAL(szi(1)))/(num_IFT_pts_loop+1)
+    panel_len2 = (REAL(szi(5))-REAL(szi(3)))/(num_IFT_pts_loop+1)
 
-    call initcontour(szi,panel_len1,panel_len2,Nmax,2,iftpoints)
+    call initcontour(szi,panel_len1,panel_len2,num_IFT_pts_loop,2,iftpoints)
 
     open(10,file='iftpoints.out',form='FORMATTED')
     do i = 1,totiftpts
@@ -1438,8 +1438,8 @@ CONTAINS
        kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! z is always below normally
     end if
 
-!!$    fplus = gpz/kpz*( (z - sz2)/(mup - z) + vparm)
-    fplus = gpz*( (z - sz2)/(mup - z) + vparm)/(kpz*zp(0,z))
+!!$    fplus = gpz/kpz*( (z - sz2)/(mup - z) + vs_param_gamma)
+    fplus = gpz*( (z - sz2)/(mup - z) + vs_param_gamma)/(kpz*zp(0,z))
 
 !!$    fplus = lprod*gpz/(kmmup*kpz)
 
@@ -2013,13 +2013,13 @@ CONTAINS
 
     do i = 1, num_zeros_s1_s2
 
-       bc = bc/(z - szbc(i))
+       bc = bc/(z - zeros_list_bw_s1_s2(i))
 
     end do
 
     do i = 1, num_poles_s1_s2
 
-       bc = bc*(z - spbc(i))
+       bc = bc*(z - poles_list_bw_s1_s2(i))
 
     end do
 

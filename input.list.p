@@ -13,10 +13,10 @@
 (0.0671082273,0.)                        mup
 1.0e-3                                   offset
 1.0e-4                                   tol
-0                                        Nzbc
-0                                        Npbc
-2                                        Nzsp
-1                                        Npsp
+0                                        num_zeros_s1_s2
+0                                        num_poles_s1_s2
+2                                        num_sup_zeros
+1                                        num_sup_poles
 300                                      maxpoints
 6.0                                      theta
 1000                                     Nmax
