@@ -457,8 +457,6 @@ CONTAINS
     
     write(*,"(/A6,I6/)"),'N =',totiftpts
 
-    if ((farswitch == 1) .OR. (farswitch == 2)) call initfarfield
-
 
   END SUBROUTINE initialize
 
@@ -483,10 +481,8 @@ CONTAINS
     if ((farswitch == 1) .OR. (farswitch == 2)) then
 
        print*,''
-       print*,'Now computing Dmn:'
+       print*,'Near-field computation only:'
        print*,''
-
-       call computefarfield
 
     else
 
@@ -515,127 +511,6 @@ CONTAINS
 
 
   END SUBROUTINE solve
-
-
-  SUBROUTINE initfarfield
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Initializes the far-field computations
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    integer            :: j
-
-    allocate(phi(Nphi))
-    allocate(Dmn(Nphi))
-
-    ! 0 < phi < 180
-
-    phii = 0.5_dpk*PI/180._dpk
-    phif = 179.5_dpk*PI/180._dpk
-
-    ! Generate the directivity mesh
-
-    do j = 1, Nphi
-       phi(j) = phii + (j-1)*(phif-phii)/(Nphi-1)
-    end do
-
-    ! Find the instability wave cone angles
-    
-    cnanglei(1) = ATAN(- (AIMAG(sz1))/(AIMAG(SQRT(kap1**2*(1._dpk - sz1*M3)**2 - sz1**2))))
-    cnanglei(2) = ATAN(- (AIMAG(sz2))/(AIMAG(SQRT(kap1**2*(1._dpk - sz2*M3)**2 - sz2**2))))
-
-    do j = 3, 2+Nzsp
-       cnanglei(j) = ATAN(- (AIMAG(szsp(j-2)))/(AIMAG(SQRT(kap1**2*(1._dpk - szsp(j-2)*M3)**2 -&
-            szsp(j-2)**2))))
-    end do
-
-!!$    print*,'coneangle1=',cnangle1,'coneangle2=',cnangle2
-
-    cnangle = cnanglei(1)
-    do j = 2, Nzsp+1
-       if (cnanglei(j) >= cnangle) then
-          cnangle = cnanglei(j)
-       end if
-    end do
-
-!!$    print*,'coneangle=',coneangle*180./PI
-
-    open(10,file='coneangles.out',form='FORMATTED')
-    write(10,'(A5,F20.5)') 'max:', cnangle*180._dpk/PI
-    do j = 1, Nzsp+2
-       write(10,'(I3,F20.5)') j, cnanglei(j)*180._dpk/PI
-    end do
-    close(10)
-
-    if (farswitch == 2) call meshgrid
-
-
-  END SUBROUTINE initfarfield
-
-
-  SUBROUTINE computefarfield
-
-    integer                    :: i, k, jj
-
-    jj = 1
-
-    if (restart .NE. 0) then
-
-       open(10,file='directivity_temp.out',form='FORMATTED')
-       do i = 1, Nphi
-          read(10,'(I5,2F20.15)',end = 100) k, Dmn(i)
-       end do
-       close(10)
-
-100    do i = 1, k
-
-          write(*,'(/A10,2X,F15.10,A1)'),'angle :: ', phi(i)*180._dpk/PI,':'
-          write(*,'(A10,2X,2F15.10/)'),'Dmn =', Dmn(i)
-          if (mod(i,10) == 0) write(*,'(A64)'),'----------------------------------------------------------------'
-
-          jj = k+1
-
-       end do
-
-    end if
-
-    do i = jj, Nphi
-       
-       write(*,'(/A10,2X,F15.10,A1)'),'angle :: ', phi(i)*180._dpk/PI,':'
-
-       call directcomp(phi(i),Dmn(i))
-       
-       write(*,'(A10,2X,2F15.10/)'),'Dmn =', Dmn(i)
-
-       if (i == 1) then
-          open(10,file='directivity_temp.out',form='FORMATTED',status='UNKNOWN')
-       else
-          open(10,file='directivity_temp.out',form='FORMATTED',position='APPEND')
-       end if
-       write(10,'(I5,2F20.15)') i, Dmn(i)
-       close(10)
-
-       if (mod(i,10) == 0) write(*,'(A64)'),'----------------------------------------------------------------'
-    end do
-
-    open(10,file='directivity_ins.out',form='FORMATTED')
-    do i = 1, Nphi
-       if (phi(i) .LE. cnangle) write(10,'(F8.2,2F20.15)') phi(i)*180._dpk/PI, Dmn(i) 
-    end do
-    close(10)
-
-    open(10,file='directivity.out',form='FORMATTED')
-    do i = 1, Nphi
-       if (phi(i) > cnangle) write(10,'(F8.2,2F20.15)') phi(i)*180._dpk/PI, Dmn(i)
-    end do
-    close(10)
-
-    if (vortswitch .EQ. 0) then
-       if (farswitch == 2) call residuepolarsup
-    end if
-
-
-  END SUBROUTINE computefarfield
 
 
   SUBROUTINE definecontours
@@ -891,55 +766,6 @@ CONTAINS
 
 
   END SUBROUTINE meshgrid
-
-
-  SUBROUTINE directcomp(iphi,dmn)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Compute the asymptotic (steepest descent) directivity
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    real(dpk)                  :: iphi, idmn, so
-    real(dpk)                  :: theta2, theta1
-    complex(dpk)               :: n, d1, d, dmn
-
-    theta1 = ATAN(SQRT(1._dpk - kap1**2*M3*M3)*TAN(iphi))
-
-    if (iphi == 0.) then
-       theta2 = 0.
-    else if (iphi == PI) then
-       theta2 = PI
-    else if (TAN(iphi) < 0.) then
-       theta2 = theta1 + PI
-    else 
-       theta2 = theta1
-    end if
-
-!!$    print*,'theta1=',theta1*180/PI,'theta=',theta*180/PI
-
-!    so = (kap1*COS(theta2) - kap1**2*M3)/(1._dpk - kap1**2*M3*M3)  ! stationary point
-
-    so = (kap1*COS(iphi)/SQRT(1._dpk - (kap1*M3*SIN(iphi))**2) - kap1**2*M3)/ &
-         (1._dpk - kap1**2*M3*M3)  ! stationary point
-
-!!$    print*,''
-!!$    print*,'The saddle point:'
-!!$    write(*,'(A12,2X,F15.10)'), 'so:->', so   
-    
-    n = wr/PI*(1._dpk - so*M3)**2*fplus(CMPLX(so,0._dpk,kind=dpk))
-
-    d1 = kap1*wr*SIN(iphi)/SQRT(1._dpk - kap1**2*M3**2*SIN(iphi)*SIN(iphi))
-    
-    d = dhank1(d1,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*d1)*kap1*SIN(iphi)
-
-    dmn = n/d
-
-    idmn = 20._dpk*LOG10(ABS(dmn))
-    dmn = CMPLX(idmn,0._dpk,kind=dpk)
-!!$    print*,'dmn:',dmn
-
-
-  END SUBROUTINE directcomp
 
 
   SUBROUTINE computeift
