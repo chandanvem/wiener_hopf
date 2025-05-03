@@ -328,8 +328,8 @@ CONTAINS
     read(1,*) t
     af = t
 
-    call yfunc_p(ai,ai_im,REAL(szi(3)),REAL(szi(2)-szi(3)),AIMAG(szi(2)-szi(3)))
-    call yfunc_p(af,af_im,REAL(szi(3)),REAL(szi(4)-szi(3)),AIMAG(szi(4)-szi(3)))
+    call get_y_alg_int_contour(ai,ai_im,REAL(szi(3)),REAL(szi(2)-szi(3)),AIMAG(szi(2)-szi(3)))
+    call get_y_alg_int_contour(af,af_im,REAL(szi(3)),REAL(szi(4)-szi(3)),AIMAG(szi(4)-szi(3)))
 
     szi(1) = CMPLX(ai,ai_im,kind=dpk)  
     szi(5) = CMPLX(af,af_im,kind=dpk)
@@ -349,8 +349,8 @@ CONTAINS
     szk(3) = szi(3) + CMPLX(5._dpk*offset,0._dpk,kind=dpk)
     szk(4) = szi(4) + CMPLX(0._dpk,offset,kind=dpk)
 
-    call yfunc_p(aki,aki_im,REAL(szk(3)),REAL(szk(2)-szk(3)),AIMAG(szk(2)-szk(3)))
-    call yfunc_p(akf,akf_im,REAL(szk(3)),REAL(szk(4)-szk(3)),AIMAG(szk(4)-szk(3)))
+    call get_y_alg_int_contour(aki,aki_im,REAL(szk(3)),REAL(szk(2)-szk(3)),AIMAG(szk(2)-szk(3)))
+    call get_y_alg_int_contour(akf,akf_im,REAL(szk(3)),REAL(szk(4)-szk(3)),AIMAG(szk(4)-szk(3)))
     
     szk(1) = CMPLX(aki,aki_im,kind=dpk)
     szk(5) = CMPLX(akf,akf_im,kind=dpk)
@@ -620,11 +620,11 @@ CONTAINS
        select case (ss)
 
        case(1)
-          call yfunc_p(xi(i),yi(i),r,REAL(q),AIMAG(q))  !! the imaginary points
+          call get_y_alg_int_contour(xi(i),yi(i),r,REAL(q),AIMAG(q))  !! the imaginary points
           if (sw == 2) xi(i+1) = xi(i) + len  !! for ift contour the points are equispaced
           
        case(2)
-          call yfunc_p(xi(i),yi(i),p,REAL(q),AIMAG(q))
+          call get_y_alg_int_contour(xi(i),yi(i),p,REAL(q),AIMAG(q))
           if (sw == 2) xi(i+1) = xi(i) + len
 
        end select
@@ -636,10 +636,10 @@ CONTAINS
     select case (ss)  !! the right end point
 
     case(1)
-       call yfunc_p(xi(N+2),yi(N+2),r,REAL(q),AIMAG(q))
+       call get_y_alg_int_contour(xi(N+2),yi(N+2),r,REAL(q),AIMAG(q))
        
     case(2)
-       call yfunc_p(xi(N+2),yi(N+2),p,REAL(q),AIMAG(q))
+       call get_y_alg_int_contour(xi(N+2),yi(N+2),p,REAL(q),AIMAG(q))
 
     end select
 
@@ -1217,10 +1217,10 @@ CONTAINS
       
              if (j >= 1 .AND. j < N1+2) then
                 xp(i+1) = xp(i) + ds
-                call yfunc_p(xp(i+1),yp(i+1),REAL(szk(3)),REAL(szk(2)-szk(3)),AIMAG(szk(2)-szk(3)))
+                call get_y_alg_int_contour(xp(i+1),yp(i+1),REAL(szk(3)),REAL(szk(2)-szk(3)),AIMAG(szk(2)-szk(3)))
              else
                 xp(i+1) = xp(i) + ds
-                call yfunc_p(xp(i+1),yp(i+1),REAL(szk(3)),REAL(szk(4)-szk(3)),AIMAG(szk(4)-szk(3)))
+                call get_y_alg_int_contour(xp(i+1),yp(i+1),REAL(szk(3)),REAL(szk(4)-szk(3)),AIMAG(szk(4)-szk(3)))
                   
              end if
 
@@ -1543,7 +1543,7 @@ CONTAINS
   END SUBROUTINE yfunc_p0
 
 
-  SUBROUTINE yfunc_p(x,y,p,a,b)
+  SUBROUTINE get_y_alg_int_contour(x,y,p,a,b)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Algebraic "one piece" contour:  see Rienstra, JEM, 2007
@@ -1555,7 +1555,7 @@ CONTAINS
     y = b*(4._dpk*(x-p)/a)/(3._dpk + ((x-p)/a)**4) ! algebraic
 
 
-  END SUBROUTINE yfunc_p
+  END SUBROUTINE get_y_alg_int_contour
 
 
   SUBROUTINE trapezoid(s,z1,z2,ksw,sw,I)
@@ -2549,7 +2549,7 @@ CONTAINS
     zx = REAL(z)
     zy = AIMAG(z)
 
-    call yfunc_p(zx,zfy,REAL(szi(3)),REAL(szi(4)-szi(3)),AIMAG(szi(4)-szi(3)))
+    call get_y_alg_int_contour(zx,zfy,REAL(szi(3)),REAL(szi(4)-szi(3)),AIMAG(szi(4)-szi(3)))
 !!$    zfy = AIMAG(c1)
 
     if(zy > zfy) then
