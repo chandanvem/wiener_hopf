@@ -21,8 +21,8 @@ PROGRAM main
   integer                                    :: max_points !! number of starting pts for kernel contour
   integer                                    :: N1, totinitpts, totiftpts
   integer                                    :: prswitch, restart, reflswitch, farswitch, vortswitch
-  integer                                    :: Nzbc, Npbc  !! number of zeros & poles in between s_1^- & s_2^-
-  integer                                    :: Nzsp, Npsp  !! number of supersonic zeros & poles
+  integer                                    :: num_zeros_s1_s2, num_poles_s1_s2  !! num  zeros & poles in between s_1- s_2
+  integer                                    :: num_sup_zeros, num_sup_poles  !! number of supersonic zeros & poles
   integer                                    :: Nphi  !! polar mesh resolution for directivity computation
   complex(dpk), allocatable, dimension(:)    :: szi  !! the points defining the IFT contour
   complex(dpk), allocatable, dimension(:)    :: szk  !! the points defining the Kernel contour
@@ -41,7 +41,7 @@ PROGRAM main
   real(dpk)                                  :: h
   real(dpk)                                  :: kap1  !! sqrt(T1/T0)
   real(dpk)                                  :: kap2  !! rho1/rho0
-  real(dpk)                                  :: theta, crpt, w0, delr, deli, offset
+  real(dpk)                                  :: theta, cont_cross_over_pt, w0, delr, deli, offset
   complex(dpk)                               :: wi, wr
   real(dpk)                                  :: Rmax, Rmin, Zmin, Zmax !! dimensions of the physical domain
   real(dpk), allocatable, dimension(:)       :: R, Z
@@ -149,20 +149,20 @@ CONTAINS
     read(1,*) tol  !! the tolerance of the adaptive contour integration routine
     print*,'Tolerance for adaptive contour integration =', tol
 
-    read(1,*) Nzbc  !! zeros needed to be removed from the kernel
-    print*,'Number of zeros to be removed from kernel =', Nzbc
+    read(1,*) num_zeros_s1_s2  !! zeros needed to be removed from the kernel
+    print*,'Number of zeros to be removed from kernel =', num_zeros_s1_s2
 
-    read(1,*) Npbc  !! poles needed to be removed from the kernel
-    print*,'Number of poles to be removed from kernel =', Npbc
+    read(1,*) num_poles_s1_s2  !! poles needed to be removed from the kernel
+    print*,'Number of poles to be removed from kernel =', num_poles_s1_s2
 
-    read(1,*) Nzsp  !! supersonic zeros
-    print*,'Number of supersonic zeros =', Nzsp
+    read(1,*) num_sup_zeros  !! supersonic zeros
+    print*,'Number of supersonic zeros =', num_sup_zeros
 
-    read(1,*) Npsp  !! supersonic poles
-    print*,'Number of supersonic poles =', Npsp
+    read(1,*) num_sup_poles  !! supersonic poles
+    print*,'Number of supersonic poles =', num_sup_poles
 
     if (vortswitch == 2) then
-       if (Npsp == 0) then
+       if (num_sup_poles == 0) then
           print*, "For vortswitch mode 2, at least one upstream supersonic pole needed! Exiting..."
           STOP
        end if
@@ -224,10 +224,10 @@ CONTAINS
 
     if ((farswitch == 1) .OR. (farswitch == 2)) then
        read(1,*) Nphi
-       allocate(cnanglei(Nzsp+2))
+       allocate(cnanglei(num_sup_zeros+2))
     end if
 
-    if ((farswitch == 2) .AND. Nzsp <= 0) then
+    if ((farswitch == 2) .AND. num_sup_zeros <= 0) then
        print*, "For farswitch mode 2, non-zero number of supersonic zero needed! Exiting..."
        STOP
     end if
@@ -239,36 +239,36 @@ CONTAINS
 !! read the zeros & poles that need to be excluded, if any:
 !! USE: when the effect of particular modes need to be studied individually
     
-    if (Nzbc > 0) then
-        allocate(szbc(Nzbc))
-        do i1 = 1, Nzbc
+    if (num_zeros_s1_s2 > 0) then
+        allocate(szbc(num_zeros_s1_s2))
+        do i1 = 1, num_zeros_s1_s2
            read(1,*) szbc(i1)
 !          print*, szbc(i1)
         end do
     end if
 
 
-    if (Npbc > 0) then
-       allocate(spbc(Npbc))
+    if (num_poles_s1_s2 > 0) then
+       allocate(spbc(num_poles_s1_s2))
 
-       do i1 = 1, Npbc
+       do i1 = 1, num_poles_s1_s2
           read(1,*) spbc(i1)
 !         print*, spbc(i1)
        end do
     end if
 
-    if (Nzsp > 0) then
-        allocate(szsp(Nzsp))
-        do i1 = 1, Nzsp
+    if (num_sup_zeros > 0) then
+        allocate(szsp(num_sup_zeros))
+        do i1 = 1, num_sup_zeros
           read(1,*) szsp(i1)
 !         print*, szsp(i1)
         end do
    end if
 
    
-   if (Npsp > 0) then 
-       allocate(spsp(Npsp))
-       do i1 = 1, Npsp
+   if (num_sup_poles > 0) then 
+       allocate(spsp(num_sup_poles))
+       do i1 = 1, num_sup_poles
          read(1,*) spsp(i1)
 !        print*, spsp(i1)
        end do
@@ -355,9 +355,9 @@ CONTAINS
     szk(1) = CMPLX(aki,aki_im,kind=dpk)
     szk(5) = CMPLX(akf,akf_im,kind=dpk)
 
-!! find where the contour crosses the real axis (at "crpt"):
+!! find where the contour crosses the real axis (at "cont_cross_over_pt"):
 
-    crpt = REAL(szk(3))
+    cont_cross_over_pt = REAL(szk(3))
 
 !! here both the instability zeros and the pole need to lie outside (under) the contour,
 !! since we use the residue theorem to compute them anyway:
@@ -396,7 +396,7 @@ CONTAINS
 
     end if
 
-    do i1 = 1, Nzsp
+    do i1 = 1, num_sup_zeros
        call checkloc(szsp(i1),i2)
        if (vortswitch .EQ. 0) then
           if(i2 == 0) then
@@ -413,7 +413,7 @@ CONTAINS
        end if
     end do
 
-    do i1 = 1, Npsp
+    do i1 = 1, num_sup_poles
        call checkloc(spsp(i1),i2)
        if (vortswitch .EQ. 0) then
           if(i2 == 0) then
@@ -794,8 +794,8 @@ CONTAINS
     allocate(totpressure(Nmeshr,Nmeshz))
     allocate(initpressure(Nmeshr,Nmeshz))
 
-    if (Nzsp > 0) then
-       allocate(supinspressure(Nzsp,Nmeshr,Nmeshz))
+    if (num_sup_zeros > 0) then
+       allocate(supinspressure(num_sup_zeros,Nmeshr,Nmeshz))
     end if
 
 !! the basic do loop:
@@ -842,7 +842,7 @@ CONTAINS
              inspressure2(i,j) = residuepot(R(i),Z(j),2)  !! outer instability wave
 
              if (vortswitch .EQ. 0) then
-                do k = 1, Nzsp
+                do k = 1, num_sup_zeros
                    supinspressure(k,i,j) = residuepot(R(i),Z(j),k+2)
                 end do
              end if
@@ -854,7 +854,7 @@ CONTAINS
              end if
 
              if (vortswitch .EQ. 0) then
-                do k = 1, Nzsp
+                do k = 1, num_sup_zeros
                    totpressure(i,j) = totpressure(i,j) + supinspressure(k,i,j)
                 end do
              end if
@@ -882,7 +882,7 @@ CONTAINS
              inspressure2(i,j) = residuepr(R(i),Z(j),2)  !! outer instability wave
 
              if (vortswitch .EQ. 0) then
-                do k = 1, Nzsp
+                do k = 1, num_sup_zeros
                    supinspressure(k,i,j) = residuepr(R(i),Z(j),k+2)
                 end do
              end if
@@ -894,7 +894,7 @@ CONTAINS
              end if
 
              if (vortswitch .EQ. 0) then
-                do k = 1, Nzsp
+                do k = 1, num_sup_zeros
                    totpressure(i,j) = totpressure(i,j) + supinspressure(k,i,j)
                 end do
              end if
@@ -940,7 +940,7 @@ CONTAINS
     close(1)  
 
     if (vortswitch .EQ. 0) then
-       do k = 1, Nzsp
+       do k = 1, num_sup_zeros
           write(supind,"(I1)"),k
           open(1,file='supinstabilitypr.out.'//supind,form='UNFORMATTED')
           write(1) Nmeshz,Nmeshr,1
@@ -974,10 +974,10 @@ CONTAINS
 
 !! allocate the various arrays:
 
-    allocate(supinspressure(Nzsp,Nmeshr,Nphi))
+    allocate(supinspressure(num_sup_zeros,Nmeshr,Nphi))
 
     print*,''
-    print*,'Also, computing polar near-field for Nzsp > 0:'
+    print*,'Also, computing polar near-field for num_sup_zeros > 0:'
     print*,''
 
     do j = 1, Nphi  !! the polar sweep anle
@@ -985,7 +985,7 @@ CONTAINS
 
           print*,'Pressure at phi=', phi(j)*180._dpk/PI,'and R=',R(i)
           
-          do k = 1, Nzsp
+          do k = 1, num_sup_zeros
              supinspressure(k,i,j) = residueprpolar(R(i),phi(j),k)
           end do
           
@@ -996,7 +996,7 @@ CONTAINS
 
 !! dump data
     
-    do k = 1, Nzsp
+    do k = 1, num_sup_zeros
        write(supind,"(I1)"),k
        open(1,file='supinstabilitypr_polar.out.'//supind,form='UNFORMATTED')
        write(1) Nphi,Nmeshr,1
@@ -1004,7 +1004,7 @@ CONTAINS
        close(1)  
     end do
 
-    do k = 1, Nzsp
+    do k = 1, num_sup_zeros
        write(supind,"(I1)"),k
        open(10,file='supinstabilitypr_trace.out'//supind,form='FORMATTED')
        do i = 1, Nmeshr
@@ -1081,7 +1081,7 @@ CONTAINS
 !!  the factor Kt^{-}(\mu_{mn}^{+}):
 
     if (vortswitch .EQ. 0) then
-       if (REAL(mup) < crpt) then  !! muplus is below the contour; crpt being the crossover pt
+       if (REAL(mup) < cont_cross_over_pt) then  !! muplus is below the contour; cont_cross_over_pt being the crossover pt
           print*, ''
           print*, 'The incident acoustic mode needs to be INSIDE the contour'
           print*, ''
@@ -1114,10 +1114,10 @@ CONTAINS
 
     kpsz2 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! same for sz2
 
-    if (Nzsp > 0) allocate(kzsp(Nzsp))
+    if (num_sup_zeros > 0) allocate(kzsp(num_sup_zeros))
 
     if (vortswitch .EQ. 0) then
-       do i1 = 1, Nzsp
+       do i1 = 1, num_sup_zeros
           
           call kernel_eval(szsp(i1),k,0,0,1)
           
@@ -1428,9 +1428,9 @@ CONTAINS
     call kernel_eval(z,k,0,0,1)
 
     if ((farswitch == 1) .OR. (farswitch == 2)) then
-       if (REAL(z) >= crpt) then
+       if (REAL(z) >= cont_cross_over_pt) then
           kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
-               LOG(kernel(0,z)/zp(0,z)))  !! z is above contour; crpt is crossover pt
+               LOG(kernel(0,z)/zp(0,z)))  !! z is above contour; cont_cross_over_pt is crossover pt
        else
           kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! z is below
        end if
@@ -1476,13 +1476,13 @@ CONTAINS
 !!$    zp = (z-sz1)*(z-sz2)/(z-sp1)
 
     if (ss == 1) then
-       do j = 1, Npsp
+       do j = 1, num_sup_poles
           zp = zp*(z - spsp(j))
        end do
     else
        if (vortswitch .EQ. 0) then
-          do j = 1, Nzsp
-             do jj = 1, Npsp
+          do j = 1, num_sup_zeros
+             do jj = 1, num_sup_poles
                 zp = zp*(z - szsp(j))/(z - spsp(jj))
              end do
           end do
@@ -1909,7 +1909,7 @@ CONTAINS
 
        F2 = (1._dpk - z*M3)**2/l3*F2f
 
-       if (Nzbc == 0 .AND. Npbc == 0) then
+       if (num_zeros_s1_s2 == 0 .AND. num_poles_s1_s2 == 0) then
           
           kernel = wr*(F1 - F2)
  
@@ -2011,13 +2011,13 @@ CONTAINS
 
     bc = 1._dpk
 
-    do i = 1, Nzbc
+    do i = 1, num_zeros_s1_s2
 
        bc = bc/(z - szbc(i))
 
     end do
 
-    do i = 1, Npbc
+    do i = 1, num_poles_s1_s2
 
        bc = bc*(z - spbc(i))
 
@@ -2283,12 +2283,12 @@ CONTAINS
 !!$    res = psi*(1._dpk - mup*M2)*(szsp(ss)-sp1)*(szsp(ss)-CONJG(sp1))/ &
 !!$            ((mup - szsp(ss))*kmmup*kzsp(ss)*(szsp(ss)-CONJG(sz1))* &
 !!$            (szsp(ss)-sz1)*(szsp(ss) - sz2)*(szsp(ss)-CONJG(sz2)))
-    do ii = 1, Nzsp
+    do ii = 1, num_sup_zeros
        if (ii .NE. (ss)) then
           res = res/(szsp(ss) - szsp(ii))
        end if
     end do
-    do jj = 1, Npsp
+    do jj = 1, num_sup_poles
        res = res*(szsp(ss) - spsp(jj))
     end do
     
@@ -2326,10 +2326,10 @@ CONTAINS
 !!$       res = psi*(1._dpk - mup*M2)*(sz1 - sp1)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
        res = psi*(1._dpk - mup*M2)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
        if (vortswitch .EQ. 0) then
-          do ii = 1, Nzsp
+          do ii = 1, num_sup_zeros
              res = res/(sz1 - szsp(ii))
           end do
-          do jj = 1, Npsp
+          do jj = 1, num_sup_poles
              res = res*(sz1 - spsp(jj))
           end do
        end if
@@ -2358,10 +2358,10 @@ CONTAINS
 !!$       res = psi*(1._dpk - mup*M2)*(sz2 - sp1)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
        res = psi*(1._dpk - mup*M2)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
        if (vortswitch .EQ. 0) then
-          do ii = 1, Nzsp
+          do ii = 1, num_sup_zeros
              res = res/(sz2 - szsp(ii))
           end do
-          do jj = 1, Npsp
+          do jj = 1, num_sup_poles
              res = res*(sz2 - spsp(jj))
           end do
        end if
@@ -2392,12 +2392,12 @@ CONTAINS
 !!$            kmmup*kzsp(ss-2)*(szsp(ss-2) - sz1)*(szsp(ss-2) - sz2))
        res = psi*(1._dpk - mup*M2)/((mup - szsp(ss-2))* &
             kmmup*kzsp(ss-2)*(szsp(ss-2) - sz1)*(szsp(ss-2) - sz2))
-       do ii = 1, Nzsp
+       do ii = 1, num_sup_zeros
           if (ii .NE. (ss-2)) then
              res = res/(szsp(ss-2) - szsp(ii))
           end if
        end do
-       do jj = 1, Npsp
+       do jj = 1, num_sup_poles
           res = res*(szsp(ss-2) - spsp(jj))
        end do
           
@@ -2442,10 +2442,10 @@ CONTAINS
 !!$       res = psi*(1._dpk - mup*M2)*(sz1 - sp1)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
        res = psi*(1._dpk - mup*M2)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
        if (vortswitch .EQ. 0) then
-          do ii = 1, Nzsp
+          do ii = 1, num_sup_zeros
              res = res/(sz1 - szsp(ii))
           end do
-          do jj = 1, Npsp
+          do jj = 1, num_sup_poles
              res = res*(sz1 - spsp(jj))
           end do
        end if
@@ -2473,10 +2473,10 @@ CONTAINS
 !!$       res = psi*(1._dpk - mup*M2)*(sz2 - sp1)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
        res = psi*(1._dpk - mup*M2)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
        if (vortswitch .EQ. 0) then
-          do ii = 1, Nzsp
+          do ii = 1, num_sup_zeros
              res = res/(sz1 - szsp(ii))
           end do
-          do jj = 1, Npsp
+          do jj = 1, num_sup_poles
              res = res*(sz1 - spsp(jj))
           end do
        end if
@@ -2506,12 +2506,12 @@ CONTAINS
 !!$            kmmup*kzsp(ss-2)*(szsp(ss-2) - sz1)*(szsp(ss-2) - sz2))
        res = psi*(1._dpk - mup*M2)/((mup - szsp(ss-2))* &
             kmmup*kzsp(ss-2)*(szsp(ss-2) - sz1)*(szsp(ss-2) - sz2))
-       do ii = 1, Nzsp
+       do ii = 1, num_sup_zeros
           if (ii .NE. (ss-2)) then
              res = res/(szsp(ss-2) - szsp(ii))
           end if
        end do
-       do jj = 1, Npsp
+       do jj = 1, num_sup_poles
           res = res*(szsp(ss-2) - spsp(jj))
        end do
           
