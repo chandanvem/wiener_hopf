@@ -556,7 +556,7 @@ CONTAINS
   END SUBROUTINE definecontours
 
 
-  SUBROUTINE initcontour(p,l1,l2,Ns,sw,inpts)
+  SUBROUTINE initcontour(def_pts,left_panel_length,right_panel_length,num_pts_per_loop,sw,init_pts_combined)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Initialize the integration contours
@@ -564,20 +564,23 @@ CONTAINS
 !! 3. Combine the individual segments to get the full contour
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    complex(dpk), allocatable, dimension(:)      :: initpnts1, initpnts2
-    complex(dpk), dimension(2*Ns+3)              :: inpts
-    complex(dpk), dimension(5)                   :: p
-    real(dpk)                                    :: l1, l2
-    integer                                      :: Ns, sw
+    complex(dpk), allocatable, dimension(:)       :: init_pts_left, init_pts_right
+    complex(dpk), dimension(2*num_pts_per_loop+3) :: init_pts_combined
+    complex(dpk), dimension(5)                    :: def_pts
+    real(dpk)                                     :: left_panel_length, right_panel_length
+    integer                                       :: num_pts_per_loop, sw
 
 
-    allocate(initpnts1(Ns+2))
-    allocate(initpnts2(Ns+2))
+    allocate(init_pts_left(num_pts_per_loop+2))
+    allocate(init_pts_right(num_pts_per_loop+2))
 
-    call initsubdiv(REAL(p(1)),p(2)-REAL(p(3)),REAL(p(3)),Ns,l1,sw,1,initpnts1)
-    call initsubdiv(REAL(p(3)),p(4)-REAL(p(3)),REAL(p(5)),Ns,l2,sw,2,initpnts2)
+    call initsubdiv(REAL(def_pts(1)),def_pts(2)-REAL(def_pts(3)),REAL(def_pts(3)), &
+                         num_pts_per_loop,left_panel_length,sw,1,init_pts_left)
 
-    call combine(Ns,initpnts1,initpnts2,inpts)
+    call initsubdiv(REAL(def_pts(3)),def_pts(4)-REAL(def_pts(3)),REAL(def_pts(5)), &
+                         num_pts_per_loop,right_panel_length,sw,2,init_pts_right)
+
+    call combine(num_pts_per_loop,init_pts_left,init_pts_right,init_pts_combined)
 
   END SUBROUTINE initcontour
 
