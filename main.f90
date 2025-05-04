@@ -19,14 +19,14 @@ PROGRAM main
   complex(dpk), allocatable, dimension(:)    :: intpanel  !! integral value at each panel
   integer, allocatable, dimension(:)         :: Npanel  !! number of times a panel is divided
   integer                                    :: num_ker_pts_loop !! number of starting pts for kernel contour
-  integer                                    :: N1, totinitpts, totiftpts
+  integer                                    :: tot_ker_points, tot_IFT_pts
   integer                                    :: prswitch, restart, reflswitch, farswitch, vortswitch
   integer                                    :: num_zeros_s1_s2, num_poles_s1_s2  !! num  zeros & poles in between s_1- s_2
   integer                                    :: num_sup_zeros, num_sup_poles  !! number of supersonic zeros & poles
   integer                                    :: Nphi  !! polar mesh resolution for directivity computation
   complex(dpk), allocatable, dimension(:)    :: szi  !! the points defining the IFT contour
   complex(dpk), allocatable, dimension(:)    :: szk  !! the points defining the Kernel contour
-  complex(dpk), allocatable, dimension(:)    :: zeros_list_bw_s1_s2, poles_list_bw_s1_s2, szsp, spsp
+  complex(dpk), allocatable, dimension(:)    :: zeros_list_bw_s1_s2, poles_list_bw_s1_s2, sup_zeros_list, sup_poles_list
   complex(dpk), allocatable, dimension(:)    :: fplusz, fplusz_temp
   complex(dpk)                               :: kmmup, kpsz1, kpsz2, kpsp1
   complex(dpk), allocatable, dimension(:)    :: kzsp
@@ -39,10 +39,10 @@ PROGRAM main
   real(dpk)                                  :: PI
   real(dpk)                                  :: M1, M2, M3
   real(dpk)                                  :: h
-  real(dpk)                                  :: kap1  !! sqrt(T1/T0)
-  real(dpk)                                  :: kap2  !! rho1/rho0
+  real(dpk)                                  :: kapT  !! sqrt(T1/T0)
+  real(dpk)                                  :: kap_rho  !! rho1/rho0
   real(dpk)                                  :: theta, cont_cross_over_pt, w0, delr, deli, offset
-  complex(dpk)                               :: wi, wr
+  complex(dpk)                               :: omega_i, omega_r
   real(dpk)                                  :: Rmax, Rmin, Zmin, Zmax !! dimensions of the physical domain
   real(dpk), allocatable, dimension(:)       :: R, Z
   real(dpk)                                  :: Zo  !! start point of incident vorticity (negative)
@@ -111,11 +111,11 @@ CONTAINS
     read(1,*) w0  !! the Helmholtz number
     print *, 'Helmholtz number omega=', w0
 
-    read(1,*) kap1  !! sqrt(temp ratio)
-    print *, 'Sqrt of temperature ratio=', kap1
+    read(1,*) kapT  !! sqrt(temp ratio)
+    print *, 'Sqrt of temperature ratio=', kapT
  
-    read(1,*) kap2  !! density ratio
-    print*, 'Density ratio=', kap2
+    read(1,*) kap_rho  !! density ratio
+    print*, 'Density ratio=', kap_rho
 
     read(1,*) circmod  !! the circumferential mode no
     print*, 'Azimuthal wavenumber (circmod)=', circmod
@@ -258,19 +258,19 @@ CONTAINS
     end if
 
     if (num_sup_zeros > 0) then
-        allocate(szsp(num_sup_zeros))
+        allocate(sup_zeros_list(num_sup_zeros))
         do i1 = 1, num_sup_zeros
-          read(1,*) szsp(i1)
-!         print*, szsp(i1)
+          read(1,*) sup_zeros_list(i1)
+!         print*, sup_zeros_list(i1)
         end do
    end if
 
    
    if (num_sup_poles > 0) then 
-       allocate(spsp(num_sup_poles))
+       allocate(sup_poles_list(num_sup_poles))
        do i1 = 1, num_sup_poles
-         read(1,*) spsp(i1)
-!        print*, spsp(i1)
+         read(1,*) sup_poles_list(i1)
+!        print*, sup_poles_list(i1)
        end do
   end if
 
@@ -285,9 +285,9 @@ CONTAINS
 
 !! defining the omegas (Helmholtz numbers):
 
-    wr = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*delr)  !! real
-!!$    wi = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*deli)  !! imaginary
-!!$    wi = wr
+    omega_r = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*delr)  !! real
+!!$    omega_i = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*deli)  !! imaginary
+!!$    omega_i = omega_r
 
 !! whether to compute velocity potential or pressure:
 
@@ -397,46 +397,44 @@ CONTAINS
     end if
 
     do i1 = 1, num_sup_zeros
-       call checkloc(szsp(i1),i2)
+       call checkloc(sup_zeros_list(i1),i2)
        if (vortswitch .EQ. 0) then
           if(i2 == 0) then
              print*,''
              print*,'Redefine the contour: The following supersonic zero is inside:'
-             print*,szsp(i1)
+             print*,sup_zeros_list(i1)
           end if
        else
           if(i2 == 1) then
              print*,''
              print*,'Redefine the contour: The following supersonic zero is outside:'
-             print*,szsp(i1)
+             print*,sup_zeros_list(i1)
           end if
        end if
     end do
 
     do i1 = 1, num_sup_poles
-       call checkloc(spsp(i1),i2)
+       call checkloc(sup_poles_list(i1),i2)
        if (vortswitch .EQ. 0) then
           if(i2 == 0) then
              print*,''
              print*,'Redefine the contour: The following supersonic pole is inside:'
-             print*,spsp(i1)
+             print*,sup_poles_list(i1)
           end if
        else
           if(i2 == 1) then
              print*,''
              print*,'Redefine the contour: The following supersonic pole is outside:'
-             print*,spsp(i1)
+             print*,sup_poles_list(i1)
           end if
        end if
     end do
 
 !! compute the various contour parameters:
 
-    N1 = num_ker_pts_loop  !! for each of the two kernel contour loops
+    tot_ker_points = 2*num_ker_pts_loop + 3  !! total number of kernel contor pts
 
-    totinitpts = 2*N1 + 3  !! total number of kernel contor pts
-
-    totiftpts = 2*num_IFT_pts_loop + 3  !! total number of IFT contor pts
+    tot_IFT_pts = 2*num_IFT_pts_loop + 3  !! total number of IFT contor pts
 
 !! print the contour points:
 
@@ -455,7 +453,7 @@ CONTAINS
        write(*,"(/1X,A5,2F15.6)"), 'i'//pos, szi(i1) 
     end do
     
-    write(*,"(/A6,I6/)"),'N =',totiftpts
+    write(*,"(/A6,I6/)"),'N =',tot_IFT_pts
 
 
   END SUBROUTINE initialize
@@ -521,35 +519,35 @@ CONTAINS
 !! 3. Writes the contours
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    real(dpk)                     :: panel_len1, panel_len2  !! length of each panel
+    real(dpk)                     :: panel_len_left, panel_len_right  !! length of each panel
     integer                       :: i
 
-    allocate(initpoints(totinitpts))
+    allocate(initpoints(tot_ker_points))
 
 !! length of each panel (kernel contour):
 
-    panel_len1 = (REAL(szk(3))-REAL(szk(1)))/(N1+1)  !! panel length in the left section
-    panel_len2 = (REAL(szk(5))-REAL(szk(3)))/(N1+1)  !! panel length in the right section
+    panel_len_left = (REAL(szk(3))-REAL(szk(1)))/(num_ker_pts_loop+1)  !! panel length in the left section
+    panel_len_right = (REAL(szk(5))-REAL(szk(3)))/(num_ker_pts_loop+1)  !! panel length in the right section
 
-    call initcontour(szk,panel_len1,panel_len2,N1,1,initpoints)
+    call initcontour(szk,panel_len_left,panel_len_right,num_ker_pts_loop,1,initpoints)
 
     open(10,file='initialpoints.out',form='FORMATTED')
-    do i = 1,totinitpts
+    do i = 1,tot_ker_points
        write(10,'(I10,2F30.20)') i, initpoints(i)
     end do
     close(10)
 
-    allocate(iftpoints(totiftpts))
+    allocate(iftpoints(tot_IFT_pts))
 
 !! length of each panel (IFT contour):
 
-    panel_len1 = (REAL(szi(3))-REAL(szi(1)))/(num_IFT_pts_loop+1)
-    panel_len2 = (REAL(szi(5))-REAL(szi(3)))/(num_IFT_pts_loop+1)
+    panel_len_left = (REAL(szi(3))-REAL(szi(1)))/(num_IFT_pts_loop+1)
+    panel_len_right = (REAL(szi(5))-REAL(szi(3)))/(num_IFT_pts_loop+1)
 
-    call initcontour(szi,panel_len1,panel_len2,num_IFT_pts_loop,2,iftpoints)
+    call initcontour(szi,panel_len_left,panel_len_right,num_IFT_pts_loop,2,iftpoints)
 
     open(10,file='iftpoints.out',form='FORMATTED')
-    do i = 1,totiftpts
+    do i = 1,tot_IFT_pts
        write(10,'(I10,2F30.20)') i, iftpoints(i)
     end do
     close(10)
@@ -785,7 +783,7 @@ CONTAINS
 
 !! allocate the various arrays:
     
-    allocate(pr(totiftpts-1))
+    allocate(pr(tot_IFT_pts-1))
     allocate(prsum(Nmeshr,Nmeshz))
     allocate(pressure(Nmeshr,Nmeshz))
     allocate(acoupressure(Nmeshr,Nmeshz))
@@ -813,14 +811,14 @@ CONTAINS
 
           write(pos,"('R=',F10.5,'Z=',F10.5)"),R(i),Z(j)
 
-          do k = 1, totiftpts-1
+          do k = 1, tot_IFT_pts-1
 
              call trapezoid1(R(i),Z(j),k,switch,pr(k))
              
           end do
 
           open(10,file='DataDump/Ift/intift.'//pos,form='FORMATTED')
-          do k = 1, totiftpts-1
+          do k = 1, tot_IFT_pts-1
              write(10,'(I5,2E20.10)') k,pr(k)
           end do
           close(10)
@@ -829,7 +827,7 @@ CONTAINS
           
           if (prswitch == 0) then  !! compute velocity potential
              
-             pressure(i,j) = wr/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))*prsum(i,j)
+             pressure(i,j) = omega_r/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))*prsum(i,j)
 
 !!$          pressure(i,j) = 0.
           
@@ -865,11 +863,12 @@ CONTAINS
 
              if (reflswitch == 1) then
 
-                pressure(i,j) = wr*wr/(2._dpk*PI)*prsum(i,j)   !! incident wave NOT added
+                pressure(i,j) = omega_r*omega_r/(2._dpk*PI)*prsum(i,j)   !! incident wave NOT added
 
              else
 
-                pressure(i,j) = wr*wr/(2._dpk*PI)*prsum(i,j) + psi0(R(i),Z(j),switch)  !! the incident wave added
+                pressure(i,j) = omega_r*omega_r/(2._dpk*PI)*prsum(i,j) + psi0(R(i),Z(j),switch) 
+                                                !! the incident wave added
 
              end if
           
@@ -1037,19 +1036,19 @@ CONTAINS
 
 !! the factor \Psi_{mn}(1) of (4.1) [see the JFM 2008]:
 
-       psi = wr*resp*(1._dpk - M2*mup)*Trsin(1._dpk,mup,2)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*mup*(-Zo))
+       psi = omega_r*resp*(1._dpk - M2*mup)*Trsin(1._dpk,mup,2)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*(-Zo))
 
     else
 
 !! check if the radial wavenumber is negative:
 
-       if((REAL(mup) < -(kap1/(1._dpk - kap1*M2))) .OR. (REAL(mup) > (1._dpk/(1._dpk + M1)))) then 
+       if((REAL(mup) < -(kapT/(1._dpk - kapT*M2))) .OR. (REAL(mup) > (1._dpk/(1._dpk + M1)))) then 
           print*,'Radial wave number(s) is negative: Check the incident wave axial wave number!'
           STOP
        end if
 
-       alpha1 = wr*SQRT((1._dpk - mup*M1)**2 - mup**2)
-       alpha2 = wr*SQRT(kap1**2*(1._dpk - mup*M2)**2 - mup**2)
+       alpha1 = omega_r*SQRT((1._dpk - mup*M1)**2 - mup**2)
+       alpha2 = omega_r*SQRT(kapT**2*(1._dpk - mup*M2)**2 - mup**2)
 
        print*,''
        print*,'The radial wave numbers:'
@@ -1069,7 +1068,7 @@ CONTAINS
             hank1(alpha2*h,circmod,1)*dbessj(alpha2,circmod,1)* &
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2*h + ABS(AIMAG(alpha2)))
 
-       psi = kap2*f1*f2/f3
+       psi = kap_rho*f1*f2/f3
     
 !!$    print*,'f1:',f1
 !!$    print*,'f2:',f2
@@ -1119,7 +1118,7 @@ CONTAINS
     if (vortswitch .EQ. 0) then
        do i1 = 1, num_sup_zeros
           
-          call kernel_eval(szsp(i1),k,0,0,1)
+          call kernel_eval(sup_zeros_list(i1),k,0,0,1)
           
           kzsp(i1) = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: instability zeros are below
           
@@ -1142,8 +1141,8 @@ CONTAINS
     integer                :: switch  !! 1: K/U; else: K
     integer                :: kswitch  !! 1: compute (4.10); else: compute (3.22)
 
-    allocate(intpanel(totinitpts-1))
-    allocate(Npanel(totinitpts-1))
+    allocate(intpanel(tot_ker_points-1))
+    allocate(Npanel(tot_ker_points-1))
 
     call adaptive(zi,kswitch,ch,switch)
 
@@ -1173,13 +1172,13 @@ CONTAINS
     integer                                    :: i, j, ii
 
 
-    do j = 1, totinitpts-1  !! the integration points already specified
+    do j = 1, tot_ker_points-1  !! the integration points already specified
 
        len = initpoints(j+1) - initpoints(j)  !! the length of a mini panel
 
 !! compute "scale" needed to ensure the tolerance check:
 
-       if (j >= 1 .AND. j < N1+2 ) then
+       if (j >= 1 .AND. j < num_ker_pts_loop+2 ) then
           scale = len/(szk(3) - szk(1))
 
        else
@@ -1215,7 +1214,7 @@ CONTAINS
 
           do i = 1,panel_no-1
       
-             if (j >= 1 .AND. j < N1+2) then
+             if (j >= 1 .AND. j < num_ker_pts_loop+2) then
                 xp(i+1) = xp(i) + ds
                 call get_y_alg_int_contour(xp(i+1),yp(i+1),REAL(szk(3)),REAL(szk(2)-szk(3)),AIMAG(szk(2)-szk(3)))
              else
@@ -1312,12 +1311,12 @@ CONTAINS
 
     integer          :: i, index, switch
 
-    allocate(fplusz(totiftpts))  !! fplus is same as \xi^{+}(s) of (3.30)
+    allocate(fplusz(tot_IFT_pts))  !! fplus is same as \xi^{+}(s) of (3.30)
     fplusz = (0._dpk,0._dpk)
 
     if (switch == 0) then  !! switch = 0 :> fresh job; no restart file read before
 
-       do i = 1,totiftpts
+       do i = 1,tot_IFT_pts
           print*, 'F+ at:', iftpoints(i)
           fplusz(i) = fplus(iftpoints(i))
           
@@ -1338,9 +1337,9 @@ CONTAINS
 
        fplusz = fplusz_temp
 
-       if (index .NE. totiftpts) then
+       if (index .NE. tot_IFT_pts) then
 
-          do i = index+1,totiftpts
+          do i = index+1,tot_IFT_pts
              print*, 'F+ at:', iftpoints(i)
              fplusz(i) = fplus(iftpoints(i))
           
@@ -1357,7 +1356,7 @@ CONTAINS
     end if
 
     open(10,file='fplus.out',form='FORMATTED')
-    do i = 1, totiftpts
+    do i = 1, tot_IFT_pts
        write(10,'(I5,4E20.10)') i,iftpoints(i),fplusz(i)
     end do
     close(10)
@@ -1377,12 +1376,12 @@ CONTAINS
     integer          :: i, j
     real             :: dummy1, dummy2
 
-    allocate(fplusz_temp(totiftpts))
+    allocate(fplusz_temp(tot_IFT_pts))
 
     fplusz_temp = (0._dpk,0._dpk)
 
     open(10,file='fplus_part.out',form='FORMATTED')
-    do i = 1, totiftpts
+    do i = 1, tot_IFT_pts
        read(10,'(I5,4E20.10)',end = 100) j,dummy1,dummy2,fplusz_temp(i)
     end do
     close(10)
@@ -1410,11 +1409,11 @@ CONTAINS
 
 
     l1mmup = sqrt(1._dpk - mup*(M1 - 1._dpk))
-    l2mmup = sqrt(kap1 - mup*(kap1*M2 - 1._dpk))
-    l3mmup = sqrt(kap1 - mup*(kap1*M3 - 1._dpk))
+    l2mmup = sqrt(kapT - mup*(kapT*M2 - 1._dpk))
+    l3mmup = sqrt(kapT - mup*(kapT*M3 - 1._dpk))
     l1pz = sqrt(1._dpk - z*(M1 + 1._dpk))
-    l2pz = sqrt(kap1 - z*(kap1*M2 + 1._dpk))
-    l3pz = sqrt(kap1 - z*(kap1*M3 + 1._dpk))
+    l2pz = sqrt(kapT - z*(kapT*M2 + 1._dpk))
+    l3pz = sqrt(kapT - z*(kapT*M3 + 1._dpk))
 
 !!$    gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - z))
     gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - sz2))
@@ -1477,13 +1476,13 @@ CONTAINS
 
     if (ss == 1) then
        do j = 1, num_sup_poles
-          zp = zp*(z - spsp(j))
+          zp = zp*(z - sup_poles_list(j))
        end do
     else
        if (vortswitch .EQ. 0) then
           do j = 1, num_sup_zeros
              do jj = 1, num_sup_poles
-                zp = zp*(z - szsp(j))/(z - spsp(jj))
+                zp = zp*(z - sup_zeros_list(j))/(z - sup_poles_list(jj))
              end do
           end do
        end if
@@ -1623,7 +1622,7 @@ CONTAINS
     character(60)                              :: arg
 
     Int = (0._dpk,0._dpk)
-    do i = 1,totinitpts-1
+    do i = 1,tot_ker_points-1
        Int = Int + intpanel(i)  !! summing up the individual panels
     end do
 
@@ -1632,7 +1631,7 @@ CONTAINS
     write(arg,"('u=',E12.5,'+',E12.5,'i')"),REAL(z),AIMAG(z)
 
     open(10,file='DataDump/Kernel/intkernel.'//arg,form='FORMATTED')
-    do i = 1, totinitpts-1
+    do i = 1, tot_ker_points-1
        write(10,'(I5,2E20.10)') i,intpanel(i)
     end do
     close(10)
@@ -1640,7 +1639,7 @@ CONTAINS
     write(*,'(/A22,2X,2F20.10/)'),'Integral value:->', Int
 
     totpoints = 1
-    do i = 1,totinitpts-1
+    do i = 1,tot_ker_points-1
        totpoints = totpoints + Npanel(i)  !! total quadrature points
     end do
 
@@ -1657,11 +1656,11 @@ CONTAINS
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
     complex(dpk)                               :: Int
-    complex(dpk),dimension(totiftpts-1)        :: panel
+    complex(dpk),dimension(tot_IFT_pts-1)        :: panel
     integer                                    :: i
 
     Int = (0._dpk,0._dpk)
-    do i = 1,totiftpts-1
+    do i = 1,tot_IFT_pts-1
        Int = Int + panel(i)
     end do
 
@@ -1726,21 +1725,21 @@ CONTAINS
 !! pressure:
 
        integrandiftpr = (1._dpk - u*M2)**2*Trs(ri,u,1)*fplusz(i)* & 
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*u*zi)
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 !!$       integrandiftpr = Trs(ri,u,1)
     else if (ss==2) then
 
 !! pressure:
        
        integrandiftpr = (1._dpk - u*M2)**2*Trs(ri,u,2)*fplusz(i)* &
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*u*zi)
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 !!$       integrandiftpr = Trs(ri,u,2)
     else
 
 !! pressure:
 
        integrandiftpr = (1._dpk - u*M3)**2*Trs(ri,u,3)*fplusz(i)* &
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*u*zi)
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 !!$       integrandiftpr =  Trs(ri,u,3)
     end if
 
@@ -1767,21 +1766,21 @@ CONTAINS
 !! potential:
 
        integrandiftpot = (1._dpk - u*M2)**2/(1._dpk - u*M1)*Trs(ri,u,1)*fplusz(i)* & 
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*u*zi)
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 
     else if (ss==2) then
 
 !! potential:
        
        integrandiftpot = (1._dpk - u*M2)*Trs(ri,u,2)*fplusz(i)* &
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*u*zi)
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 
     else
 
 !! potential:
 
        integrandiftpot = (1._dpk - u*M3)*Trs(ri,u,3)*fplusz(i)* &
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*u*zi)
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 
     end if
 
@@ -1803,13 +1802,13 @@ CONTAINS
     if (ss == 1) then  !! compute (4.10): the inc vort upstream kernel
 
        l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
-       l2 = sqrt(kap1 - z*(kap1*M2+1._dpk))*sqrt(kap1 - z*(kap1*M2-1._dpk))
+       l2 = sqrt(kapT - z*(kapT*M2+1._dpk))*sqrt(kapT - z*(kapT*M2-1._dpk))
 
 
-       if ((ABS(l1*wr*h) < asymplim .AND. ABS(AIMAG(l1*wr*h)) < asymplim1)) then
+       if ((ABS(l1*omega_r*h) < asymplim .AND. ABS(AIMAG(l1*omega_r*h)) < asymplim1)) then
 
-          F1n = bessj(l1*wr*h,circmod,1)
-          F1d = dbessj(l1*wr*h,circmod,1)
+          F1n = bessj(l1*omega_r*h,circmod,1)
+          F1d = dbessj(l1*omega_r*h,circmod,1)
           F1f = F1n/F1d
 
        else
@@ -1823,17 +1822,17 @@ CONTAINS
 !!$    print*,'F1f:',F1f
 !!$    print*,'lz:',lz
 
-       F1 = kap2*(1._dpk - z*M1)**2/l1*F1f
+       F1 = kap_rho*(1._dpk - z*M1)**2/l1*F1f
 
-       if ((ABS(l2*wr) < asymplim .AND. ABS(AIMAG(l2*wr)) < asymplim1) .AND. &
-            (ABS(l2*wr*h) < asymplim .AND. ABS(AIMAG(l2*wr*h)) < asymplim1)) then
+       if ((ABS(l2*omega_r) < asymplim .AND. ABS(AIMAG(l2*omega_r)) < asymplim1) .AND. &
+            (ABS(l2*omega_r*h) < asymplim .AND. ABS(AIMAG(l2*omega_r*h)) < asymplim1)) then
 
-          F2n = dhank1(l2*wr,circmod,1)*bessj(l2*wr*h,circmod,1)*EXP(ABS(AIMAG(l2*wr*h))+ &
-               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr) - dbessj(l2*wr,circmod,1)*hank1(l2*wr*h,circmod,1)* & 
-               EXP(ABS(AIMAG(l2*wr))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*h)
-          F2d = dhank1(l2*wr,circmod,1)*dbessj(l2*wr*h,circmod,1)*EXP(ABS(AIMAG(l2*wr*h))+ &
-               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr) - dbessj(l2*wr,circmod,1)*dhank1(l2*wr*h,circmod,1)* &
-               EXP(ABS(AIMAG(l2*wr))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*h)
+          F2n = dhank1(l2*omega_r,circmod,1)*bessj(l2*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
+               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,circmod,1)*hank1(l2*omega_r*h,circmod,1)* & 
+               EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
+          F2d = dhank1(l2*omega_r,circmod,1)*dbessj(l2*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
+               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,circmod,1)*dhank1(l2*omega_r*h,circmod,1)* &
+               EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
           F2f = F2n/F2d
 
        else
@@ -1844,36 +1843,36 @@ CONTAINS
 
        F2 = (1._dpk - z*M2)**2/l2*F2f
 
-       kernel = wr*(F1 - F2)
+       kernel = omega_r*(F1 - F2)
 
     else  !! compute (3.22): the kernel
 
        l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
-       l2 = sqrt(kap1 - z*(kap1*M2+1._dpk))*sqrt(kap1 - z*(kap1*M2-1._dpk))
-       l3 = sqrt(kap1 - z*(kap1*M3+1._dpk))*sqrt(kap1 - z*(kap1*M3-1._dpk))
+       l2 = sqrt(kapT - z*(kapT*M2+1._dpk))*sqrt(kapT - z*(kapT*M2-1._dpk))
+       l3 = sqrt(kapT - z*(kapT*M3+1._dpk))*sqrt(kapT - z*(kapT*M3-1._dpk))
 
-       lz = kap2*l2/l1*(1._dpk - z*M1)**2/(1._dpk - z*M2)**2
+       lz = kap_rho*l2/l1*(1._dpk - z*M1)**2/(1._dpk - z*M2)**2
 
 
-       if ((ABS(l2*wr) < asymplim .AND. ABS(AIMAG(l2*wr)) < asymplim1) .AND. &
-            (ABS(l2*wr*h) < asymplim .AND. ABS(AIMAG(l2*wr*h)) < asymplim1) .AND. &
-            (ABS(l1*wr*h) < asymplim .AND. ABS(AIMAG(l1*wr*h)) < asymplim1)) then
+       if ((ABS(l2*omega_r) < asymplim .AND. ABS(AIMAG(l2*omega_r)) < asymplim1) .AND. &
+            (ABS(l2*omega_r*h) < asymplim .AND. ABS(AIMAG(l2*omega_r*h)) < asymplim1) .AND. &
+            (ABS(l1*omega_r*h) < asymplim .AND. ABS(AIMAG(l1*omega_r*h)) < asymplim1)) then
 
-          Rd = (lz*bessj(l1*wr*h,circmod,1)*dhank1(l2*wr*h,circmod,1)- &
-               hank1(l2*wr*h,circmod,1)*dbessj(l1*wr*h,circmod,1))* &
-               EXP(ABS(AIMAG(l1*wr*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*h)
+          Rd = (lz*bessj(l1*omega_r*h,circmod,1)*dhank1(l2*omega_r*h,circmod,1)- &
+               hank1(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1))* &
+               EXP(ABS(AIMAG(l1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
 
-          Rn = (bessj(l2*wr*h,circmod,1)*dbessj(l1*wr*h,circmod,1)- &
-               lz*bessj(l1*wr*h,circmod,1)*dbessj(l2*wr*h,circmod,1))* &
-               EXP(ABS(AIMAG(l1*wr*h))+ABS(AIMAG(l2*wr*h)))
+          Rn = (bessj(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1)- &
+               lz*bessj(l1*omega_r*h,circmod,1)*dbessj(l2*omega_r*h,circmod,1))* &
+               EXP(ABS(AIMAG(l1*omega_r*h))+ABS(AIMAG(l2*omega_r*h)))
 
           Rz = Rn/Rd
 
 
-          F1n = Rz*hank1(l2*wr,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr)+ &
-               bessj(l2*wr,circmod,1)*EXP(ABS(AIMAG(l2*wr)))
-          F1d = Rz*dhank1(l2*wr,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr)+ &
-               dbessj(l2*wr,circmod,1)*EXP(ABS(AIMAG(l2*wr)))
+          F1n = Rz*hank1(l2*omega_r,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
+               bessj(l2*omega_r,circmod,1)*EXP(ABS(AIMAG(l2*omega_r)))
+          F1d = Rz*dhank1(l2*omega_r,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
+               dbessj(l2*omega_r,circmod,1)*EXP(ABS(AIMAG(l2*omega_r)))
           F1f = F1n/F1d
 
        else
@@ -1889,16 +1888,16 @@ CONTAINS
 
        F1 = (1._dpk - z*M2)**2/l2*F1f
 
-       if (ABS(l3*wr) < asymplim .AND. ABS(AIMAG(l3*wr)) < asymplim1) then
+       if (ABS(l3*omega_r) < asymplim .AND. ABS(AIMAG(l3*omega_r)) < asymplim1) then
           
-          F2n = hank1(l3*wr,circmod,1)
-          F2d = dhank1(l3*wr,circmod,1)
+          F2n = hank1(l3*omega_r,circmod,1)
+          F2d = dhank1(l3*omega_r,circmod,1)
           F2f = F2n/F2d
           
        else
 
-          F2f = (8._dpk*l3*wr + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*circmod*circmod - &
-               CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*wr - &
+          F2f = (8._dpk*l3*omega_r + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*circmod*circmod - &
+               CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r - &
                4._dpk*circmod*circmod - 3._dpk)
 
        end if
@@ -1911,11 +1910,11 @@ CONTAINS
 
        if (num_zeros_s1_s2 == 0 .AND. num_poles_s1_s2 == 0) then
           
-          kernel = wr*(F1 - F2)
+          kernel = omega_r*(F1 - F2)
  
        else
 
-          kernel = wr*(F1 - F2)*bc(z)
+          kernel = omega_r*(F1 - F2)*bc(z)
 
        end if
 
@@ -1988,7 +1987,7 @@ CONTAINS
     complex(dpk), dimension(N)     :: z, K
     character(40)                  :: arg
 
-    write(arg,"('w=',E12.5,'Np=',I7.7)"),REAL(wr), N
+    write(arg,"('w=',E12.5,'Np=',I7.7)"),REAL(omega_r), N
 
     open(10,file='DataDump/Kernel_Trace/kernel.'//arg,form='FORMATTED')
     do i = 1, N
@@ -2042,31 +2041,31 @@ CONTAINS
 
 
     l1 = sqrt(1._dpk - si*(M1+1._dpk))*sqrt(1._dpk - si*(M1-1._dpk))
-    l2 = sqrt(kap1 - si*(kap1*M2+1._dpk))*sqrt(kap1 - si*(kap1*M2-1._dpk))
-    l3 = sqrt(kap1 - si*(kap1*M3+1._dpk))*sqrt(kap1 - si*(kap1*M3-1._dpk))
+    l2 = sqrt(kapT - si*(kapT*M2+1._dpk))*sqrt(kapT - si*(kapT*M2-1._dpk))
+    l3 = sqrt(kapT - si*(kapT*M3+1._dpk))*sqrt(kapT - si*(kapT*M3-1._dpk))
 
-    lz = kap2*l2/l1*(1._dpk - si*M1)**2/(1._dpk - si*M2)**2
+    lz = kap_rho*l2/l1*(1._dpk - si*M1)**2/(1._dpk - si*M2)**2
 
 
     if (ss==1) then
        
-       Rd = (lz*bessj(l1*wr*h,circmod,1)*dhank1(l2*wr*h,circmod,1)- &
-            hank1(l2*wr*h,circmod,1)*dbessj(l1*wr*h,circmod,1))* &
-            EXP(ABS(AIMAG(l1*wr*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*h)
+       Rd = (lz*bessj(l1*omega_r*h,circmod,1)*dhank1(l2*omega_r*h,circmod,1)- &
+            hank1(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1))* &
+            EXP(ABS(AIMAG(l1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
        
-       Rn = (bessj(l2*wr*h,circmod,1)*dbessj(l1*wr*h,circmod,1)- &
-            lz*bessj(l1*wr*h,circmod,1)*dbessj(l2*wr*h,circmod,1))* &
-            EXP(ABS(AIMAG(l1*wr*h))+ABS(AIMAG(l2*wr*h)))
+       Rn = (bessj(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1)- &
+            lz*bessj(l1*omega_r*h,circmod,1)*dbessj(l2*omega_r*h,circmod,1))* &
+            EXP(ABS(AIMAG(l1*omega_r*h))+ABS(AIMAG(l2*omega_r*h)))
        
        Rz = Rn/Rd
           
-       Fn = bessj(l1*wr*ri,circmod,1)*EXP(ABS(AIMAG(l1*wr*ri)))*(Rz*hank1(l2*wr*h,circmod,1)* & 
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*h) + bessj(l2*wr*h,circmod,1)* &
-            EXP(ABS(AIMAG(l2*wr*h))))
+       Fn = bessj(l1*omega_r*ri,circmod,1)*EXP(ABS(AIMAG(l1*omega_r*ri)))*(Rz*hank1(l2*omega_r*h,circmod,1)* & 
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h) + bessj(l2*omega_r*h,circmod,1)* &
+            EXP(ABS(AIMAG(l2*omega_r*h))))
        
-       Fd = bessj(l1*wr*h,circmod,1)*EXP(ABS(AIMAG(l1*wr*h)))*(Rz*dhank1(l2*wr,circmod,1)* & 
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr) + dbessj(l2*wr,circmod,1)* &
-            EXP(ABS(AIMAG(l2*wr))))
+       Fd = bessj(l1*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l1*omega_r*h)))*(Rz*dhank1(l2*omega_r,circmod,1)* & 
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) + dbessj(l2*omega_r,circmod,1)* &
+            EXP(ABS(AIMAG(l2*omega_r))))
        
        F = Fn/Fd
 
@@ -2074,21 +2073,21 @@ CONTAINS
 
     else if (ss==2) then
 
-       Rd = (lz*bessj(l1*wr*h,circmod,1)*dhank1(l2*wr*h,circmod,1)- &
-            hank1(l2*wr*h,circmod,1)*dbessj(l1*wr*h,circmod,1))* &
-            EXP(ABS(AIMAG(l1*wr*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*h)
+       Rd = (lz*bessj(l1*omega_r*h,circmod,1)*dhank1(l2*omega_r*h,circmod,1)- &
+            hank1(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1))* &
+            EXP(ABS(AIMAG(l1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
        
-       Rn = (bessj(l2*wr*h,circmod,1)*dbessj(l1*wr*h,circmod,1)- &
-            lz*bessj(l1*wr*h,circmod,1)*dbessj(l2*wr*h,circmod,1))* &
-            EXP(ABS(AIMAG(l1*wr*h))+ABS(AIMAG(l2*wr*h)))
+       Rn = (bessj(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1)- &
+            lz*bessj(l1*omega_r*h,circmod,1)*dbessj(l2*omega_r*h,circmod,1))* &
+            EXP(ABS(AIMAG(l1*omega_r*h))+ABS(AIMAG(l2*omega_r*h)))
        
        Rz = Rn/Rd
           
-       Fn = Rz*hank1(l2*wr*ri,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*ri)+ &
-            bessj(l2*wr*ri,circmod,1)*EXP(ABS(AIMAG(l2*wr*ri)))
+       Fn = Rz*hank1(l2*omega_r*ri,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*ri)+ &
+            bessj(l2*omega_r*ri,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*ri)))
        
-       Fd = Rz*dhank1(l2*wr,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr)+ &
-            dbessj(l2*wr,circmod,1)*EXP(ABS(AIMAG(l2*wr)))
+       Fd = Rz*dhank1(l2*omega_r,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
+            dbessj(l2*omega_r,circmod,1)*EXP(ABS(AIMAG(l2*omega_r)))
        
        F = Fn/Fd
 
@@ -2096,21 +2095,21 @@ CONTAINS
 
     else
 
-!!$       if ((ABS(l3*wr) < asymplim .AND. ABS(AIMAG(l3*wr)) < asymplim1) .AND. &
-!!$            (ABS(l3*wr*ri) < asymplim .AND. ABS(AIMAG(l3*wr*ri)) < asymplim1)) then
+!!$       if ((ABS(l3*omega_r) < asymplim .AND. ABS(AIMAG(l3*omega_r)) < asymplim1) .AND. &
+!!$            (ABS(l3*omega_r*ri) < asymplim .AND. ABS(AIMAG(l3*omega_r*ri)) < asymplim1)) then
 
-          Fn = hank1(l3*wr*ri,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l3*wr*ri)
+          Fn = hank1(l3*omega_r*ri,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r*ri)
        
-          Fd = dhank1(l3*wr,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l3*wr)
+          Fd = dhank1(l3*omega_r,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r)
        
           F = Fn/Fd
 
 !!$       else 
 !!$       
-!!$          F = (8._dpk*l3*wr*ri + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*circmod*circmod - &
-!!$               CMPLX(0._dpk,1._dpk,kind=dpk))/((8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*wr - &
+!!$          F = (8._dpk*l3*omega_r*ri + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*circmod*circmod - &
+!!$               CMPLX(0._dpk,1._dpk,kind=dpk))/((8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r - &
 !!$               4._dpk*circmod*circmod - 3._dpk)*ri**(1.5_dpk))*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
-!!$               l3*wr*(ri - 1._dpk))
+!!$               l3*omega_r*(ri - 1._dpk))
 !!$
 !!$       end if
   
@@ -2144,8 +2143,8 @@ CONTAINS
 
     if (ss==1) then
        
-       Fn = bessj(l1*wr*ri,circmod,1)*EXP(ABS(AIMAG(l1*wr*ri)))
-       Fd = dbessj(l1*wr*h,circmod,1)*EXP(ABS(AIMAG(l1*wr*h)))
+       Fn = bessj(l1*omega_r*ri,circmod,1)*EXP(ABS(AIMAG(l1*omega_r*ri)))
+       Fd = dbessj(l1*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l1*omega_r*h)))
        
        F = Fn/Fd
 
@@ -2153,13 +2152,13 @@ CONTAINS
 
     else
 
-       Fn = dhank1(l2*wr,circmod,1)*bessj(l2*wr*ri,circmod,1)*EXP(ABS(AIMAG(l2*wr*ri))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr) - dbessj(l2*wr,circmod,1)*hank1(l2*wr*ri,circmod,1)* &
-            EXP(ABS(AIMAG(l2*wr))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*ri)
+       Fn = dhank1(l2*omega_r,circmod,1)*bessj(l2*omega_r*ri,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*ri))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,circmod,1)*hank1(l2*omega_r*ri,circmod,1)* &
+            EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*ri)
 
-       Fd = dhank1(l2*wr,circmod,1)*dbessj(l2*wr*h,circmod,1)*EXP(ABS(AIMAG(l2*wr*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr) - dbessj(l2*wr,circmod,1)*dhank1(l2*wr*h,circmod,1)* &
-            EXP(ABS(AIMAG(l2*wr))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*wr*h)
+       Fd = dhank1(l2*omega_r,circmod,1)*dbessj(l2*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,circmod,1)*dhank1(l2*omega_r*h,circmod,1)* &
+            EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
        
        F = Fn/Fd
 
@@ -2190,17 +2189,17 @@ CONTAINS
 
           if (ss == 1) then
 
-             psimn = wr*resp*(1._dpk - M1*mup)*Trsin(r,mup,1)
+             psimn = omega_r*resp*(1._dpk - M1*mup)*Trsin(r,mup,1)
           
-             psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*wr*(1._dpk - M1*mup)* &
-                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*mup*(z-Zo))
+             psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M1*mup)* &
+                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*(z-Zo))
 
           else if (ss == 2) then
        
-             psimn = wr*resp*(1._dpk - M2*mup)*Trsin(r,mup,2)
+             psimn = omega_r*resp*(1._dpk - M2*mup)*Trsin(r,mup,2)
           
-             psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*wr*(1._dpk - M2*mup)* &
-                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*mup*(z-Zo))
+             psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M2*mup)* &
+                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*(z-Zo))
 
           else
 
@@ -2221,8 +2220,8 @@ CONTAINS
 
           psimn = bessj(alpha1*r,circmod,1)*EXP(ABS(AIMAG(alpha1*r)))
        
-          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*wr*(1._dpk - M1*mup)* &
-               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*mup*z)
+          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M1*mup)* &
+               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*z)
 
 
        else if (ss == 2) then
@@ -2245,10 +2244,10 @@ CONTAINS
                alpha2*h + ABS(AIMAG(alpha2)))
             
 
-          psimn = kap2*f1*f2/f3
+          psimn = kap_rho*f1*f2/f3
 
-          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*wr*(1._dpk - M2*mup)* &
-               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*wr*mup*z)
+          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M2*mup)* &
+               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*z)
 
 !!$       open(10,file='test.out',form='FORMATTED',position='APPEND')
 !!$       write(10,'(2E20.10)') psimn
@@ -2276,32 +2275,32 @@ CONTAINS
     integer              :: ss, ii, jj
     complex(dpk)         :: residueprpolar, res, fn
    
-    res = psi*(1._dpk - mup*M2)/((mup - szsp(ss))* &
-         kmmup*kzsp(ss)*(szsp(ss) - sz1)*(szsp(ss) - sz2))
-!!$    res = psi*(1._dpk - mup*M2)*(szsp(ss) - sp1)/((mup - szsp(ss))* &
-!!$         kmmup*kzsp(ss)*(szsp(ss) - sz1)*(szsp(ss) - sz2))
-!!$    res = psi*(1._dpk - mup*M2)*(szsp(ss)-sp1)*(szsp(ss)-CONJG(sp1))/ &
-!!$            ((mup - szsp(ss))*kmmup*kzsp(ss)*(szsp(ss)-CONJG(sz1))* &
-!!$            (szsp(ss)-sz1)*(szsp(ss) - sz2)*(szsp(ss)-CONJG(sz2)))
+    res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss))* &
+         kmmup*kzsp(ss)*(sup_zeros_list(ss) - sz1)*(sup_zeros_list(ss) - sz2))
+!!$    res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss) - sp1)/((mup - sup_zeros_list(ss))* &
+!!$         kmmup*kzsp(ss)*(sup_zeros_list(ss) - sz1)*(sup_zeros_list(ss) - sz2))
+!!$    res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss)-sp1)*(sup_zeros_list(ss)-CONJG(sp1))/ &
+!!$            ((mup - sup_zeros_list(ss))*kmmup*kzsp(ss)*(sup_zeros_list(ss)-CONJG(sz1))* &
+!!$            (sup_zeros_list(ss)-sz1)*(sup_zeros_list(ss) - sz2)*(sup_zeros_list(ss)-CONJG(sz2)))
     do ii = 1, num_sup_zeros
        if (ii .NE. (ss)) then
-          res = res/(szsp(ss) - szsp(ii))
+          res = res/(sup_zeros_list(ss) - sup_zeros_list(ii))
        end if
     end do
     do jj = 1, num_sup_poles
-       res = res*(szsp(ss) - spsp(jj))
+       res = res*(sup_zeros_list(ss) - sup_poles_list(jj))
     end do
     
     if (r*SIN(phi) <= h) then
-       fn = (1._dpk - szsp(ss)*M2)**2*Trs(r*SIN(phi),szsp(ss),1)
+       fn = (1._dpk - sup_zeros_list(ss)*M2)**2*Trs(r*SIN(phi),sup_zeros_list(ss),1)
     else if (r*SIN(phi) <= 1. .AND. r*SIN(phi) > h) then
-       fn = (1._dpk - szsp(ss)*M2)**2*Trs(r*SIN(phi),szsp(ss),2)
+       fn = (1._dpk - sup_zeros_list(ss)*M2)**2*Trs(r*SIN(phi),sup_zeros_list(ss),2)
     else
-       fn = (1._dpk - szsp(ss)*M3)**2*Trs(r*SIN(phi),szsp(ss),3)  
+       fn = (1._dpk - sup_zeros_list(ss)*M3)**2*Trs(r*SIN(phi),sup_zeros_list(ss),3)  
     end if
 
-    residueprpolar = CMPLX(0._dpk,1._dpk,kind=dpk)*wr*wr*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-         wr*szsp(ss)*r*COS(phi))*res*fn
+    residueprpolar = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
+         omega_r*sup_zeros_list(ss)*r*COS(phi))*res*fn
 
     
   END FUNCTION residueprpolar
@@ -2327,10 +2326,10 @@ CONTAINS
        res = psi*(1._dpk - mup*M2)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
-             res = res/(sz1 - szsp(ii))
+             res = res/(sz1 - sup_zeros_list(ii))
           end do
           do jj = 1, num_sup_poles
-             res = res*(sz1 - spsp(jj))
+             res = res*(sz1 - sup_poles_list(jj))
           end do
        end if
 
@@ -2342,8 +2341,8 @@ CONTAINS
           fn = (1._dpk - sz1*M3)**2*Trs(r,sz1,3)
        end if
        
-       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*wr*wr*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-            wr*sz1*z)*res*fn
+       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
+            omega_r*sz1*z)*res*fn
           
 !!$       else
 !!$          residuepr = 0.
@@ -2359,10 +2358,10 @@ CONTAINS
        res = psi*(1._dpk - mup*M2)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
-             res = res/(sz2 - szsp(ii))
+             res = res/(sz2 - sup_zeros_list(ii))
           end do
           do jj = 1, num_sup_poles
-             res = res*(sz2 - spsp(jj))
+             res = res*(sz2 - sup_poles_list(jj))
           end do
        end if
           
@@ -2374,8 +2373,8 @@ CONTAINS
           fn = (1._dpk - sz2*M3)**2*Trs(r,sz2,3)
        end if
 
-       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*wr*wr*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-            wr*sz2*z)*res*fn
+       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
+            omega_r*sz2*z)*res*fn
 
 !!$       else
 !!$          residuepr = 0.
@@ -2385,32 +2384,32 @@ CONTAINS
     else
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(szsp(ss-2)-sp1)*(szsp(ss-2)-CONJG(sp1))/ &
-!!$            ((mup - szsp(ss-2))*kmmup*kzsp(ss-2)*(szsp(ss-2)-CONJG(sz1))* &
-!!$            (szsp(ss-2)-sz1)*(szsp(ss-2) - sz2)*(szsp(ss-2)-CONJG(sz2)))
-!!$       res = psi*(1._dpk - mup*M2)*(szsp(ss-2) - sp1)/((mup - szsp(ss-2))* &
-!!$            kmmup*kzsp(ss-2)*(szsp(ss-2) - sz1)*(szsp(ss-2) - sz2))
-       res = psi*(1._dpk - mup*M2)/((mup - szsp(ss-2))* &
-            kmmup*kzsp(ss-2)*(szsp(ss-2) - sz1)*(szsp(ss-2) - sz2))
+!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2)-sp1)*(sup_zeros_list(ss-2)-CONJG(sp1))/ &
+!!$            ((mup - sup_zeros_list(ss-2))*kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(sz1))* &
+!!$            (sup_zeros_list(ss-2)-sz1)*(sup_zeros_list(ss-2) - sz2)*(sup_zeros_list(ss-2)-CONJG(sz2)))
+!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2) - sp1)/((mup - sup_zeros_list(ss-2))* &
+!!$            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - sz1)*(sup_zeros_list(ss-2) - sz2))
+       res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss-2))* &
+            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - sz1)*(sup_zeros_list(ss-2) - sz2))
        do ii = 1, num_sup_zeros
           if (ii .NE. (ss-2)) then
-             res = res/(szsp(ss-2) - szsp(ii))
+             res = res/(sup_zeros_list(ss-2) - sup_zeros_list(ii))
           end if
        end do
        do jj = 1, num_sup_poles
-          res = res*(szsp(ss-2) - spsp(jj))
+          res = res*(sup_zeros_list(ss-2) - sup_poles_list(jj))
        end do
           
        if (r <= h) then
-          fn = (1._dpk - szsp(ss-2)*M2)**2*Trs(r,szsp(ss-2),1)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2*Trs(r,sup_zeros_list(ss-2),1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - szsp(ss-2)*M2)**2*Trs(r,szsp(ss-2),2)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2*Trs(r,sup_zeros_list(ss-2),2)
        else
-          fn = (1._dpk - szsp(ss-2)*M3)**2*Trs(r,szsp(ss-2),3)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M3)**2*Trs(r,sup_zeros_list(ss-2),3)
        end if
 
-       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*wr*wr*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-            wr*szsp(ss-2)*z)*res*fn
+       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
+            omega_r*sup_zeros_list(ss-2)*z)*res*fn
 
 !!$       else
 !!$          residuepr = 0.
@@ -2443,10 +2442,10 @@ CONTAINS
        res = psi*(1._dpk - mup*M2)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
-             res = res/(sz1 - szsp(ii))
+             res = res/(sz1 - sup_zeros_list(ii))
           end do
           do jj = 1, num_sup_poles
-             res = res*(sz1 - spsp(jj))
+             res = res*(sz1 - sup_poles_list(jj))
           end do
        end if
 
@@ -2458,7 +2457,7 @@ CONTAINS
           fn = (1._dpk - sz1*M3)*Trs(r,sz1,3)
        end if
        
-       residuepot = wr*EXP(CMPLX(0.,1._dpk,kind=dpk)*wr*sz1*z)*res*fn
+       residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*sz1*z)*res*fn
           
 !!$       else
 !!$          residuepot = 0.
@@ -2474,10 +2473,10 @@ CONTAINS
        res = psi*(1._dpk - mup*M2)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
-             res = res/(sz1 - szsp(ii))
+             res = res/(sz1 - sup_zeros_list(ii))
           end do
           do jj = 1, num_sup_poles
-             res = res*(sz1 - spsp(jj))
+             res = res*(sz1 - sup_poles_list(jj))
           end do
        end if
           
@@ -2489,7 +2488,7 @@ CONTAINS
           fn = (1._dpk - sz2*M3)*Trs(r,sz2,3)
        end if
 
-       residuepot = wr*EXP(CMPLX(0.,1._dpk,kind=dpk)*wr*sz2*z)*res*fn
+       residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*sz2*z)*res*fn
 
 !!$       else
 !!$          residuepot = 0.
@@ -2499,31 +2498,31 @@ CONTAINS
     else
 
 !!$       if (z > 0.) then
-!!$      res = psi*(1._dpk - mup*M2)*(szsp(ss-2)-sp1)*(szsp(ss-2)-CONJG(sp1))/ &
-!!$            ((mup - szsp(ss-2))*kmmup*kzsp(ss-2)*(szsp(ss-2)-CONJG(sz1))* &
-!!$            (szsp(ss-2)-sz1)*(szsp(ss-2) - sz2)*(szsp(ss-2)-CONJG(sz2)))
-!!$       res = psi*(1._dpk - mup*M2)*(szsp(ss-2) - sp1)/((mup - szsp(ss-2))* &
-!!$            kmmup*kzsp(ss-2)*(szsp(ss-2) - sz1)*(szsp(ss-2) - sz2))
-       res = psi*(1._dpk - mup*M2)/((mup - szsp(ss-2))* &
-            kmmup*kzsp(ss-2)*(szsp(ss-2) - sz1)*(szsp(ss-2) - sz2))
+!!$      res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2)-sp1)*(sup_zeros_list(ss-2)-CONJG(sp1))/ &
+!!$            ((mup - sup_zeros_list(ss-2))*kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(sz1))* &
+!!$            (sup_zeros_list(ss-2)-sz1)*(sup_zeros_list(ss-2) - sz2)*(sup_zeros_list(ss-2)-CONJG(sz2)))
+!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2) - sp1)/((mup - sup_zeros_list(ss-2))* &
+!!$            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - sz1)*(sup_zeros_list(ss-2) - sz2))
+       res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss-2))* &
+            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - sz1)*(sup_zeros_list(ss-2) - sz2))
        do ii = 1, num_sup_zeros
           if (ii .NE. (ss-2)) then
-             res = res/(szsp(ss-2) - szsp(ii))
+             res = res/(sup_zeros_list(ss-2) - sup_zeros_list(ii))
           end if
        end do
        do jj = 1, num_sup_poles
-          res = res*(szsp(ss-2) - spsp(jj))
+          res = res*(sup_zeros_list(ss-2) - sup_poles_list(jj))
        end do
           
        if (r <= h) then
-          fn = (1._dpk - szsp(ss-2)*M2)**2/(1._dpk - szsp(ss-2)*M1)*Trs(r,szsp(ss-2),1)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2/(1._dpk - sup_zeros_list(ss-2)*M1)*Trs(r,sup_zeros_list(ss-2),1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - szsp(ss-2)*M2)*Trs(r,szsp(ss-2),2)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M2)*Trs(r,sup_zeros_list(ss-2),2)
        else
-          fn = (1._dpk - szsp(ss-2)*M3)*Trs(r,szsp(ss-2),3)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M3)*Trs(r,sup_zeros_list(ss-2),3)
        end if
 
-       residuepot = wr*EXP(CMPLX(0.,1._dpk,kind=dpk)*wr*szsp(ss-2)*z)*res*fn
+       residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*sup_zeros_list(ss-2)*z)*res*fn
 
 !!$       else
 !!$          residuepot = 0.
