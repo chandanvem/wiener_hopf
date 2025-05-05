@@ -12,7 +12,7 @@
 (0.4403812559,-0.1073787548)             hydro_pole_1
 (0.0671082273,0.)                        mup
 1.0e-3                                   offset
-1.0e-4                                   tol
+5.0e-4                                   tol
 0                                        num_zeros_s1_s2
 0                                        num_poles_s1_s2
 2                                        num_sup_zeros
@@ -31,7 +31,7 @@
 1.0                                      vs_gamma_param
 1                                        prswitch
 0                                        reflswitch
-2                                        farswitch
+0                                        farswitch
 0                                        restart
 300                                      Nphi
 (0.7078811961,-0.0376876241)

@@ -90,80 +90,80 @@ CONTAINS
     open(1,file='input.list.p')
 
     read(1,*) vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
-    print *, 'vortswitch=', vortswitch
+    print *, 'initialize:  vortswitch=', vortswitch
 
     read(1,*) M1  !! core jet Mach number
-    print *, 'M1=', M1
+    print *, 'initialize:  M1=', M1
 
     read(1,*) M2  !! coflow Mach number
-    print *, 'M2=', M2
+    print *, 'initialize:  M2=', M2
 
     read(1,*) M3  !! ambient flow Mach number
-    print *, 'M3=', M3
+    print *, 'initialize:  M3=', M3
 
     read(1,*) h   !! the width of the core jet, h = Ri/Ro
-    print *, 'width of the core jet h=', h
+    print *, 'initialize:  width of the core jet h=', h
 
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
        read(1,*) Zo  !! starting point of inc instability (-ve)
     end if
 
     read(1,*) w0  !! the Helmholtz number
-    print *, 'Helmholtz number omega=', w0
+    print *, 'initialize:  Helmholtz number omega=', w0
 
     read(1,*) kapT  !! sqrt(temp ratio)
-    print *, 'Sqrt of temperature ratio=', kapT
+    print *, 'initialize:  Sqrt of temperature ratio=', kapT
  
     read(1,*) kap_rho  !! density ratio
-    print*, 'Density ratio=', kap_rho
+    print*, 'initialize:  Density ratio=', kap_rho
 
     read(1,*) azim_mode  !! the circumferential mode no
-    print*, 'Azimuthal wavenumber (azim_mode)=', azim_mode
+    print*, 'initialize:  Azimuthal wavenumber (azim_mode)=', azim_mode
 
     read(1,*) KH_zero_1
-    print*, 'KH_zero_1 (First instability zero) =', KH_zero_1
+    print*, 'initialize:  KH_zero_1 (First instability zero) =', KH_zero_1
 
 
     read(1,*) KH_zero_2
-    print*, 'KH_zero_2 (Second instability zero) =', KH_zero_2
+    print*, 'initialize:  KH_zero_2 (Second instability zero) =', KH_zero_2
 
 
     read(1,*) KH_pole_1
-    print*, 'KH_pole_1 (Instability pole) =', KH_pole_1
+    print*, 'initialize:  KH_pole_1 (Instability pole) =', KH_pole_1
 
 
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
        read(1,*) mu0  !! upstream inc acoustic mode
-       print*, 'Incident Vorticity mode activated'
+       print*, 'initialize:  Incident Vorticity mode activated'
     else
        read(1,*) mup
        print*, '================== Non-incident vorticity mode ====================='
        print*,''
-       print*, 'mu for the incident mode =',mup
+       print*, 'initialize:  mu for the incident mode =',mup
     end if
 
     read(1,*) offset  !! the offset between the two integration contours
-    print*,'Offset between the IFT and K split contours=', offset
+    print*,'initialize:  Offset between the IFT and K split contours=', offset
 
  
     read(1,*) tol  !! the tolerance of the adaptive contour integration routine
-    print*,'Tolerance for adaptive contour integration =', tol
+    print*,'initialize:  Tolerance for adaptive contour integration =', tol
 
     read(1,*) num_zeros_s1_s2  !! zeros needed to be removed from the kernel
-    print*,'Number of zeros to be removed from kernel =', num_zeros_s1_s2
+    print*,'initialize:  Number of zeros to be removed from kernel =', num_zeros_s1_s2
 
     read(1,*) num_poles_s1_s2  !! poles needed to be removed from the kernel
-    print*,'Number of poles to be removed from kernel =', num_poles_s1_s2
+    print*,'initialize:  Number of poles to be removed from kernel =', num_poles_s1_s2
 
     read(1,*) num_sup_zeros  !! supersonic zeros
-    print*,'Number of supersonic zeros =', num_sup_zeros
+    print*,'initialize:  Number of supersonic zeros =', num_sup_zeros
 
     read(1,*) num_sup_poles  !! supersonic poles
-    print*,'Number of supersonic poles =', num_sup_poles
+    print*,'initialize:  Number of supersonic poles =', num_sup_poles
 
     if (vortswitch == 2) then
        if (num_sup_poles == 0) then
-          print*, "For vortswitch mode 2, at least one upstream supersonic pole needed! Exiting..."
+          print*, "initialize:  For vortswitch mode 2, at least one upstream supersonic pole needed! Exiting..."
           STOP
        end if
     end if
@@ -172,13 +172,13 @@ CONTAINS
     print*,'','====== Mesh and contour parameters ======',''
     
     read(1,*) num_ker_pts_loop
-    print*,'Number of kernel points in each loop =', num_ker_pts_loop
+    print*,'initialize:  Number of kernel points in each loop =', num_ker_pts_loop
 
     read(1,*) theta  !! the stretching parameter for kernel contour meshpoints
-    print*,'Stretching parameter for kernel contour =', theta
+    print*,'initialize:  Stretching parameter for kernel contour =', theta
 
     read(1,*) num_IFT_pts_loop
-    print*,'Number of IFT points in each loop num_IFT_pts_loop =', num_IFT_pts_loop
+    print*,'initialize:  Number of IFT points in each loop num_IFT_pts_loop =', num_IFT_pts_loop
 
     read(1,*) Rmin
     read(1,*) Rmax
@@ -188,36 +188,36 @@ CONTAINS
     read(1,*) Nmeshr
     read(1,*) Nmeshz
 
-    print*,'Dimensions of domain in R = [',Rmin,Rmax,']' 
-    print*,'Dimensions of domain in Z = [',Zmin,Zmax,']' 
-    print*,'Nr x Nz =',Nmeshr,'x',Nmeshz
+    print*,'initialize:  Dimensions of domain in R = [',Rmin,Rmax,']' 
+    print*,'initialize:  Dimensions of domain in Z = [',Zmin,Zmax,']' 
+    print*,'initialize:  Nr x Nz =',Nmeshr,'x',Nmeshz
 
     print*,'=============================='
 
     read(1,*) asymplim
-    print*,'Asymptotic limit of ??? = ',asymplim
+    print*,'initialize:  Asymptotic limit of ??? = ',asymplim
 
     read(1,*) asymplim1
-    print*,'Asymptotic limit of ??? = ',asymplim1
+    print*,'initialize:  Asymptotic limit of ??? = ',asymplim1
 
     read(1,*) vs_param_gamma  !! Default = 1.0 (0,1)
-    print*,'Vortex shedding parameter gamma = ',vs_param_gamma 
+    print*,'initialize:  Vortex shedding parameter gamma = ',vs_param_gamma 
       
 
 !!============================
     read(1,*) prswitch  !! 0 = Potential; 1 = Pressure
 
     if (prswitch == 0) then
-       print*,'Solution in potential mode'
+       print*,'initialize:  Solution in potential mode'
     elseif (prswitch == 1) then
-       print*,'Solution in pressure mode '
+       print*,'initialize:  Solution in pressure mode '
     end if
 !!============================
     read(1,*) reflswitch  !! 1 = Reflection mode: incident mode not added
     if (reflswitch == 1) then
-       print*,'Reflection mode: incident mode not added'
+       print*,'initialize:  Reflection mode: incident mode not added'
     else 
-       print*,'Reflection mode: incident mode added'
+       print*,'initialize:  Reflection mode: incident mode added'
     end if
 !!============================
     read(1,*) farswitch  !! 1 = Far-field mode: compute directivity; 2 = 1 + nearfield of sup zeros in polar mode
@@ -294,15 +294,15 @@ CONTAINS
     if (prswitch == 0) then
        if ((farswitch == 1) .OR. (farswitch == 2)) then
           print*,''
-          print*,'Far-field is computed ONLY in pressure mode. Exiting...'
+          print*,'initialize: Far-field is computed ONLY in pressure mode. Exiting...'
           STOP
        else
           print*,''
-          print*,'Computing Potential...'
+          print*,'initialize: Computing Potential...'
        end if
     else
        print*,''
-       print*,'Computing Pressure...'
+       print*,'initialize: Computing Pressure...'
     end if
 
  !! now allocate for the contour points:
@@ -377,11 +377,11 @@ CONTAINS
 
        if(i1==0 .OR. i2==0 .OR. i3==0) then
           print*,''
-          print*,'Redefine the contour: One of instability zero/pole is INSIDE!'
+          print*,'initialize: Redefine the contour: One of instability zero/pole is INSIDE!'
           print*,''
-          if (i1==0) print*, 'Zero1 is inside'
-          if (i2==0) print*, 'Zero2 is inside'
-          if (i3==0) print*, 'Pole1 is inside'
+          if (i1==0) print*, 'initialize: Zero1 is inside'
+          if (i2==0) print*, 'initialize: Zero2 is inside'
+          if (i3==0) print*, 'initialize: Pole1 is inside'
           print*,''
           STOP
        end if
@@ -390,11 +390,11 @@ CONTAINS
 
        if(i1==1 .OR. i2==0 .OR. i3==1) then
           print*,''
-          print*,'Redefine the contour:'
+          print*,'initialize: Redefine the contour:'
           print*,''
-          if (i1==1) print*, 'Zero1 is outside'
-          if (i2==0) print*, 'Zero2 is inside'
-          if (i3==1) print*, 'Pole1 is outside'
+          if (i1==1) print*, 'initialize: Zero1 is outside'
+          if (i2==0) print*, 'initialize: Zero2 is inside'
+          if (i3==1) print*, 'initialize: Pole1 is outside'
           print*,''
           STOP
        end if
@@ -406,13 +406,13 @@ CONTAINS
        if (vortswitch .EQ. 0) then
           if(i2 == 0) then
              print*,''
-             print*,'Redefine the contour: The following supersonic zero is inside:'
+             print*,'initialize: Redefine the contour: The following supersonic zero is inside:'
              print*,sup_zeros_list(i1)
           end if
        else
           if(i2 == 1) then
              print*,''
-             print*,'Redefine the contour: The following supersonic zero is outside:'
+             print*,'initialize: Redefine the contour: The following supersonic zero is outside:'
              print*,sup_zeros_list(i1)
           end if
        end if
@@ -423,13 +423,13 @@ CONTAINS
        if (vortswitch .EQ. 0) then
           if(i2 == 0) then
              print*,''
-             print*,'Redefine the contour: The following supersonic pole is inside:'
+             print*,'initialize: Redefine the contour: The following supersonic pole is inside:'
              print*,sup_poles_list(i1)
           end if
        else
           if(i2 == 1) then
              print*,''
-             print*,'Redefine the contour: The following supersonic pole is outside:'
+             print*,'initialize: Redefine the contour: The following supersonic pole is outside:'
              print*,sup_poles_list(i1)
           end if
        end if
@@ -443,7 +443,7 @@ CONTAINS
 
 !! print the contour points:
 
-    write(*,'(/A26)'),'The Integration Contours:'
+    write(*,'(/A26)'),'initialize: The Integration Contours:'
     write(*,'(/A27)'),'1. The kernel integration contour:'
     write(*,'(/A14)'),'key points:->'
     do i1 = 1, 5
@@ -457,9 +457,9 @@ CONTAINS
        write(pos,"(I2,' =')"),i1
        write(*,"(/1X,A5,2F15.6)"), 'i'//pos, def_pts_IFT_cntr(i1) 
     end do
-    
-    write(*,"(/A6,I6/)"),'total number of IFT points =',tot_IFT_pts
 
+   print '(A, I0)', 'initialize: total number of IFT points = ', tot_IFT_pts 
+   
 
   END SUBROUTINE initialize
 
@@ -472,32 +472,30 @@ CONTAINS
 
     integer     :: index
 
-    print*,'Defining contours for kernel and IFT integration...'
+    print*,'solve: Defining contours for kernel and IFT integration...'
     print*,''
 
     call definecontours
 
-    print*,'Done...' 
+    print*,'solve: Done...' 
     print*,''
-    print*,'Starting pre compute routine...'
-    print*,''
-    print*,'Computing K+ at the zeros and K- at mu+:'
+    print*,'solve: Starting pre compute routine...'
+    print*,'solve: Computing K+ at the zeros and K- at mu+:'
 
     call precompute
 
     if ((farswitch == 1) .OR. (farswitch == 2)) then
 
        print*,''
-       print*,'Near-field computation only:'
+       print*,'solve: Near-field computation only:'
        print*,'' 
 
     else
 
        call meshgrid
     
-       print*,''
-       print*,'Now computing F+:'
-       print*,''
+       print*,'solve: Now computing F+:'
+      
 
        if (restart .NE. 0) then
           call read_fplus(index)  !! assumes the fplus_part.out file to be present
@@ -507,7 +505,7 @@ CONTAINS
        end if
 
        print*,''
-       print*,'Now starting the IFT:'
+       print*,'solve: Now starting the IFT:'
        print*,''
 
        call computeift
@@ -541,7 +539,7 @@ CONTAINS
     call initialize_contour(def_pts_ker_cntr,panel_len_left,panel_len_right,num_ker_pts_loop,1,ker_int_points)
 
     print*,''
-    print*,'Writing kernel integration points to file:'
+    print*,'definecontours: Writing kernel integration points to file:'
 
     open(10,file='initialpoints.out',form='FORMATTED')
     do i = 1,tot_ker_points
@@ -558,8 +556,7 @@ CONTAINS
 
     call initialize_contour(def_pts_IFT_cntr,panel_len_left,panel_len_right,num_IFT_pts_loop,2,iftpoints)
 
-    print*,''
-    print*,'Writing IFT integration points to file:'
+    print*,'definecontours: Writing IFT integration points to file:'
 
     open(10,file='iftpoints.out',form='FORMATTED')
     do i = 1,tot_IFT_pts
@@ -754,18 +751,22 @@ CONTAINS
        Z(i+1) = Z(i) + dsz
     end do
 
+    print*,'meshgrid: Writing mesh grids to file mesh.out'
     open(1,file='mesh.out',form='UNFORMATTED')
     write(1) Nmeshz,Nmeshr
     write(1) ((Z(i),i=1,Nmeshz),j=1,Nmeshr),((R(j),&
          i=1,Nmeshz),j=1,Nmeshr)
     close(1)   
 
+   print*,'meshgrid: Writing mesh grids to file mesh.r'
     open(20,file='mesh.r')
     do i = 1, Nmeshr
        write(20,'(I10,2X,F20.10)'), i, R(i)
     end do
     close(20)
 
+
+    print*,'meshgrid: Writing mesh grids to file mesh.z'
     open(20,file='mesh.z')
     do i = 1, Nmeshz
        write(20,'(I10,2X,F20.10)'), i, Z(i)
@@ -1069,7 +1070,7 @@ CONTAINS
        alpha2 = omega_r*SQRT(kapT**2*(1._dpk - mup*M2)**2 - mup**2)
 
        print*,''
-       print*,'The radial wave numbers:'
+       print*,'precompute: The radial wave numbers:'
        write(*,'(/A12,2X,2F15.10)'), 'alpha1:->', alpha1
        write(*,'(A12,2X,2F15.10/)'), 'alpha2:->', alpha2
 
@@ -1100,13 +1101,15 @@ CONTAINS
     if (vortswitch .EQ. 0) then
        if (REAL(mup) < cont_cross_over_pt) then  !! muplus is below the contour; cont_cross_over_pt being the crossover pt
           print*, ''
-          print*, 'The incident acoustic mode needs to be INSIDE the contour'
+          print*, 'precompute: The incident acoustic mode needs to be INSIDE the contour'
           print*, ''
           STOP
        end if
     end if
-
+     
 !    call kernel_eval(mup,k,0,0,0)
+
+    print*, 'precompute: Evaluating kernel at mu_plus'
     call kernel_eval(mup,k,0,0,1)
        
     kp = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
@@ -1119,7 +1122,8 @@ CONTAINS
 !!  the factor Kt^{+}(s_{z1}):
 
     if (vortswitch .EQ. 0) then
-
+  
+       print*, 'precompute: Evaluating kernel at KH_zero_1'
        call kernel_eval(KH_zero_1,k,0,0,1)
 
        kpsz1 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: zero KH_zero_1 has to lie below
@@ -1127,6 +1131,7 @@ CONTAINS
     end if
 !!  the factor K^{+}(s_{z2}):
 
+    print*, 'precompute: Evaluating kernel at KH_zero_2'
     call kernel_eval(KH_zero_2,k,0,0,1)
 
     kpsz2 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! same for KH_zero_2
@@ -1136,6 +1141,7 @@ CONTAINS
     if (vortswitch .EQ. 0) then
        do i1 = 1, num_sup_zeros
           
+          print '(A, I0)', 'precompute: Evaluating kernel at supersonic zero ', i1
           call kernel_eval(sup_zeros_list(i1),k,0,0,1)
           
           kzsp(i1) = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: instability zeros are below
@@ -1335,8 +1341,8 @@ CONTAINS
     if (switch == 0) then  !! switch = 0 :> fresh job; no restart file read before
 
        do i = 1,tot_IFT_pts
-          print*, 'F+ at:', iftpoints(i)
-          fplusz(i) = fplus(iftpoints(i))
+          print *, 'compute_fplus: F+ at index: ', i, '  point = ', iftpoints(i)
+          fplusz(i) = get_fplus_value(iftpoints(i))
           
           write(*,'(A22,2X,2F20.10/)'),'F+:->',fplusz(i)
 
@@ -1359,7 +1365,7 @@ CONTAINS
 
           do i = index+1,tot_IFT_pts
              print*, 'F+ at:', iftpoints(i)
-             fplusz(i) = fplus(iftpoints(i))
+             fplusz(i) = get_fplus_value(iftpoints(i))
           
              write(*,'(A22,2X,2F20.10/)'),'F+:->',fplusz(i)
 
@@ -1415,7 +1421,7 @@ CONTAINS
   END SUBROUTINE read_fplus
 
 
-  FUNCTION fplus(z)
+  FUNCTION get_fplus_value(z)  result(fplus)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Actual computation of \xi^{+}(s)
@@ -1465,7 +1471,7 @@ CONTAINS
 !!$    print*,'gpz',gpz
 
 
-  END FUNCTION fplus
+  END FUNCTION get_fplus_value
 
 
   FUNCTION zp(ss,z)
@@ -1806,27 +1812,27 @@ CONTAINS
   END FUNCTION integrandiftpot
 
 
-  FUNCTION compute_kernel(ss,z)  result(kernel)
+  FUNCTION compute_kernel(ss,zeta)  result(kernel)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the kernel function (3.22) or (4.10)
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    complex(dpk)    :: kernel, z
-    complex(dpk)    :: l1, l2, l3, lz
+    complex(dpk)    :: kernel, zeta
+    complex(dpk)    :: lambda_1, lambda_2, lambda_3, lambda_z
     complex(dpk)    :: F1n, F1d, F1, F1f, F2n, F2d, F2, F2f, Rn, Rd, Rz
     integer         :: ss
 
     if (ss == 1) then  !! compute (4.10): the inc vort upstream kernel
 
-       l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
-       l2 = sqrt(kapT - z*(kapT*M2+1._dpk))*sqrt(kapT - z*(kapT*M2-1._dpk))
+       lambda_1 = sqrt(1._dpk - zeta*(M1+1._dpk))*sqrt(1._dpk - zeta*(M1-1._dpk))
+       lambda_2 = sqrt(kapT - zeta*(kapT*M2+1._dpk))*sqrt(kapT - zeta*(kapT*M2-1._dpk))
 
 
-       if ((ABS(l1*omega_r*h) < asymplim .AND. ABS(AIMAG(l1*omega_r*h)) < asymplim1)) then
+       if ((ABS(lambda_1*omega_r*h) < asymplim .AND. ABS(AIMAG(lambda_1*omega_r*h)) < asymplim1)) then
 
-          F1n = bessj(l1*omega_r*h,azim_mode,1)
-          F1d = dbessj(l1*omega_r*h,azim_mode,1)
+          F1n = bessj(lambda_1*omega_r*h,azim_mode,1)
+          F1d = dbessj(lambda_1*omega_r*h,azim_mode,1)
           F1f = F1n/F1d
 
        else
@@ -1838,19 +1844,19 @@ CONTAINS
 !!$    print*,'F1n:',F1n
 !!$    print*,'F1d:',F1d
 !!$    print*,'F1f:',F1f
-!!$    print*,'lz:',lz
+!!$    print*,'lambda_z:',lambda_z
 
-       F1 = kap_rho*(1._dpk - z*M1)**2/l1*F1f
+       F1 = kap_rho*(1._dpk - zeta*M1)**2/lambda_1*F1f
 
-       if ((ABS(l2*omega_r) < asymplim .AND. ABS(AIMAG(l2*omega_r)) < asymplim1) .AND. &
-            (ABS(l2*omega_r*h) < asymplim .AND. ABS(AIMAG(l2*omega_r*h)) < asymplim1)) then
+       if ((ABS(lambda_2*omega_r) < asymplim .AND. ABS(AIMAG(lambda_2*omega_r)) < asymplim1) .AND. &
+            (ABS(lambda_2*omega_r*h) < asymplim .AND. ABS(AIMAG(lambda_2*omega_r*h)) < asymplim1)) then
 
-          F2n = dhank1(l2*omega_r,azim_mode,1)*bessj(l2*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
-               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,azim_mode,1)*hank1(l2*omega_r*h,azim_mode,1)* & 
-               EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
-          F2d = dhank1(l2*omega_r,azim_mode,1)*dbessj(l2*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
-               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,azim_mode,1)*dhank1(l2*omega_r*h,azim_mode,1)* &
-               EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
+          F2n = dhank1(lambda_2*omega_r,azim_mode,1)*bessj(lambda_2*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(lambda_2*omega_r*h))+ &
+               CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r) - dbessj(lambda_2*omega_r,azim_mode,1)*hank1(lambda_2*omega_r*h,azim_mode,1)* & 
+               EXP(ABS(AIMAG(lambda_2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r*h)
+          F2d = dhank1(lambda_2*omega_r,azim_mode,1)*dbessj(lambda_2*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(lambda_2*omega_r*h))+ &
+               CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r) - dbessj(lambda_2*omega_r,azim_mode,1)*dhank1(lambda_2*omega_r*h,azim_mode,1)* &
+               EXP(ABS(AIMAG(lambda_2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r*h)
           F2f = F2n/F2d
 
        else
@@ -1859,38 +1865,38 @@ CONTAINS
 
        end if
 
-       F2 = (1._dpk - z*M2)**2/l2*F2f
+       F2 = (1._dpk - zeta*M2)**2/lambda_2*F2f
 
        kernel = omega_r*(F1 - F2)
 
     else  !! compute (3.22): the kernel
 
-       l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
-       l2 = sqrt(kapT - z*(kapT*M2+1._dpk))*sqrt(kapT - z*(kapT*M2-1._dpk))
-       l3 = sqrt(kapT - z*(kapT*M3+1._dpk))*sqrt(kapT - z*(kapT*M3-1._dpk))
+       lambda_1 = sqrt(1._dpk - zeta*(M1+1._dpk))*sqrt(1._dpk - zeta*(M1-1._dpk))
+       lambda_2 = sqrt(kapT - zeta*(kapT*M2+1._dpk))*sqrt(kapT - zeta*(kapT*M2-1._dpk))
+       lambda_3 = sqrt(kapT - zeta*(kapT*M3+1._dpk))*sqrt(kapT - zeta*(kapT*M3-1._dpk))
 
-       lz = kap_rho*l2/l1*(1._dpk - z*M1)**2/(1._dpk - z*M2)**2
+       lambda_z = kap_rho*lambda_2/lambda_1*(1._dpk - zeta*M1)**2/(1._dpk - zeta*M2)**2
 
 
-       if ((ABS(l2*omega_r) < asymplim .AND. ABS(AIMAG(l2*omega_r)) < asymplim1) .AND. &
-            (ABS(l2*omega_r*h) < asymplim .AND. ABS(AIMAG(l2*omega_r*h)) < asymplim1) .AND. &
-            (ABS(l1*omega_r*h) < asymplim .AND. ABS(AIMAG(l1*omega_r*h)) < asymplim1)) then
+       if ((ABS(lambda_2*omega_r) < asymplim .AND. ABS(AIMAG(lambda_2*omega_r)) < asymplim1) .AND. &
+            (ABS(lambda_2*omega_r*h) < asymplim .AND. ABS(AIMAG(lambda_2*omega_r*h)) < asymplim1) .AND. &
+            (ABS(lambda_1*omega_r*h) < asymplim .AND. ABS(AIMAG(lambda_1*omega_r*h)) < asymplim1)) then
 
-          Rd = (lz*bessj(l1*omega_r*h,azim_mode,1)*dhank1(l2*omega_r*h,azim_mode,1)- &
-               hank1(l2*omega_r*h,azim_mode,1)*dbessj(l1*omega_r*h,azim_mode,1))* &
-               EXP(ABS(AIMAG(l1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
+          Rd = (lambda_z*bessj(lambda_1*omega_r*h,azim_mode,1)*dhank1(lambda_2*omega_r*h,azim_mode,1)- &
+               hank1(lambda_2*omega_r*h,azim_mode,1)*dbessj(lambda_1*omega_r*h,azim_mode,1))* &
+               EXP(ABS(AIMAG(lambda_1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r*h)
 
-          Rn = (bessj(l2*omega_r*h,azim_mode,1)*dbessj(l1*omega_r*h,azim_mode,1)- &
-               lz*bessj(l1*omega_r*h,azim_mode,1)*dbessj(l2*omega_r*h,azim_mode,1))* &
-               EXP(ABS(AIMAG(l1*omega_r*h))+ABS(AIMAG(l2*omega_r*h)))
+          Rn = (bessj(lambda_2*omega_r*h,azim_mode,1)*dbessj(lambda_1*omega_r*h,azim_mode,1)- &
+               lambda_z*bessj(lambda_1*omega_r*h,azim_mode,1)*dbessj(lambda_2*omega_r*h,azim_mode,1))* &
+               EXP(ABS(AIMAG(lambda_1*omega_r*h))+ABS(AIMAG(lambda_2*omega_r*h)))
 
           Rz = Rn/Rd
 
 
-          F1n = Rz*hank1(l2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
-               bessj(l2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r)))
-          F1d = Rz*dhank1(l2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
-               dbessj(l2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r)))
+          F1n = Rz*hank1(lambda_2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r)+ &
+               bessj(lambda_2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(lambda_2*omega_r)))
+          F1d = Rz*dhank1(lambda_2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r)+ &
+               dbessj(lambda_2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(lambda_2*omega_r)))
           F1f = F1n/F1d
 
        else
@@ -1902,20 +1908,20 @@ CONTAINS
 !!$    print*,'F1n:',F1n
 !!$    print*,'F1d:',F1d
 !!$    print*,'F1f:',F1f
-!!$    print*,'lz:',lz
+!!$    print*,'lambda_z:',lambda_z
 
-       F1 = (1._dpk - z*M2)**2/l2*F1f
+       F1 = (1._dpk - zeta*M2)**2/lambda_2*F1f
 
-       if (ABS(l3*omega_r) < asymplim .AND. ABS(AIMAG(l3*omega_r)) < asymplim1) then
+       if (ABS(lambda_3*omega_r) < asymplim .AND. ABS(AIMAG(lambda_3*omega_r)) < asymplim1) then
           
-          F2n = hank1(l3*omega_r,azim_mode,1)
-          F2d = dhank1(l3*omega_r,azim_mode,1)
+          F2n = hank1(lambda_3*omega_r,azim_mode,1)
+          F2d = dhank1(lambda_3*omega_r,azim_mode,1)
           F2f = F2n/F2d
           
        else
 
-          F2f = (8._dpk*l3*omega_r + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
-               CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r - &
+          F2f = (8._dpk*lambda_3*omega_r + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
+               CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_3*omega_r - &
                4._dpk*azim_mode*azim_mode - 3._dpk)
 
        end if
@@ -1924,7 +1930,7 @@ CONTAINS
 !!$    print*,'F2d:',F2d
 !!$    print*,'F2f:',F2f
 
-       F2 = (1._dpk - z*M3)**2/l3*F2f
+       F2 = (1._dpk - zeta*M3)**2/lambda_3*F2f
 
        if (num_zeros_s1_s2 == 0 .AND. num_poles_s1_s2 == 0) then
           
@@ -1932,7 +1938,7 @@ CONTAINS
  
        else
 
-          kernel = omega_r*(F1 - F2)*bc(z)
+          kernel = omega_r*(F1 - F2)*bc(zeta)
 
        end if
 
