@@ -489,7 +489,7 @@ CONTAINS
 
        print*,''
        print*,'Near-field computation only:'
-       print*,''
+       print*,'' 
 
     else
 
@@ -500,10 +500,10 @@ CONTAINS
        print*,''
 
        if (restart .NE. 0) then
-          call readfplus(index)  !! assumes the fplus_part.out file to be present
-          call computefplus(restart,index)
+          call read_fplus(index)  !! assumes the fplus_part.out file to be present
+          call compute_fplus(restart,index)
        else
-          call computefplus(restart,0)
+          call compute_fplus(restart,0)
        end if
 
        print*,''
@@ -1110,10 +1110,10 @@ CONTAINS
     call kernel_eval(mup,k,0,0,1)
        
     kp = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
-         LOG(kernel(0,mup)/zp(0,mup)))
+         LOG(compute_kernel(0,mup)/zp(0,mup)))
 
-!    kmmup =  kernel(0,mup)/kp   !! since: Kt^{-}(s) = K^{-}(s)
-    kmmup =  kernel(0,mup)/(kp*zp(0,mup)) 
+!    kmmup =  compute_kernel(0,mup)/kp   !! since: Kt^{-}(s) = K^{-}(s)
+    kmmup =  compute_kernel(0,mup)/(kp*zp(0,mup)) 
 !!$    print*,'kmmup:',kmmup
 
 !!  the factor Kt^{+}(s_{z1}):
@@ -1321,7 +1321,7 @@ CONTAINS
   END SUBROUTINE adaptive
 
 
-  SUBROUTINE computefplus(switch,index)
+  SUBROUTINE compute_fplus(switch,index)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Evaluate (3.30)
@@ -1380,10 +1380,10 @@ CONTAINS
     close(10)
     
 
-  END SUBROUTINE computefplus
+  END SUBROUTINE compute_fplus
 
 
-  SUBROUTINE readfplus(j)
+  SUBROUTINE read_fplus(j)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Use the computed F^{+} in case running a restart job
@@ -1412,7 +1412,7 @@ CONTAINS
 
     close(10)
 
-  END SUBROUTINE readfplus
+  END SUBROUTINE read_fplus
 
 
   FUNCTION fplus(z)
@@ -1447,7 +1447,7 @@ CONTAINS
     if ((farswitch == 1) .OR. (farswitch == 2)) then
        if (REAL(z) >= cont_cross_over_pt) then
           kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
-               LOG(kernel(0,z)/zp(0,z)))  !! z is above contour; cont_cross_over_pt is crossover pt
+               LOG(compute_kernel(0,z)/zp(0,z)))  !! z is above contour; cont_cross_over_pt is crossover pt
        else
           kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! z is below
        end if
@@ -1697,9 +1697,9 @@ CONTAINS
     integer         :: switch, kswitch
 
     if (switch == 1)  then !! K/U
-       In = LOG(kernel(kswitch,zi)/zp(kswitch,zi))
+       In = LOG(compute_kernel(kswitch,zi)/zp(kswitch,zi))
     else
-       In = LOG(kernel(kswitch,zi))
+       In = LOG(compute_kernel(kswitch,zi))
     end if
     Id = zi-si
     integrand = In/Id
@@ -1707,12 +1707,12 @@ CONTAINS
 !!$    if (ABS(integrand) > 1.0E3) then
 !!$       print*,'zi:',zi
 !!$!       print*,'integrand:',integrand
-!!$!       print*,'kernel:',kernel(zi)
+!!$!       print*,'kernel:',compute_kernel(zi)
 !!$       print*,'In:',In
 !!$       print*,'Id:',Id
 !!$    end if
 
-    if (kernel(kswitch,zi) == 0.) then 
+    if (compute_kernel(kswitch,zi) == 0.) then 
        print*,''
        print*,'FATAL ERROR: The kernel has encountered a zero (at zi)!!'
        print*,'si:-->',si
@@ -1806,7 +1806,7 @@ CONTAINS
   END FUNCTION integrandiftpot
 
 
-  FUNCTION kernel(ss,z)
+  FUNCTION compute_kernel(ss,z)  result(kernel)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the kernel function (3.22) or (4.10)
@@ -1939,7 +1939,7 @@ CONTAINS
     end if
 
 
-  END FUNCTION kernel
+  END FUNCTION compute_kernel
 
 
   SUBROUTINE kernelcheck(N,ss,z,I)
@@ -1953,7 +1953,7 @@ CONTAINS
     integer                    :: j, N, ss
 
     do j = 1, N
-       I(j) = kernel(ss,z(j))/zp(ss,z(j))
+       I(j) = compute_kernel(ss,z(j))/zp(ss,z(j))
     end do
 
     do j = 1, N-1
