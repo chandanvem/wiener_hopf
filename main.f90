@@ -15,7 +15,7 @@ PROGRAM main
 
   integer, parameter                         :: dpk = kind(1.0d0)  !! double precision kind
   real(dpk)                                  :: tol  !! specified tolerance level
-  complex(dpk), allocatable, dimension(:)    :: initpoints  !! location of the starting pts
+  complex(dpk), allocatable, dimension(:)    :: ker_int_points  !! location of the starting pts
   complex(dpk), allocatable, dimension(:)    :: intpanel  !! integral value at each panel
   integer, allocatable, dimension(:)         :: Npanel  !! number of times a panel is divided
   integer                                    :: num_ker_pts_loop !! number of starting pts for kernel contour
@@ -444,21 +444,21 @@ CONTAINS
 !! print the contour points:
 
     write(*,'(/A26)'),'The Integration Contours:'
-    write(*,'(/A27)'),'1. The kernel integration:'
+    write(*,'(/A27)'),'1. The kernel integration contour:'
     write(*,'(/A14)'),'key points:->'
     do i1 = 1, 5
        write(pos,"(I2,' =')"),i1
        write(*,'(/1X,A5,2F15.6)'), 'i'//pos, def_pts_ker_cntr(i1)
     end do
 
-    write(*,'(/A30)'),'2. The inv Fourier transform:'
+    write(*,'(/A30)'),'2. The inv Fourier transform contour:'
     write(*,'(/A14)'),'key points:->' 
     do i1 = 1, 5
        write(pos,"(I2,' =')"),i1
        write(*,"(/1X,A5,2F15.6)"), 'i'//pos, def_pts_IFT_cntr(i1) 
     end do
     
-    write(*,"(/A6,I6/)"),'N =',tot_IFT_pts
+    write(*,"(/A6,I6/)"),'total number of IFT points =',tot_IFT_pts
 
 
   END SUBROUTINE initialize
@@ -472,10 +472,14 @@ CONTAINS
 
     integer     :: index
 
+    print*,'Defining contours for kernel and IFT integration...'
+    print*,''
+
     call definecontours
 
+    print*,'Done...' 
     print*,''
-    print*,'Starting...'
+    print*,'Starting pre compute routine...'
     print*,''
     print*,'Computing K+ at the zeros and K- at mu+:'
 
@@ -527,18 +531,21 @@ CONTAINS
     real(dpk)                     :: panel_len_left, panel_len_right  !! length of each panel
     integer                       :: i
 
-    allocate(initpoints(tot_ker_points))
+    allocate(ker_int_points(tot_ker_points))
 
 !! length of each panel (kernel contour):
 
-    panel_len_left = (REAL(def_pts_ker_cntr(3))-REAL(def_pts_ker_cntr(1)))/(num_ker_pts_loop+1)  !! panel length in the left section
+    panel_len_left =  (REAL(def_pts_ker_cntr(3))-REAL(def_pts_ker_cntr(1)))/(num_ker_pts_loop+1)  !! panel length in the left section
     panel_len_right = (REAL(def_pts_ker_cntr(5))-REAL(def_pts_ker_cntr(3)))/(num_ker_pts_loop+1)  !! panel length in the right section
 
-    call initialize_contour(def_pts_ker_cntr,panel_len_left,panel_len_right,num_ker_pts_loop,1,initpoints)
+    call initialize_contour(def_pts_ker_cntr,panel_len_left,panel_len_right,num_ker_pts_loop,1,ker_int_points)
+
+    print*,''
+    print*,'Writing kernel integration points to file:'
 
     open(10,file='initialpoints.out',form='FORMATTED')
     do i = 1,tot_ker_points
-       write(10,'(I10,2F30.20)') i, initpoints(i)
+       write(10,'(I10,2F30.20)') i, ker_int_points(i)
     end do
     close(10)
 
@@ -550,6 +557,9 @@ CONTAINS
     panel_len_right = (REAL(def_pts_IFT_cntr(5))-REAL(def_pts_IFT_cntr(3)))/(num_IFT_pts_loop+1)
 
     call initialize_contour(def_pts_IFT_cntr,panel_len_left,panel_len_right,num_IFT_pts_loop,2,iftpoints)
+
+    print*,''
+    print*,'Writing IFT integration points to file:'
 
     open(10,file='iftpoints.out',form='FORMATTED')
     do i = 1,tot_IFT_pts
@@ -1182,7 +1192,7 @@ CONTAINS
 
     do j = 1, tot_ker_points-1  !! the integration points already specified
 
-       len = initpoints(j+1) - initpoints(j)  !! the length of a mini panel
+       len = ker_int_points(j+1) - ker_int_points(j)  !! the length of a mini panel
 
 !! compute "scale" needed to ensure the tolerance check:
 
@@ -1194,7 +1204,7 @@ CONTAINS
 
        end if
 
-       call trapezoid(si,initpoints(j),initpoints(j+1),ksw,sw,T)  !! the basis for comparison
+       call trapezoid(si,ker_int_points(j),ker_int_points(j+1),ksw,sw,T)  !! the basis for comparison
 
 !       print*, 'T:', T
 
@@ -1213,12 +1223,12 @@ CONTAINS
           allocate(yp(panel_no+1))
           allocate(zp(panel_no+1))
 
-          xp(1) = REAL(initpoints(j))
-          xp(panel_no+1) = REAL(initpoints(j+1))
-          yp(1) = AIMAG(initpoints(j))
-          yp(panel_no+1) = AIMAG(initpoints(j+1))
-          zp(1) = initpoints(j)
-          zp(panel_no+1) = initpoints(j+1)
+          xp(1) = REAL(ker_int_points(j))
+          xp(panel_no+1) = REAL(ker_int_points(j+1))
+          yp(1) = AIMAG(ker_int_points(j))
+          yp(panel_no+1) = AIMAG(ker_int_points(j+1))
+          zp(1) = ker_int_points(j)
+          zp(panel_no+1) = ker_int_points(j+1)
 
           do i = 1,panel_no-1
       
@@ -1253,7 +1263,7 @@ CONTAINS
           deallocate(yp)
           deallocate(T_temp)
 
-!          print*, 'initpoints:', initpoints(j)
+!          print*, 'ker_int_points:', ker_int_points(j)
 !          print*, 'intpanel:', intpanel(j)
 
 !! the tolerance check:
