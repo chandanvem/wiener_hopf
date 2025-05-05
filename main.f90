@@ -1518,54 +1518,6 @@ CONTAINS
   END FUNCTION zp
 
 
-  SUBROUTINE yfunc_p2(x,y,p,a,e1,e2)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Parabola used for the last loop (down) of integration contours
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    complex(dpk) :: p
-    real(dpk)    :: x, y
-    real(dpk)    :: a, e1, e2
-
-    y = -(x-REAL(p))*(1._dpk-(x-REAL(p))*(a-e1-e2)/a**2) + e1
-
-
-  END SUBROUTINE yfunc_p2
-
-
-  SUBROUTINE yfunc_p1(x,y,p,e1,e2)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Parabola used for the other loops (up) of integration contours
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    complex(dpk) :: p
-    real(dpk)    :: x, y
-    real(dpk)    :: e1, e2
-
-    y = (x-REAL(p))*(1._dpk-(x-REAL(p))/e1) + e2
-
-
-  END SUBROUTINE yfunc_p1
-
-
-  SUBROUTINE yfunc_p0(x,y,p,e1,e2)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Parabola used for the other loops (down) of integration contours
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    complex(dpk) :: p
-    real(dpk)    :: x, y
-    real(dpk)    :: e1, e2
-
-    y = -(x-REAL(p))*(1._dpk-(x-REAL(p))/e1) + e2
-
-
-  END SUBROUTINE yfunc_p0
-
-
   SUBROUTINE get_y_alg_int_contour(x,y,p,a,b)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
