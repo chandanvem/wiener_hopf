@@ -47,7 +47,7 @@ PROGRAM main
   real(dpk), allocatable, dimension(:)       :: R, Z
   real(dpk)                                  :: Zo  !! start point of incident vorticity (negative)
   integer                                    :: Nmeshr, Nmeshz !! 400X400 -> Seg Fault!!
-  real(dpk)                                  :: circmod
+  real(dpk)                                  :: azim_mode
   real(dpk)                                  :: vs_param_gamma  !! Vortex shedding parameter
   complex(dpk)                               :: sz1 !! instability zero 1
   complex(dpk)                               :: sz2 !! instability zero 2
@@ -117,8 +117,8 @@ CONTAINS
     read(1,*) kap_rho  !! density ratio
     print*, 'Density ratio=', kap_rho
 
-    read(1,*) circmod  !! the circumferential mode no
-    print*, 'Azimuthal wavenumber (circmod)=', circmod
+    read(1,*) azim_mode  !! the circumferential mode no
+    print*, 'Azimuthal wavenumber (azim_mode)=', azim_mode
 
     read(1,*) sz1
     print*, 'sz1 (First instability zero) =', sz1
@@ -328,8 +328,11 @@ CONTAINS
     read(1,*) t
     af = t
 
-    call get_y_alg_int_contour(ai,ai_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)),AIMAG(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)))
-    call get_y_alg_int_contour(af,af_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)),AIMAG(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)))
+    call get_y_alg_int_contour(ai,ai_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)), &
+                                AIMAG(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)))
+
+    call get_y_alg_int_contour(af,af_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)), &
+                                     AIMAG(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)))
 
     def_pts_IFT_cntr(1) = CMPLX(ai,ai_im,kind=dpk)  
     def_pts_IFT_cntr(5) = CMPLX(af,af_im,kind=dpk)
@@ -349,8 +352,10 @@ CONTAINS
     def_pts_ker_cntr(3) = def_pts_IFT_cntr(3) + CMPLX(5._dpk*offset,0._dpk,kind=dpk)
     def_pts_ker_cntr(4) = def_pts_IFT_cntr(4) + CMPLX(0._dpk,offset,kind=dpk)
 
-    call get_y_alg_int_contour(aki,aki_im,REAL(def_pts_ker_cntr(3)),REAL(def_pts_ker_cntr(2)-def_pts_ker_cntr(3)),AIMAG(def_pts_ker_cntr(2)-def_pts_ker_cntr(3)))
-    call get_y_alg_int_contour(akf,akf_im,REAL(def_pts_ker_cntr(3)),REAL(def_pts_ker_cntr(4)-def_pts_ker_cntr(3)),AIMAG(def_pts_ker_cntr(4)-def_pts_ker_cntr(3)))
+    call get_y_alg_int_contour(aki,aki_im,REAL(def_pts_ker_cntr(3)), &
+                           REAL(def_pts_ker_cntr(2)-def_pts_ker_cntr(3)),AIMAG(def_pts_ker_cntr(2)-def_pts_ker_cntr(3)))
+    call get_y_alg_int_contour(akf,akf_im,REAL(def_pts_ker_cntr(3)), &
+                           REAL(def_pts_ker_cntr(4)-def_pts_ker_cntr(3)),AIMAG(def_pts_ker_cntr(4)-def_pts_ker_cntr(3)))
     
     def_pts_ker_cntr(1) = CMPLX(aki,aki_im,kind=dpk)
     def_pts_ker_cntr(5) = CMPLX(akf,akf_im,kind=dpk)
@@ -515,7 +520,7 @@ CONTAINS
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Computes the panel lengths for the integration contours
-!! 2. Calls subrtn "initcontour" which does the the actual contour defining
+!! 2. Calls subrtn "initialize_contour" which does the the actual contour defining
 !! 3. Writes the contours
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
@@ -529,7 +534,7 @@ CONTAINS
     panel_len_left = (REAL(def_pts_ker_cntr(3))-REAL(def_pts_ker_cntr(1)))/(num_ker_pts_loop+1)  !! panel length in the left section
     panel_len_right = (REAL(def_pts_ker_cntr(5))-REAL(def_pts_ker_cntr(3)))/(num_ker_pts_loop+1)  !! panel length in the right section
 
-    call initcontour(def_pts_ker_cntr,panel_len_left,panel_len_right,num_ker_pts_loop,1,initpoints)
+    call initialize_contour(def_pts_ker_cntr,panel_len_left,panel_len_right,num_ker_pts_loop,1,initpoints)
 
     open(10,file='initialpoints.out',form='FORMATTED')
     do i = 1,tot_ker_points
@@ -544,7 +549,7 @@ CONTAINS
     panel_len_left = (REAL(def_pts_IFT_cntr(3))-REAL(def_pts_IFT_cntr(1)))/(num_IFT_pts_loop+1)
     panel_len_right = (REAL(def_pts_IFT_cntr(5))-REAL(def_pts_IFT_cntr(3)))/(num_IFT_pts_loop+1)
 
-    call initcontour(def_pts_IFT_cntr,panel_len_left,panel_len_right,num_IFT_pts_loop,2,iftpoints)
+    call initialize_contour(def_pts_IFT_cntr,panel_len_left,panel_len_right,num_IFT_pts_loop,2,iftpoints)
 
     open(10,file='iftpoints.out',form='FORMATTED')
     do i = 1,tot_IFT_pts
@@ -556,7 +561,7 @@ CONTAINS
   END SUBROUTINE definecontours
 
 
-  SUBROUTINE initcontour(def_pts,left_panel_length,right_panel_length,num_pts_per_loop,sw,init_pts_combined)
+  SUBROUTINE initialize_contour(def_pts,left_panel_length,right_panel_length,num_pts_per_loop,sw,init_pts_combined)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Initialize the integration contours
@@ -582,7 +587,7 @@ CONTAINS
 
     call combine(num_pts_per_loop,init_pts_left,init_pts_right,init_pts_combined)
 
-  END SUBROUTINE initcontour
+  END SUBROUTINE initialize_contour
 
 
   SUBROUTINE initsubdiv(p,q,r,N,len,sw,ss,zi)
@@ -604,10 +609,10 @@ CONTAINS
        select case (ss)
 
        case(1)
-          call stretchx(r,p,N+2,1,xi)  
+          call gen_stretched_grid(r,p,N+2,1,xi)  
 
        case(2)
-          call stretchx(p,r,N+2,2,xi)  
+          call gen_stretched_grid(p,r,N+2,2,xi)  
 
        end select
 
@@ -636,11 +641,11 @@ CONTAINS
 
     select case (ss)  !! the right end point
 
-    case(1)
-       call get_y_alg_int_contour(xi(N+2),yi(N+2),r,REAL(q),AIMAG(q))
+        case(1)
+           call get_y_alg_int_contour(xi(N+2),yi(N+2),r,REAL(q),AIMAG(q))
        
-    case(2)
-       call get_y_alg_int_contour(xi(N+2),yi(N+2),p,REAL(q),AIMAG(q))
+        case(2)
+           call get_y_alg_int_contour(xi(N+2),yi(N+2),p,REAL(q),AIMAG(q))
 
     end select
 
@@ -673,7 +678,7 @@ CONTAINS
   END SUBROUTINE combine
 
 
-  SUBROUTINE stretchx(a,b,N,ss,xst)
+  SUBROUTINE gen_stretched_grid(a,b,N,ss,xst)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Define the stretching function needed for the kernel contour
@@ -708,7 +713,7 @@ CONTAINS
     end if
 
 
-  END SUBROUTINE stretchx
+  END SUBROUTINE gen_stretched_grid
 
 
   SUBROUTINE meshgrid
@@ -1060,15 +1065,15 @@ CONTAINS
 
 !! the factor \Psi_{mn}(1) of (3.30) [see the JFM]:
 
-       f1 = (1._dpk - mup*M1)/(1._dpk - mup*M2)*bessj(alpha1*h,circmod,1)*EXP(ABS(AIMAG(alpha1*h)))
+       f1 = (1._dpk - mup*M1)/(1._dpk - mup*M2)*bessj(alpha1*h,azim_mode,1)*EXP(ABS(AIMAG(alpha1*h)))
        
-       f2 = (bessj(alpha2,circmod,1)*dhank1(alpha2,circmod,1)- & 
-            hank1(alpha2,circmod,1)*dbessj(alpha2,circmod,1))* &
+       f2 = (bessj(alpha2,azim_mode,1)*dhank1(alpha2,azim_mode,1)- & 
+            hank1(alpha2,azim_mode,1)*dbessj(alpha2,azim_mode,1))* &
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2 + ABS(AIMAG(alpha2)))
        
-       f3 = bessj(alpha2*h,circmod,1)*dhank1(alpha2,circmod,1)* &
+       f3 = bessj(alpha2*h,azim_mode,1)*dhank1(alpha2,azim_mode,1)* &
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2 + ABS(AIMAG(alpha2*h)))- & 
-            hank1(alpha2*h,circmod,1)*dbessj(alpha2,circmod,1)* &
+            hank1(alpha2*h,azim_mode,1)*dbessj(alpha2,azim_mode,1)* &
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2*h + ABS(AIMAG(alpha2)))
 
        psi = kap_rho*f1*f2/f3
@@ -1810,8 +1815,8 @@ CONTAINS
 
        if ((ABS(l1*omega_r*h) < asymplim .AND. ABS(AIMAG(l1*omega_r*h)) < asymplim1)) then
 
-          F1n = bessj(l1*omega_r*h,circmod,1)
-          F1d = dbessj(l1*omega_r*h,circmod,1)
+          F1n = bessj(l1*omega_r*h,azim_mode,1)
+          F1d = dbessj(l1*omega_r*h,azim_mode,1)
           F1f = F1n/F1d
 
        else
@@ -1830,11 +1835,11 @@ CONTAINS
        if ((ABS(l2*omega_r) < asymplim .AND. ABS(AIMAG(l2*omega_r)) < asymplim1) .AND. &
             (ABS(l2*omega_r*h) < asymplim .AND. ABS(AIMAG(l2*omega_r*h)) < asymplim1)) then
 
-          F2n = dhank1(l2*omega_r,circmod,1)*bessj(l2*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
-               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,circmod,1)*hank1(l2*omega_r*h,circmod,1)* & 
+          F2n = dhank1(l2*omega_r,azim_mode,1)*bessj(l2*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
+               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,azim_mode,1)*hank1(l2*omega_r*h,azim_mode,1)* & 
                EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
-          F2d = dhank1(l2*omega_r,circmod,1)*dbessj(l2*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
-               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,circmod,1)*dhank1(l2*omega_r*h,circmod,1)* &
+          F2d = dhank1(l2*omega_r,azim_mode,1)*dbessj(l2*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
+               CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,azim_mode,1)*dhank1(l2*omega_r*h,azim_mode,1)* &
                EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
           F2f = F2n/F2d
 
@@ -1861,21 +1866,21 @@ CONTAINS
             (ABS(l2*omega_r*h) < asymplim .AND. ABS(AIMAG(l2*omega_r*h)) < asymplim1) .AND. &
             (ABS(l1*omega_r*h) < asymplim .AND. ABS(AIMAG(l1*omega_r*h)) < asymplim1)) then
 
-          Rd = (lz*bessj(l1*omega_r*h,circmod,1)*dhank1(l2*omega_r*h,circmod,1)- &
-               hank1(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1))* &
+          Rd = (lz*bessj(l1*omega_r*h,azim_mode,1)*dhank1(l2*omega_r*h,azim_mode,1)- &
+               hank1(l2*omega_r*h,azim_mode,1)*dbessj(l1*omega_r*h,azim_mode,1))* &
                EXP(ABS(AIMAG(l1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
 
-          Rn = (bessj(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1)- &
-               lz*bessj(l1*omega_r*h,circmod,1)*dbessj(l2*omega_r*h,circmod,1))* &
+          Rn = (bessj(l2*omega_r*h,azim_mode,1)*dbessj(l1*omega_r*h,azim_mode,1)- &
+               lz*bessj(l1*omega_r*h,azim_mode,1)*dbessj(l2*omega_r*h,azim_mode,1))* &
                EXP(ABS(AIMAG(l1*omega_r*h))+ABS(AIMAG(l2*omega_r*h)))
 
           Rz = Rn/Rd
 
 
-          F1n = Rz*hank1(l2*omega_r,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
-               bessj(l2*omega_r,circmod,1)*EXP(ABS(AIMAG(l2*omega_r)))
-          F1d = Rz*dhank1(l2*omega_r,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
-               dbessj(l2*omega_r,circmod,1)*EXP(ABS(AIMAG(l2*omega_r)))
+          F1n = Rz*hank1(l2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
+               bessj(l2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r)))
+          F1d = Rz*dhank1(l2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
+               dbessj(l2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r)))
           F1f = F1n/F1d
 
        else
@@ -1893,15 +1898,15 @@ CONTAINS
 
        if (ABS(l3*omega_r) < asymplim .AND. ABS(AIMAG(l3*omega_r)) < asymplim1) then
           
-          F2n = hank1(l3*omega_r,circmod,1)
-          F2d = dhank1(l3*omega_r,circmod,1)
+          F2n = hank1(l3*omega_r,azim_mode,1)
+          F2d = dhank1(l3*omega_r,azim_mode,1)
           F2f = F2n/F2d
           
        else
 
-          F2f = (8._dpk*l3*omega_r + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*circmod*circmod - &
+          F2f = (8._dpk*l3*omega_r + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
                CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r - &
-               4._dpk*circmod*circmod - 3._dpk)
+               4._dpk*azim_mode*azim_mode - 3._dpk)
 
        end if
 
@@ -2052,22 +2057,22 @@ CONTAINS
 
     if (ss==1) then
        
-       Rd = (lz*bessj(l1*omega_r*h,circmod,1)*dhank1(l2*omega_r*h,circmod,1)- &
-            hank1(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1))* &
+       Rd = (lz*bessj(l1*omega_r*h,azim_mode,1)*dhank1(l2*omega_r*h,azim_mode,1)- &
+            hank1(l2*omega_r*h,azim_mode,1)*dbessj(l1*omega_r*h,azim_mode,1))* &
             EXP(ABS(AIMAG(l1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
        
-       Rn = (bessj(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1)- &
-            lz*bessj(l1*omega_r*h,circmod,1)*dbessj(l2*omega_r*h,circmod,1))* &
+       Rn = (bessj(l2*omega_r*h,azim_mode,1)*dbessj(l1*omega_r*h,azim_mode,1)- &
+            lz*bessj(l1*omega_r*h,azim_mode,1)*dbessj(l2*omega_r*h,azim_mode,1))* &
             EXP(ABS(AIMAG(l1*omega_r*h))+ABS(AIMAG(l2*omega_r*h)))
        
        Rz = Rn/Rd
           
-       Fn = bessj(l1*omega_r*ri,circmod,1)*EXP(ABS(AIMAG(l1*omega_r*ri)))*(Rz*hank1(l2*omega_r*h,circmod,1)* & 
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h) + bessj(l2*omega_r*h,circmod,1)* &
+       Fn = bessj(l1*omega_r*ri,azim_mode,1)*EXP(ABS(AIMAG(l1*omega_r*ri)))*(Rz*hank1(l2*omega_r*h,azim_mode,1)* & 
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h) + bessj(l2*omega_r*h,azim_mode,1)* &
             EXP(ABS(AIMAG(l2*omega_r*h))))
        
-       Fd = bessj(l1*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l1*omega_r*h)))*(Rz*dhank1(l2*omega_r,circmod,1)* & 
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) + dbessj(l2*omega_r,circmod,1)* &
+       Fd = bessj(l1*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(l1*omega_r*h)))*(Rz*dhank1(l2*omega_r,azim_mode,1)* & 
+            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) + dbessj(l2*omega_r,azim_mode,1)* &
             EXP(ABS(AIMAG(l2*omega_r))))
        
        F = Fn/Fd
@@ -2076,21 +2081,21 @@ CONTAINS
 
     else if (ss==2) then
 
-       Rd = (lz*bessj(l1*omega_r*h,circmod,1)*dhank1(l2*omega_r*h,circmod,1)- &
-            hank1(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1))* &
+       Rd = (lz*bessj(l1*omega_r*h,azim_mode,1)*dhank1(l2*omega_r*h,azim_mode,1)- &
+            hank1(l2*omega_r*h,azim_mode,1)*dbessj(l1*omega_r*h,azim_mode,1))* &
             EXP(ABS(AIMAG(l1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
        
-       Rn = (bessj(l2*omega_r*h,circmod,1)*dbessj(l1*omega_r*h,circmod,1)- &
-            lz*bessj(l1*omega_r*h,circmod,1)*dbessj(l2*omega_r*h,circmod,1))* &
+       Rn = (bessj(l2*omega_r*h,azim_mode,1)*dbessj(l1*omega_r*h,azim_mode,1)- &
+            lz*bessj(l1*omega_r*h,azim_mode,1)*dbessj(l2*omega_r*h,azim_mode,1))* &
             EXP(ABS(AIMAG(l1*omega_r*h))+ABS(AIMAG(l2*omega_r*h)))
        
        Rz = Rn/Rd
           
-       Fn = Rz*hank1(l2*omega_r*ri,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*ri)+ &
-            bessj(l2*omega_r*ri,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*ri)))
+       Fn = Rz*hank1(l2*omega_r*ri,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*ri)+ &
+            bessj(l2*omega_r*ri,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r*ri)))
        
-       Fd = Rz*dhank1(l2*omega_r,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
-            dbessj(l2*omega_r,circmod,1)*EXP(ABS(AIMAG(l2*omega_r)))
+       Fd = Rz*dhank1(l2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r)+ &
+            dbessj(l2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r)))
        
        F = Fn/Fd
 
@@ -2101,17 +2106,17 @@ CONTAINS
 !!$       if ((ABS(l3*omega_r) < asymplim .AND. ABS(AIMAG(l3*omega_r)) < asymplim1) .AND. &
 !!$            (ABS(l3*omega_r*ri) < asymplim .AND. ABS(AIMAG(l3*omega_r*ri)) < asymplim1)) then
 
-          Fn = hank1(l3*omega_r*ri,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r*ri)
+          Fn = hank1(l3*omega_r*ri,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r*ri)
        
-          Fd = dhank1(l3*omega_r,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r)
+          Fd = dhank1(l3*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r)
        
           F = Fn/Fd
 
 !!$       else 
 !!$       
-!!$          F = (8._dpk*l3*omega_r*ri + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*circmod*circmod - &
+!!$          F = (8._dpk*l3*omega_r*ri + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
 !!$               CMPLX(0._dpk,1._dpk,kind=dpk))/((8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*omega_r - &
-!!$               4._dpk*circmod*circmod - 3._dpk)*ri**(1.5_dpk))*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
+!!$               4._dpk*azim_mode*azim_mode - 3._dpk)*ri**(1.5_dpk))*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
 !!$               l3*omega_r*(ri - 1._dpk))
 !!$
 !!$       end if
@@ -2146,8 +2151,8 @@ CONTAINS
 
     if (ss==1) then
        
-       Fn = bessj(l1*omega_r*ri,circmod,1)*EXP(ABS(AIMAG(l1*omega_r*ri)))
-       Fd = dbessj(l1*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l1*omega_r*h)))
+       Fn = bessj(l1*omega_r*ri,azim_mode,1)*EXP(ABS(AIMAG(l1*omega_r*ri)))
+       Fd = dbessj(l1*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(l1*omega_r*h)))
        
        F = Fn/Fd
 
@@ -2155,12 +2160,12 @@ CONTAINS
 
     else
 
-       Fn = dhank1(l2*omega_r,circmod,1)*bessj(l2*omega_r*ri,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*ri))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,circmod,1)*hank1(l2*omega_r*ri,circmod,1)* &
+       Fn = dhank1(l2*omega_r,azim_mode,1)*bessj(l2*omega_r*ri,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r*ri))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,azim_mode,1)*hank1(l2*omega_r*ri,azim_mode,1)* &
             EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*ri)
 
-       Fd = dhank1(l2*omega_r,circmod,1)*dbessj(l2*omega_r*h,circmod,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,circmod,1)*dhank1(l2*omega_r*h,circmod,1)* &
+       Fd = dhank1(l2*omega_r,azim_mode,1)*dbessj(l2*omega_r*h,azim_mode,1)*EXP(ABS(AIMAG(l2*omega_r*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r) - dbessj(l2*omega_r,azim_mode,1)*dhank1(l2*omega_r*h,azim_mode,1)* &
             EXP(ABS(AIMAG(l2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*omega_r*h)
        
        F = Fn/Fd
@@ -2221,7 +2226,7 @@ CONTAINS
 
        if (ss == 1) then
 
-          psimn = bessj(alpha1*r,circmod,1)*EXP(ABS(AIMAG(alpha1*r)))
+          psimn = bessj(alpha1*r,azim_mode,1)*EXP(ABS(AIMAG(alpha1*r)))
        
           psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M1*mup)* &
                psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*z)
@@ -2229,21 +2234,21 @@ CONTAINS
 
        else if (ss == 2) then
 
-          f1 = (1._dpk - mup*M1)/(1._dpk - mup*M2)*bessj(alpha1*h,circmod,1)
+          f1 = (1._dpk - mup*M1)/(1._dpk - mup*M2)*bessj(alpha1*h,azim_mode,1)
        
-          f2 = bessj(alpha2*r,circmod,1)* &
-               dhank1(alpha2,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* & 
+          f2 = bessj(alpha2*r,azim_mode,1)* &
+               dhank1(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* & 
                alpha2 + ABS(AIMAG(alpha2*r)))- & 
-               hank1(alpha2*r,circmod,1)* &
-               dbessj(alpha2,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* & 
+               hank1(alpha2*r,azim_mode,1)* &
+               dbessj(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* & 
                alpha2*r + ABS(AIMAG(alpha2)))
           
 
-          f3 = bessj(alpha2*h,circmod,1)* &
-               dhank1(alpha2,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
+          f3 = bessj(alpha2*h,azim_mode,1)* &
+               dhank1(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
                alpha2 + ABS(AIMAG(alpha2*h)))- & 
-               hank1(alpha2*h,circmod,1)* &
-               dbessj(alpha2,circmod,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
+               hank1(alpha2*h,azim_mode,1)* &
+               dbessj(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
                alpha2*h + ABS(AIMAG(alpha2)))
             
 
