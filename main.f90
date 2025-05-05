@@ -49,9 +49,9 @@ PROGRAM main
   integer                                    :: Nmeshr, Nmeshz !! 400X400 -> Seg Fault!!
   real(dpk)                                  :: azim_mode
   real(dpk)                                  :: vs_param_gamma  !! Vortex shedding parameter
-  complex(dpk)                               :: sz1 !! instability zero 1
-  complex(dpk)                               :: sz2 !! instability zero 2
-  complex(dpk)                               :: sp1 !! instability pole 1
+  complex(dpk)                               :: KH_zero_1 !! instability zero 1
+  complex(dpk)                               :: KH_zero_2 !! instability zero 2
+  complex(dpk)                               :: KH_pole_1 !! instability pole 1
   complex(dpk)                               :: mup !! axial wave no (of incident wave)
   complex(dpk)                               :: mu0 !! incident axial wave no (for incident vort)
   complex(dpk)                               :: resp!! portion of residue (for inc vort)
@@ -120,16 +120,16 @@ CONTAINS
     read(1,*) azim_mode  !! the circumferential mode no
     print*, 'Azimuthal wavenumber (azim_mode)=', azim_mode
 
-    read(1,*) sz1
-    print*, 'sz1 (First instability zero) =', sz1
+    read(1,*) KH_zero_1
+    print*, 'KH_zero_1 (First instability zero) =', KH_zero_1
 
 
-    read(1,*) sz2
-    print*, 'sz2 (Second instability zero) =', sz2
+    read(1,*) KH_zero_2
+    print*, 'KH_zero_2 (Second instability zero) =', KH_zero_2
 
 
-    read(1,*) sp1
-    print*, 'sp1 (Instability pole) =', sp1
+    read(1,*) KH_pole_1
+    print*, 'KH_pole_1 (Instability pole) =', KH_pole_1
 
 
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
@@ -367,9 +367,9 @@ CONTAINS
 !! here both the instability zeros and the pole need to lie outside (under) the contour,
 !! since we use the residue theorem to compute them anyway:
 
-    call checkloc(sz1,i1) 
-    call checkloc(sz2,i2)
-    call checkloc(sp1,i3)
+    call checkloc(KH_zero_1,i1) 
+    call checkloc(KH_zero_2,i2)
+    call checkloc(KH_pole_1,i3)
 
 !! if any of them lie inside ask to redefine the contour:
 
@@ -1110,16 +1110,16 @@ CONTAINS
 
     if (vortswitch .EQ. 0) then
 
-       call kernel_eval(sz1,k,0,0,1)
+       call kernel_eval(KH_zero_1,k,0,0,1)
 
-       kpsz1 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: zero sz1 has to lie below
+       kpsz1 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: zero KH_zero_1 has to lie below
                                                                   !! the contour
     end if
 !!  the factor K^{+}(s_{z2}):
 
-    call kernel_eval(sz2,k,0,0,1)
+    call kernel_eval(KH_zero_2,k,0,0,1)
 
-    kpsz2 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! same for sz2
+    kpsz2 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! same for KH_zero_2
 
     if (num_sup_zeros > 0) allocate(kzsp(num_sup_zeros))
 
@@ -1424,10 +1424,10 @@ CONTAINS
     l3pz = sqrt(kapT - z*(kapT*M3 + 1._dpk))
 
 !!$    gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - z))
-    gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - sz2))
+    gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - KH_zero_2))
 
 !!$    gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - z)) - &
-!!$         psi*(1._dpk - mup*M2)/(kmmup*(mup - sz2))
+!!$         psi*(1._dpk - mup*M2)/(kmmup*(mup - KH_zero_2))
 
 !!$    lprod = l2mmup*l3mmup*l2pz*l3pz
 
@@ -1445,12 +1445,12 @@ CONTAINS
        kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! z is always below normally
     end if
 
-!!$    fplus = gpz/kpz*( (z - sz2)/(mup - z) + vs_param_gamma)
-    fplus = gpz*( (z - sz2)/(mup - z) + vs_param_gamma)/(kpz*zp(0,z))
+!!$    fplus = gpz/kpz*( (z - KH_zero_2)/(mup - z) + vs_param_gamma)
+    fplus = gpz*( (z - KH_zero_2)/(mup - z) + vs_param_gamma)/(kpz*zp(0,z))
 
 !!$    fplus = lprod*gpz/(kmmup*kpz)
 
-!!$    fplus = lprod*gpz*(z - sp1)/(kmmup*(z - sz1)*(z - sz2)*kpz)
+!!$    fplus = lprod*gpz*(z - KH_pole_1)/(kmmup*(z - KH_zero_1)*(z - KH_zero_2)*kpz)
 
 !!$    print*,'gpz',gpz
 
@@ -1468,19 +1468,19 @@ CONTAINS
     integer       :: j, jj, ss
 
     if (ss == 1) then
-!       zp = ((z-sp1)*(z-CONJG(sp1)))
-       zp = (z-sp1)
+!       zp = ((z-KH_pole_1)*(z-CONJG(KH_pole_1)))
+       zp = (z-KH_pole_1)
     else
        if (vortswitch .EQ. 0) then
-!!$       zp = (z-sz1)*(z-CONJG(sz1))*(z-sz2)*(z-CONJG(sz2)) &
-!!$            /((z-sp1)*(z-CONJG(sp1)))
-          zp = (z-sz1)*(z-sz2)/(z-sp1)
+!!$       zp = (z-KH_zero_1)*(z-CONJG(KH_zero_1))*(z-KH_zero_2)*(z-CONJG(KH_zero_2)) &
+!!$            /((z-KH_pole_1)*(z-CONJG(KH_pole_1)))
+          zp = (z-KH_zero_1)*(z-KH_zero_2)/(z-KH_pole_1)
        else
-          zp = (z-sz2)
+          zp = (z-KH_zero_2)
        end if
     end if
 
-!!$    zp = (z-sz1)*(z-sz2)/(z-sp1)
+!!$    zp = (z-KH_zero_1)*(z-KH_zero_2)/(z-KH_pole_1)
 
     if (ss == 1) then
        do j = 1, num_sup_poles
@@ -1495,7 +1495,7 @@ CONTAINS
           end do
        end if
     end if
-!!$    zp = (z-sz2)
+!!$    zp = (z-KH_zero_2)
 
 !!$    zp = CMPLX(1._dpk,0._dpk,kind=dpk)
 
@@ -2284,12 +2284,12 @@ CONTAINS
     complex(dpk)         :: residueprpolar, res, fn
    
     res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss))* &
-         kmmup*kzsp(ss)*(sup_zeros_list(ss) - sz1)*(sup_zeros_list(ss) - sz2))
-!!$    res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss) - sp1)/((mup - sup_zeros_list(ss))* &
-!!$         kmmup*kzsp(ss)*(sup_zeros_list(ss) - sz1)*(sup_zeros_list(ss) - sz2))
-!!$    res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss)-sp1)*(sup_zeros_list(ss)-CONJG(sp1))/ &
-!!$            ((mup - sup_zeros_list(ss))*kmmup*kzsp(ss)*(sup_zeros_list(ss)-CONJG(sz1))* &
-!!$            (sup_zeros_list(ss)-sz1)*(sup_zeros_list(ss) - sz2)*(sup_zeros_list(ss)-CONJG(sz2)))
+         kmmup*kzsp(ss)*(sup_zeros_list(ss) - KH_zero_1)*(sup_zeros_list(ss) - KH_zero_2))
+!!$    res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss) - KH_pole_1)/((mup - sup_zeros_list(ss))* &
+!!$         kmmup*kzsp(ss)*(sup_zeros_list(ss) - KH_zero_1)*(sup_zeros_list(ss) - KH_zero_2))
+!!$    res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss)-KH_pole_1)*(sup_zeros_list(ss)-CONJG(KH_pole_1))/ &
+!!$            ((mup - sup_zeros_list(ss))*kmmup*kzsp(ss)*(sup_zeros_list(ss)-CONJG(KH_zero_1))* &
+!!$            (sup_zeros_list(ss)-KH_zero_1)*(sup_zeros_list(ss) - KH_zero_2)*(sup_zeros_list(ss)-CONJG(KH_zero_2)))
     do ii = 1, num_sup_zeros
        if (ii .NE. (ss)) then
           res = res/(sup_zeros_list(ss) - sup_zeros_list(ii))
@@ -2328,29 +2328,29 @@ CONTAINS
     if (ss == 1) then
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(sz1-sp1)*(sz1-CONJG(sp1))/ &
-!!$            ((mup - sz1)*kmmup*kpsz1*(sz1-CONJG(sz1))*(sz1-sz2)*(sz1-CONJG(sz2)))
-!!$       res = psi*(1._dpk - mup*M2)*(sz1 - sp1)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
-       res = psi*(1._dpk - mup*M2)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
+!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_1-KH_pole_1)*(KH_zero_1-CONJG(KH_pole_1))/ &
+!!$            ((mup - KH_zero_1)*kmmup*kpKH_zero_1*(KH_zero_1-CONJG(KH_zero_1))*(KH_zero_1-KH_zero_2)*(KH_zero_1-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_1 - KH_pole_1)/((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1 - KH_zero_2))
+       res = psi*(1._dpk - mup*M2)/((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1 - KH_zero_2))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
-             res = res/(sz1 - sup_zeros_list(ii))
+             res = res/(KH_zero_1 - sup_zeros_list(ii))
           end do
           do jj = 1, num_sup_poles
-             res = res*(sz1 - sup_poles_list(jj))
+             res = res*(KH_zero_1 - sup_poles_list(jj))
           end do
        end if
 
        if (r <= h) then
-          fn = (1._dpk - sz1*M2)**2*Trs(r,sz1,1)
+          fn = (1._dpk - KH_zero_1*M2)**2*Trs(r,KH_zero_1,1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - sz1*M2)**2*Trs(r,sz1,2)
+          fn = (1._dpk - KH_zero_1*M2)**2*Trs(r,KH_zero_1,2)
        else
-          fn = (1._dpk - sz1*M3)**2*Trs(r,sz1,3)
+          fn = (1._dpk - KH_zero_1*M3)**2*Trs(r,KH_zero_1,3)
        end if
        
        residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-            omega_r*sz1*z)*res*fn
+            omega_r*KH_zero_1*z)*res*fn
           
 !!$       else
 !!$          residuepr = 0.
@@ -2360,29 +2360,29 @@ CONTAINS
     elseif (ss == 2) then
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(sz2-sp1)*(sz2-CONJG(sp1))/ &
-!!$            ((mup - sz2)*kmmup*kpsz2*(sz2-CONJG(sz1))*(sz2-sz1)*(sz2-CONJG(sz2)))
-!!$       res = psi*(1._dpk - mup*M2)*(sz2 - sp1)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
-       res = psi*(1._dpk - mup*M2)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
+!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_2-KH_pole_1)*(KH_zero_2-CONJG(KH_pole_1))/ &
+!!$            ((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2-CONJG(KH_zero_1))*(KH_zero_2-KH_zero_1)*(KH_zero_2-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_2 - KH_pole_1)/((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2 - KH_zero_1))
+       res = psi*(1._dpk - mup*M2)/((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2 - KH_zero_1))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
-             res = res/(sz2 - sup_zeros_list(ii))
+             res = res/(KH_zero_2 - sup_zeros_list(ii))
           end do
           do jj = 1, num_sup_poles
-             res = res*(sz2 - sup_poles_list(jj))
+             res = res*(KH_zero_2 - sup_poles_list(jj))
           end do
        end if
           
        if (r <= h) then
-          fn = (1._dpk - sz2*M2)**2*Trs(r,sz2,1)
+          fn = (1._dpk - KH_zero_2*M2)**2*Trs(r,KH_zero_2,1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - sz2*M2)**2*Trs(r,sz2,2)
+          fn = (1._dpk - KH_zero_2*M2)**2*Trs(r,KH_zero_2,2)
        else
-          fn = (1._dpk - sz2*M3)**2*Trs(r,sz2,3)
+          fn = (1._dpk - KH_zero_2*M3)**2*Trs(r,KH_zero_2,3)
        end if
 
        residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-            omega_r*sz2*z)*res*fn
+            omega_r*KH_zero_2*z)*res*fn
 
 !!$       else
 !!$          residuepr = 0.
@@ -2392,13 +2392,13 @@ CONTAINS
     else
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2)-sp1)*(sup_zeros_list(ss-2)-CONJG(sp1))/ &
-!!$            ((mup - sup_zeros_list(ss-2))*kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(sz1))* &
-!!$            (sup_zeros_list(ss-2)-sz1)*(sup_zeros_list(ss-2) - sz2)*(sup_zeros_list(ss-2)-CONJG(sz2)))
-!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2) - sp1)/((mup - sup_zeros_list(ss-2))* &
-!!$            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - sz1)*(sup_zeros_list(ss-2) - sz2))
+!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2)-KH_pole_1)*(sup_zeros_list(ss-2)-CONJG(KH_pole_1))/ &
+!!$            ((mup - sup_zeros_list(ss-2))*kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_1))* &
+!!$            (sup_zeros_list(ss-2)-KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2) - KH_pole_1)/((mup - sup_zeros_list(ss-2))* &
+!!$            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
        res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss-2))* &
-            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - sz1)*(sup_zeros_list(ss-2) - sz2))
+            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
        do ii = 1, num_sup_zeros
           if (ii .NE. (ss-2)) then
              res = res/(sup_zeros_list(ss-2) - sup_zeros_list(ii))
@@ -2444,28 +2444,28 @@ CONTAINS
     if (ss == 1) then
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(sz1-sp1)*(sz1-CONJG(sp1))/ &
-!!$            ((mup - sz1)*kmmup*kpsz1*(sz1-CONJG(sz1))*(sz1-sz2)*(sz1-CONJG(sz2)))
-!!$       res = psi*(1._dpk - mup*M2)*(sz1 - sp1)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
-       res = psi*(1._dpk - mup*M2)/((mup - sz1)*kmmup*kpsz1*(sz1 - sz2))
+!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_1-KH_pole_1)*(KH_zero_1-CONJG(KH_pole_1))/ &
+!!$            ((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1-CONJG(KH_zero_1))*(KH_zero_1-KH_zero_2)*(KH_zero_1-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_1 - KH_pole_1)/((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1 - KH_zero_2))
+       res = psi*(1._dpk - mup*M2)/((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1 - KH_zero_2))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
-             res = res/(sz1 - sup_zeros_list(ii))
+             res = res/(KH_zero_1 - sup_zeros_list(ii))
           end do
           do jj = 1, num_sup_poles
-             res = res*(sz1 - sup_poles_list(jj))
+             res = res*(KH_zero_1 - sup_poles_list(jj))
           end do
        end if
 
        if (r <= h) then
-          fn = (1._dpk - sz1*M2)**2/(1._dpk - sz1*M1)*Trs(r,sz1,1)
+          fn = (1._dpk - KH_zero_1*M2)**2/(1._dpk - KH_zero_1*M1)*Trs(r,KH_zero_1,1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - sz1*M2)*Trs(r,sz1,2)
+          fn = (1._dpk - KH_zero_1*M2)*Trs(r,KH_zero_1,2)
        else
-          fn = (1._dpk - sz1*M3)*Trs(r,sz1,3)
+          fn = (1._dpk - KH_zero_1*M3)*Trs(r,KH_zero_1,3)
        end if
        
-       residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*sz1*z)*res*fn
+       residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*KH_zero_1*z)*res*fn
           
 !!$       else
 !!$          residuepot = 0.
@@ -2475,28 +2475,28 @@ CONTAINS
     elseif (ss == 2) then
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(sz2-sp1)*(sz2-CONJG(sp1))/ &
-!!$            ((mup - sz2)*kmmup*kpsz2*(sz2-CONJG(sz1))*(sz2-sz1)*(sz2-CONJG(sz2)))
-!!$       res = psi*(1._dpk - mup*M2)*(sz2 - sp1)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
-       res = psi*(1._dpk - mup*M2)/((mup - sz2)*kmmup*kpsz2*(sz2 - sz1))
+!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_2-KH_pole_1)*(KH_zero_2-CONJG(KH_pole_1))/ &
+!!$            ((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2-CONJG(KH_zero_1))*(KH_zero_2-KH_zero_1)*(KH_zero_2-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_2 - KH_pole_1)/((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2 - KH_zero_1))
+       res = psi*(1._dpk - mup*M2)/((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2 - KH_zero_1))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
-             res = res/(sz1 - sup_zeros_list(ii))
+             res = res/(KH_zero_1 - sup_zeros_list(ii))
           end do
           do jj = 1, num_sup_poles
-             res = res*(sz1 - sup_poles_list(jj))
+             res = res*(KH_zero_1 - sup_poles_list(jj))
           end do
        end if
           
        if (r <= h) then
-          fn = (1._dpk - sz2*M2)**2/(1._dpk - sz2*M1)*Trs(r,sz2,1)
+          fn = (1._dpk - KH_zero_2*M2)**2/(1._dpk - KH_zero_2*M1)*Trs(r,KH_zero_2,1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - sz2*M2)*Trs(r,sz2,2)
+          fn = (1._dpk - KH_zero_2*M2)*Trs(r,KH_zero_2,2)
        else
-          fn = (1._dpk - sz2*M3)*Trs(r,sz2,3)
+          fn = (1._dpk - KH_zero_2*M3)*Trs(r,KH_zero_2,3)
        end if
 
-       residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*sz2*z)*res*fn
+       residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*KH_zero_2*z)*res*fn
 
 !!$       else
 !!$          residuepot = 0.
@@ -2506,13 +2506,13 @@ CONTAINS
     else
 
 !!$       if (z > 0.) then
-!!$      res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2)-sp1)*(sup_zeros_list(ss-2)-CONJG(sp1))/ &
-!!$            ((mup - sup_zeros_list(ss-2))*kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(sz1))* &
-!!$            (sup_zeros_list(ss-2)-sz1)*(sup_zeros_list(ss-2) - sz2)*(sup_zeros_list(ss-2)-CONJG(sz2)))
-!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2) - sp1)/((mup - sup_zeros_list(ss-2))* &
-!!$            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - sz1)*(sup_zeros_list(ss-2) - sz2))
+!!$      res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2)-KH_pole_1)*(sup_zeros_list(ss-2)-CONJG(KH_pole_1))/ &
+!!$            ((mup - sup_zeros_list(ss-2))*kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_1))* &
+!!$            (sup_zeros_list(ss-2)-KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2) - KH_pole_1)/((mup - sup_zeros_list(ss-2))* &
+!!$            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
        res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss-2))* &
-            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - sz1)*(sup_zeros_list(ss-2) - sz2))
+            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
        do ii = 1, num_sup_zeros
           if (ii .NE. (ss-2)) then
              res = res/(sup_zeros_list(ss-2) - sup_zeros_list(ii))
