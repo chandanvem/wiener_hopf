@@ -28,7 +28,7 @@ PROGRAM main
   complex(dpk), allocatable, dimension(:)    :: def_pts_ker_cntr  !! the points defining the Kernel contour
   complex(dpk), allocatable, dimension(:)    :: zeros_list_bw_s1_s2, poles_list_bw_s1_s2, sup_zeros_list, sup_poles_list
   complex(dpk), allocatable, dimension(:)    :: fplusz, fplusz_temp
-  complex(dpk)                               :: kmmup, kpsz1, kpsz2, kpsp1
+  complex(dpk)                               :: k_minus_at_mu_plus, k_plus_sz1, k_plus_sz2, kpsp1
   complex(dpk), allocatable, dimension(:)    :: kzsp
   real(dpk), allocatable, dimension(:)       :: phi  !! directivity stuff
   complex(dpk), allocatable, dimension(:)    :: Dmn  !! directivity stuff
@@ -52,7 +52,7 @@ PROGRAM main
   complex(dpk)                               :: KH_zero_1 !! instability zero 1
   complex(dpk)                               :: KH_zero_2 !! instability zero 2
   complex(dpk)                               :: KH_pole_1 !! instability pole 1
-  complex(dpk)                               :: mup !! axial wave no (of incident wave)
+  complex(dpk)                               :: mu_plus !! axial wave no (of incident wave)
   complex(dpk)                               :: mu0 !! incident axial wave no (for incident vort)
   complex(dpk)                               :: resp!! portion of residue (for inc vort)
   complex(dpk)                               :: psi
@@ -89,195 +89,192 @@ CONTAINS
 
     open(1,file='input.list.p')
 
-    read(1,*) vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
-    print *, 'initialize:  vortswitch=', vortswitch
+	    read(1,*) vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
+	    print *, 'initialize:  vortswitch=', vortswitch
 
-    read(1,*) M1  !! core jet Mach number
-    print *, 'initialize:  M1=', M1
+	    read(1,*) M1  !! core jet Mach number
+	    print *, 'initialize:  M1=', M1
 
-    read(1,*) M2  !! coflow Mach number
-    print *, 'initialize:  M2=', M2
+	    read(1,*) M2  !! coflow Mach number
+	    print *, 'initialize:  M2=', M2
 
-    read(1,*) M3  !! ambient flow Mach number
-    print *, 'initialize:  M3=', M3
+	    read(1,*) M3  !! ambient flow Mach number
+	    print *, 'initialize:  M3=', M3
 
-    read(1,*) h   !! the width of the core jet, h = Ri/Ro
-    print *, 'initialize:  width of the core jet h=', h
+	    read(1,*) h   !! the width of the core jet, h = Ri/Ro
+	    print *, 'initialize:  width of the core jet h=', h
 
-    if ((vortswitch == 1) .OR. (vortswitch == 2)) then
-       read(1,*) Zo  !! starting point of inc instability (-ve)
-    end if
+	    if ((vortswitch == 1) .OR. (vortswitch == 2)) then
+	       read(1,*) Zo  !! starting point of inc instability (-ve)
+	    end if
 
-    read(1,*) w0  !! the Helmholtz number
-    print *, 'initialize:  Helmholtz number omega=', w0
+	    read(1,*) w0  !! the Helmholtz number
+	    print *, 'initialize:  Helmholtz number omega=', w0
 
-    read(1,*) kapT  !! sqrt(temp ratio)
-    print *, 'initialize:  Sqrt of temperature ratio=', kapT
- 
-    read(1,*) kap_rho  !! density ratio
-    print*, 'initialize:  Density ratio=', kap_rho
+	    read(1,*) kapT  !! sqrt(temp ratio)
+	    print *, 'initialize:  Sqrt of temperature ratio=', kapT
+	 
+	    read(1,*) kap_rho  !! density ratio
+	    print*, 'initialize:  Density ratio=', kap_rho
 
-    read(1,*) azim_mode  !! the circumferential mode no
-    print*, 'initialize:  Azimuthal wavenumber (azim_mode)=', azim_mode
+	    read(1,*) azim_mode  !! the circumferential mode no
+	    print*, 'initialize:  Azimuthal wavenumber (azim_mode)=', azim_mode
 
-    read(1,*) KH_zero_1
-    print*, 'initialize:  KH_zero_1 (First instability zero) =', KH_zero_1
-
-
-    read(1,*) KH_zero_2
-    print*, 'initialize:  KH_zero_2 (Second instability zero) =', KH_zero_2
+	    read(1,*) KH_zero_1
+	    print*, 'initialize:  KH_zero_1 (First instability zero) =', KH_zero_1
 
 
-    read(1,*) KH_pole_1
-    print*, 'initialize:  KH_pole_1 (Instability pole) =', KH_pole_1
+	    read(1,*) KH_zero_2
+	    print*, 'initialize:  KH_zero_2 (Second instability zero) =', KH_zero_2
 
 
-    if ((vortswitch == 1) .OR. (vortswitch == 2)) then
-       read(1,*) mu0  !! upstream inc acoustic mode
-       print*, 'initialize:  Incident Vorticity mode activated'
-    else
-       read(1,*) mup
-       print*, '================== Non-incident vorticity mode ====================='
-       print*,''
-       print*, 'initialize:  mu for the incident mode =',mup
-    end if
-
-    read(1,*) offset  !! the offset between the two integration contours
-    print*,'initialize:  Offset between the IFT and K split contours=', offset
-
- 
-    read(1,*) tol  !! the tolerance of the adaptive contour integration routine
-    print*,'initialize:  Tolerance for adaptive contour integration =', tol
-
-    read(1,*) num_zeros_s1_s2  !! zeros needed to be removed from the kernel
-    print*,'initialize:  Number of zeros to be removed from kernel =', num_zeros_s1_s2
-
-    read(1,*) num_poles_s1_s2  !! poles needed to be removed from the kernel
-    print*,'initialize:  Number of poles to be removed from kernel =', num_poles_s1_s2
-
-    read(1,*) num_sup_zeros  !! supersonic zeros
-    print*,'initialize:  Number of supersonic zeros =', num_sup_zeros
-
-    read(1,*) num_sup_poles  !! supersonic poles
-    print*,'initialize:  Number of supersonic poles =', num_sup_poles
-
-    if (vortswitch == 2) then
-       if (num_sup_poles == 0) then
-          print*, "initialize:  For vortswitch mode 2, at least one upstream supersonic pole needed! Exiting..."
-          STOP
-       end if
-    end if
-
-    print*,''
-    print*,'','====== Mesh and contour parameters ======',''
-    
-    read(1,*) num_ker_pts_loop
-    print*,'initialize:  Number of kernel points in each loop =', num_ker_pts_loop
-
-    read(1,*) theta  !! the stretching parameter for kernel contour meshpoints
-    print*,'initialize:  Stretching parameter for kernel contour =', theta
-
-    read(1,*) num_IFT_pts_loop
-    print*,'initialize:  Number of IFT points in each loop num_IFT_pts_loop =', num_IFT_pts_loop
-
-    read(1,*) Rmin
-    read(1,*) Rmax
-    read(1,*) Zmin
-    read(1,*) Zmax
-   
-    read(1,*) Nmeshr
-    read(1,*) Nmeshz
-
-    print*,'initialize:  Dimensions of domain in R = [',Rmin,Rmax,']' 
-    print*,'initialize:  Dimensions of domain in Z = [',Zmin,Zmax,']' 
-    print*,'initialize:  Nr x Nz =',Nmeshr,'x',Nmeshz
-
-    print*,'=============================='
-
-    read(1,*) asymplim
-    print*,'initialize:  Asymptotic limit of ??? = ',asymplim
-
-    read(1,*) asymplim1
-    print*,'initialize:  Asymptotic limit of ??? = ',asymplim1
-
-    read(1,*) vs_param_gamma  !! Default = 1.0 (0,1)
-    print*,'initialize:  Vortex shedding parameter gamma = ',vs_param_gamma 
-      
-
-!!============================
-    read(1,*) prswitch  !! 0 = Potential; 1 = Pressure
-
-    if (prswitch == 0) then
-       print*,'initialize:  Solution in potential mode'
-    elseif (prswitch == 1) then
-       print*,'initialize:  Solution in pressure mode '
-    end if
-!!============================
-    read(1,*) reflswitch  !! 1 = Reflection mode: incident mode not added
-    if (reflswitch == 1) then
-       print*,'initialize:  Reflection mode: incident mode not added'
-    else 
-       print*,'initialize:  Reflection mode: incident mode added'
-    end if
-!!============================
-    read(1,*) farswitch  !! 1 = Far-field mode: compute directivity; 2 = 1 + nearfield of sup zeros in polar mode
-
-    if ((farswitch == 1) .OR. (farswitch == 2)) then
-       read(1,*) Nphi
-       allocate(cnanglei(num_sup_zeros+2))
-    end if
-
-    if ((farswitch == 2) .AND. num_sup_zeros <= 0) then
-       print*, "For farswitch mode 2, non-zero number of supersonic zero needed! Exiting..."
-       STOP
-    end if
-
-!!=====================================================
-
-    read(1,*) restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
-
-!! read the zeros & poles that need to be excluded, if any:
-!! USE: when the effect of particular modes need to be studied individually
-    
-    if (num_zeros_s1_s2 > 0) then
-        allocate(zeros_list_bw_s1_s2(num_zeros_s1_s2))
-        do i1 = 1, num_zeros_s1_s2
-           read(1,*) zeros_list_bw_s1_s2(i1)
-!          print*, zeros_list_bw_s1_s2(i1)
-        end do
-    end if
+	    read(1,*) KH_pole_1
+	    print*, 'initialize:  KH_pole_1 (Instability pole) =', KH_pole_1
 
 
-    if (num_poles_s1_s2 > 0) then
-       allocate(poles_list_bw_s1_s2(num_poles_s1_s2))
+	    if ((vortswitch == 1) .OR. (vortswitch == 2)) then
+		       read(1,*) mu0  !! upstream inc acoustic mode
+		       print*, 'initialize:  Incident Vorticity mode activated'
+	    else
+		       read(1,*) mu_plus
+		       print*, '================== Non-incident vorticity mode ====================='
+		       print*,''
+		       print*, 'initialize:  mu for the incident mode =',mu_plus
+	    end if
 
-       do i1 = 1, num_poles_s1_s2
-          read(1,*) poles_list_bw_s1_s2(i1)
-!         print*, poles_list_bw_s1_s2(i1)
-       end do
-    end if
+	    read(1,*) offset  !! the offset between the two integration contours
+	    print*,'initialize:  Offset between the IFT and K split contours=', offset
 
-    if (num_sup_zeros > 0) then
-        allocate(sup_zeros_list(num_sup_zeros))
-        do i1 = 1, num_sup_zeros
-          read(1,*) sup_zeros_list(i1)
-!         print*, sup_zeros_list(i1)
-        end do
-   end if
+	    read(1,*) tol  !! the tolerance of the adaptive contour integration routine
+	    print*,'initialize:  Tolerance for adaptive contour integration =', tol
 
-   
-   if (num_sup_poles > 0) then 
-       allocate(sup_poles_list(num_sup_poles))
-       do i1 = 1, num_sup_poles
-         read(1,*) sup_poles_list(i1)
-!        print*, sup_poles_list(i1)
-       end do
-  end if
+	    read(1,*) num_zeros_s1_s2  !! zeros needed to be removed from the kernel
+	    print*,'initialize:  Number of zeros to be removed from kernel =', num_zeros_s1_s2
+
+	    read(1,*) num_poles_s1_s2  !! poles needed to be removed from the kernel
+	    print*,'initialize:  Number of poles to be removed from kernel =', num_poles_s1_s2
+
+	    read(1,*) num_sup_zeros  !! supersonic zeros
+	    print*,'initialize:  Number of supersonic zeros =', num_sup_zeros
+
+	    read(1,*) num_sup_poles  !! supersonic poles
+	    print*,'initialize:  Number of supersonic poles =', num_sup_poles
+
+	    if (vortswitch == 2) then
+	       if (num_sup_poles == 0) then
+			  print*, "initialize:  For vortswitch mode 2, at least one upstream supersonic pole needed! Exiting..."
+			  STOP
+	       end if
+	    end if
+
+	    print*,''
+	    print*,'','====== Mesh and contour parameters ======',''
+	    
+	    read(1,*) num_ker_pts_loop
+	    print*,'initialize:  Number of kernel points in each loop =', num_ker_pts_loop
+
+	    read(1,*) theta  !! the stretching parameter for kernel contour meshpoints
+	    print*,'initialize:  Stretching parameter for kernel contour =', theta
+
+	    read(1,*) num_IFT_pts_loop
+	    print*,'initialize:  Number of IFT points in each loop num_IFT_pts_loop =', num_IFT_pts_loop
+
+	    read(1,*) Rmin
+	    read(1,*) Rmax
+	    read(1,*) Zmin
+	    read(1,*) Zmax
+	   
+	    read(1,*) Nmeshr
+	    read(1,*) Nmeshz
+
+	    print*,'initialize:  Dimensions of domain in R = [',Rmin,Rmax,']' 
+	    print*,'initialize:  Dimensions of domain in Z = [',Zmin,Zmax,']' 
+	    print*,'initialize:  Nr x Nz =',Nmeshr,'x',Nmeshz
+
+	    print*,'=============================='
+
+	    read(1,*) asymplim
+	    print*,'initialize:  Asymptotic limit of ??? = ',asymplim
+
+	    read(1,*) asymplim1
+	    print*,'initialize:  Asymptotic limit of ??? = ',asymplim1
+
+	    read(1,*) vs_param_gamma  !! Default = 1.0 (0,1)
+	    print*,'initialize:  Vortex shedding parameter gamma = ',vs_param_gamma 
+	      
+	!!============================
+	    read(1,*) prswitch  !! 0 = Potential; 1 = Pressure
+
+	    if (prswitch == 0) then
+	       print*,'initialize:  Solution in potential mode'
+	    elseif (prswitch == 1) then
+	       print*,'initialize:  Solution in pressure mode '
+	    end if
+	!!============================
+	    read(1,*) reflswitch  !! 1 = Reflection mode: incident mode not added
+	    if (reflswitch == 1) then
+	       print*,'initialize:  Reflection mode: incident mode not added'
+	    else 
+	       print*,'initialize:  Reflection mode: incident mode added'
+	    end if
+	!!============================
+	    read(1,*) farswitch  !! 1 = Far-field mode: compute directivity; 2 = 1 + nearfield of sup zeros in polar mode
+
+	    if ((farswitch == 1) .OR. (farswitch == 2)) then
+	       read(1,*) Nphi
+	       allocate(cnanglei(num_sup_zeros+2))
+	    end if
+
+	    if ((farswitch == 2) .AND. num_sup_zeros <= 0) then
+	       print*, "For farswitch mode 2, non-zero number of supersonic zero needed! Exiting..."
+	       STOP
+	    end if
+
+	!!=====================================================
+
+	    read(1,*) restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
+
+	!! read the zeros & poles that need to be excluded, if any:
+	!! USE: when the effect of particular modes need to be studied individually
+	    
+	    if (num_zeros_s1_s2 > 0) then
+		allocate(zeros_list_bw_s1_s2(num_zeros_s1_s2))
+		do i1 = 1, num_zeros_s1_s2
+		   read(1,*) zeros_list_bw_s1_s2(i1)
+	!          print*, zeros_list_bw_s1_s2(i1)
+		end do
+	    end if
+
+
+	    if (num_poles_s1_s2 > 0) then
+	       allocate(poles_list_bw_s1_s2(num_poles_s1_s2))
+
+	       do i1 = 1, num_poles_s1_s2
+		  read(1,*) poles_list_bw_s1_s2(i1)
+	!         print*, poles_list_bw_s1_s2(i1)
+	       end do
+	    end if
+
+	    if (num_sup_zeros > 0) then
+		allocate(sup_zeros_list(num_sup_zeros))
+		do i1 = 1, num_sup_zeros
+		  read(1,*) sup_zeros_list(i1)
+	!         print*, sup_zeros_list(i1)
+		end do
+	   end if
+
+	   
+	   if (num_sup_poles > 0) then 
+	       allocate(sup_poles_list(num_sup_poles))
+	       do i1 = 1, num_sup_poles
+		 read(1,*) sup_poles_list(i1)
+	!        print*, sup_poles_list(i1)
+	       end do
+	  end if
 
     close(1)
 
 !!================================================================
-
 
     PI = 4._dpk*ATAN(1.)
     delr = 0._dpk   !! for real omega
@@ -286,23 +283,22 @@ CONTAINS
 !! defining the omegas (Helmholtz numbers):
 
     omega_r = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*delr)  !! real
-!!$    omega_i = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*deli)  !! imaginary
-!!$    omega_i = omega_r
 
 !! whether to compute velocity potential or pressure:
 
     if (prswitch == 0) then
        if ((farswitch == 1) .OR. (farswitch == 2)) then
-          print*,''
-          print*,'initialize: Far-field is computed ONLY in pressure mode. Exiting...'
-          STOP
+		  print*,''
+		  print*,'initialize: Far-field is computed ONLY in pressure mode. Exiting...'
+		  STOP
        else
-          print*,''
-          print*,'initialize: Computing Potential...'
+		  print*,''
+		  print*,'initialize: Computing Potential...'
        end if
+    
     else
-       print*,''
-       print*,'initialize: Computing Pressure...'
+	       print*,''
+	       print*,'initialize: Computing Pressure...'
     end if
 
  !! now allocate for the contour points:
@@ -319,28 +315,28 @@ CONTAINS
 
     open(1,file='input.iftpts')
 
-    read(1,*) t
-    ai = t
-    read(1,*) def_pts_IFT_cntr(2)
-    read(1,*) t
-    def_pts_IFT_cntr(3) = CMPLX(t,0._dpk,kind=dpk)
-    read(1,*) def_pts_IFT_cntr(4)
-    read(1,*) t
-    af = t
+	    read(1,*) t
+	    ai = t
+	    read(1,*) def_pts_IFT_cntr(2)
+	    read(1,*) t
+	    def_pts_IFT_cntr(3) = CMPLX(t,0._dpk,kind=dpk)
+	    read(1,*) def_pts_IFT_cntr(4)
+	    read(1,*) t
+	    af = t
 
-    call get_y_alg_int_contour(ai,ai_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)), &
-                                AIMAG(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)))
+	    call get_y_alg_int_contour(ai,ai_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)), &
+					AIMAG(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)))
 
-    call get_y_alg_int_contour(af,af_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)), &
-                                     AIMAG(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)))
+	    call get_y_alg_int_contour(af,af_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)), &
+					     AIMAG(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)))
 
-    def_pts_IFT_cntr(1) = CMPLX(ai,ai_im,kind=dpk)  
-    def_pts_IFT_cntr(5) = CMPLX(af,af_im,kind=dpk)
+	    def_pts_IFT_cntr(1) = CMPLX(ai,ai_im,kind=dpk)  
+	    def_pts_IFT_cntr(5) = CMPLX(af,af_im,kind=dpk)
 
-    read(1,*) t
-    aki = t
-    read(1,*) t
-    akf = t
+	    read(1,*) t
+	    aki = t
+	    read(1,*) t
+	    akf = t
 
     close(1)
 
@@ -376,27 +372,27 @@ CONTAINS
     if (vortswitch .EQ. 0) then
 
        if(i1==0 .OR. i2==0 .OR. i3==0) then
-          print*,''
-          print*,'initialize: Redefine the contour: One of instability zero/pole is INSIDE!'
-          print*,''
-          if (i1==0) print*, 'initialize: Zero1 is inside'
-          if (i2==0) print*, 'initialize: Zero2 is inside'
-          if (i3==0) print*, 'initialize: Pole1 is inside'
-          print*,''
-          STOP
+		  print*,''
+		  print*,'initialize: Redefine the contour: One of instability zero/pole is INSIDE!'
+		  print*,''
+		  if (i1==0) print*, 'initialize: Zero1 is inside'
+		  if (i2==0) print*, 'initialize: Zero2 is inside'
+		  if (i3==0) print*, 'initialize: Pole1 is inside'
+		  print*,''
+		  STOP
        end if
 
     else
 
        if(i1==1 .OR. i2==0 .OR. i3==1) then
-          print*,''
-          print*,'initialize: Redefine the contour:'
-          print*,''
-          if (i1==1) print*, 'initialize: Zero1 is outside'
-          if (i2==0) print*, 'initialize: Zero2 is inside'
-          if (i3==1) print*, 'initialize: Pole1 is outside'
-          print*,''
-          STOP
+		  print*,''
+		  print*,'initialize: Redefine the contour:'
+		  print*,''
+		  if (i1==1) print*, 'initialize: Zero1 is outside'
+		  if (i2==0) print*, 'initialize: Zero2 is inside'
+		  if (i3==1) print*, 'initialize: Pole1 is outside'
+		  print*,''
+		  STOP
        end if
 
     end if
@@ -405,15 +401,15 @@ CONTAINS
        call checkloc(sup_zeros_list(i1),i2)
        if (vortswitch .EQ. 0) then
           if(i2 == 0) then
-             print*,''
-             print*,'initialize: Redefine the contour: The following supersonic zero is inside:'
-             print*,sup_zeros_list(i1)
-          end if
+		     print*,''
+		     print*,'initialize: Redefine the contour: The following supersonic zero is inside:'
+		     print*,sup_zeros_list(i1)
+		  end if
        else
           if(i2 == 1) then
-             print*,''
-             print*,'initialize: Redefine the contour: The following supersonic zero is outside:'
-             print*,sup_zeros_list(i1)
+		     print*,''
+		     print*,'initialize: Redefine the contour: The following supersonic zero is outside:'
+		     print*,sup_zeros_list(i1)
           end if
        end if
     end do
@@ -422,15 +418,15 @@ CONTAINS
        call checkloc(sup_poles_list(i1),i2)
        if (vortswitch .EQ. 0) then
           if(i2 == 0) then
-             print*,''
-             print*,'initialize: Redefine the contour: The following supersonic pole is inside:'
-             print*,sup_poles_list(i1)
+		     print*,''
+		     print*,'initialize: Redefine the contour: The following supersonic pole is inside:'
+		     print*,sup_poles_list(i1)
           end if
        else
           if(i2 == 1) then
-             print*,''
-             print*,'initialize: Redefine the contour: The following supersonic pole is outside:'
-             print*,sup_poles_list(i1)
+		     print*,''
+		     print*,'initialize: Redefine the contour: The following supersonic pole is outside:'
+		     print*,sup_poles_list(i1)
           end if
        end if
     end do
@@ -473,12 +469,10 @@ CONTAINS
     integer     :: index
 
     print*,'solve: Defining contours for kernel and IFT integration...'
-    print*,''
 
     call definecontours
 
     print*,'solve: Done...' 
-    print*,''
     print*,'solve: Starting pre compute routine...'
     print*,'solve: Computing K+ at the zeros and K- at mu+:'
 
@@ -486,29 +480,27 @@ CONTAINS
 
     if ((farswitch == 1) .OR. (farswitch == 2)) then
 
-       print*,''
-       print*,'solve: Near-field computation only:'
-       print*,'' 
+	       print*,''
+	       print*,'solve: Near-field computation only:'
+	       print*,'' 
 
     else
 
-       call meshgrid
-    
-       print*,'solve: Now computing F+:'
-      
+	       call meshgrid
 
-       if (restart .NE. 0) then
-          call read_fplus(index)  !! assumes the fplus_part.out file to be present
-          call compute_fplus(restart,index)
-       else
-          call compute_fplus(restart,0)
-       end if
+	       if (restart .NE. 0) then
+		           call read_fplus(index)  !! assumes the fplus_part.out file to be present
+		           call compute_fplus(restart,index)
+	       else
+                 print*,'solve: Now computing F+. This takes a while:'
+		           call compute_fplus(restart,0)
+	       end if
 
-       print*,''
-       print*,'solve: Now starting the IFT:'
-       print*,''
+	       print*,''
+	       print*,'solve: Now starting the IFT:'
+	       print*,''
 
-       call computeift
+	       call computeift
 
     end if
 
@@ -542,9 +534,11 @@ CONTAINS
     print*,'definecontours: Writing kernel integration points to file:'
 
     open(10,file='initialpoints.out',form='FORMATTED')
-    do i = 1,tot_ker_points
-       write(10,'(I10,2F30.20)') i, ker_int_points(i)
-    end do
+   
+	    do i = 1,tot_ker_points
+	       write(10,'(I10,2F30.20)') i, ker_int_points(i)
+	    end do
+   
     close(10)
 
     allocate(iftpoints(tot_IFT_pts))
@@ -559,9 +553,11 @@ CONTAINS
     print*,'definecontours: Writing IFT integration points to file:'
 
     open(10,file='iftpoints.out',form='FORMATTED')
-    do i = 1,tot_IFT_pts
-       write(10,'(I10,2F30.20)') i, iftpoints(i)
-    end do
+
+	    do i = 1,tot_IFT_pts
+	       write(10,'(I10,2F30.20)') i, iftpoints(i)
+	    end do
+
     close(10)
 
 
@@ -616,10 +612,10 @@ CONTAINS
        select case (ss)
 
        case(1)
-          call gen_stretched_grid(r,p,N+2,1,xi)  
+          call create_stretched_grid(r,p,N+2,1,xi)  
 
        case(2)
-          call gen_stretched_grid(p,r,N+2,2,xi)  
+          call create_stretched_grid(p,r,N+2,2,xi)  
 
        end select
 
@@ -685,7 +681,7 @@ CONTAINS
   END SUBROUTINE combine
 
 
-  SUBROUTINE gen_stretched_grid(a,b,N,ss,xst)
+  SUBROUTINE create_stretched_grid(a,b,N,ss,xst)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Define the stretching function needed for the kernel contour
@@ -720,7 +716,7 @@ CONTAINS
     end if
 
 
-  END SUBROUTINE gen_stretched_grid
+  END SUBROUTINE create_stretched_grid
 
 
   SUBROUTINE meshgrid
@@ -832,7 +828,7 @@ CONTAINS
 
           do k = 1, tot_IFT_pts-1
 
-             call trapezoid1(R(i),Z(j),k,switch,pr(k))
+             call IFT_trapz_int(R(i),Z(j),k,switch,pr(k))
              
           end do
 
@@ -842,14 +838,12 @@ CONTAINS
           end do
           close(10)
 
-          call evalintegral1(pr,prsum(i,j))
+          call sum_panel_contribution_IFT(pr,prsum(i,j))
           
           if (prswitch == 0) then  !! compute velocity potential
              
              pressure(i,j) = omega_r/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))*prsum(i,j)
 
-!!$          pressure(i,j) = 0.
-          
              acoupressure(i,j) = pressure(i,j)  !! acoustic part
 
              if (vortswitch .EQ. 0) then
@@ -886,7 +880,7 @@ CONTAINS
 
              else
 
-                pressure(i,j) = omega_r*omega_r/(2._dpk*PI)*prsum(i,j) + psi0(R(i),Z(j),switch) 
+                pressure(i,j) = omega_r*omega_r/(2._dpk*PI)*prsum(i,j) + compute_psi_incident(R(i),Z(j),switch) 
                                                 !! the incident wave added
 
              end if
@@ -921,7 +915,7 @@ CONTAINS
 
           end if
 
-          initpressure(i,j) = psi0(R(i),Z(j),switch)  !! the incident wave
+          initpressure(i,j) = compute_psi_incident(R(i),Z(j),switch)  !! the incident wave
           
           print*,''
           
@@ -1048,135 +1042,129 @@ CONTAINS
 !! 3. Constants computed: K^{-}(\mu_{mn}^{+}); K^{+}(s_{z1}); K^{+}(s_{z2})
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    complex(dpk)          :: k, kp, f1, f2, f3
+    complex(dpk)          :: intgrl_A1_at_mu_plus, intgrl_A1_at_KH_zero_1, intgrl_A1_at_KH_zero_2, intgrl_at_sup_zero
+    complex(dpk)          :: k_plus_at_mu_plus, f1, f2, f3
     integer               :: f, i1
 
+  
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
+    !! the factor \Psi_{mn}(1) of (4.1) [see the JFM 2008]:
 
-!! the factor \Psi_{mn}(1) of (4.1) [see the JFM 2008]:
-
-       psi = omega_r*resp*(1._dpk - M2*mup)*Trsin(1._dpk,mup,2)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*(-Zo))
+	       psi = omega_r*resp*(1._dpk - M2*mu_plus)*compute_Trs_instab(1._dpk,mu_plus,2)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mu_plus*(-Zo))
 
     else
 
 !! check if the radial wavenumber is negative:
 
-       if((REAL(mup) < -(kapT/(1._dpk - kapT*M2))) .OR. (REAL(mup) > (1._dpk/(1._dpk + M1)))) then 
-          print*,'Radial wave number(s) is negative: Check the incident wave axial wave number!'
-          STOP
-       end if
+	       if((REAL(mu_plus) < -(kapT/(1._dpk - kapT*M2))) .OR. (REAL(mu_plus) > (1._dpk/(1._dpk + M1)))) then 
+		          print*,'Radial wave number(s) is negative: Check the incident wave axial wave number!'
+		          STOP
+	       end if
 
-       alpha1 = omega_r*SQRT((1._dpk - mup*M1)**2 - mup**2)
-       alpha2 = omega_r*SQRT(kapT**2*(1._dpk - mup*M2)**2 - mup**2)
+	       alpha1 = omega_r*SQRT((1._dpk - mu_plus*M1)**2 - mu_plus**2)
+	       alpha2 = omega_r*SQRT(kapT**2*(1._dpk - mu_plus*M2)**2 - mu_plus**2)
 
-       print*,''
-       print*,'precompute: The radial wave numbers:'
-       write(*,'(/A12,2X,2F15.10)'), 'alpha1:->', alpha1
-       write(*,'(A12,2X,2F15.10/)'), 'alpha2:->', alpha2
+	       print*,'precompute: The radial wave numbers:'
+	       write(*,'(/A12,2X,2F15.10)'), ' alpha1:->', alpha1
+	       write(*,'(A12,2X,2F15.10/)'), ' alpha2:->', alpha2
 
 !! the factor \Psi_{mn}(1) of (3.30) [see the JFM]:
 
-       f1 = (1._dpk - mup*M1)/(1._dpk - mup*M2)*bessj(alpha1*h,azim_mode,1)*EXP(ABS(AIMAG(alpha1*h)))
-       
-       f2 = (bessj(alpha2,azim_mode,1)*dhank1(alpha2,azim_mode,1)- & 
-            hank1(alpha2,azim_mode,1)*dbessj(alpha2,azim_mode,1))* &
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2 + ABS(AIMAG(alpha2)))
-       
-       f3 = bessj(alpha2*h,azim_mode,1)*dhank1(alpha2,azim_mode,1)* &
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2 + ABS(AIMAG(alpha2*h)))- & 
-            hank1(alpha2*h,azim_mode,1)*dbessj(alpha2,azim_mode,1)* &
-            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2*h + ABS(AIMAG(alpha2)))
+	       f1 = (1._dpk - mu_plus*M1)/(1._dpk - mu_plus*M2)*bessj(alpha1*h,azim_mode,1)*EXP(ABS(AIMAG(alpha1*h)))
+	       
+	       f2 = (bessj(alpha2,azim_mode,1)*dhank1(alpha2,azim_mode,1)- & 
+		         hank1(alpha2,azim_mode,1)*dbessj(alpha2,azim_mode,1))* &
+		         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2 + ABS(AIMAG(alpha2)))
+	       
+	       f3 = bessj(alpha2*h,azim_mode,1)*dhank1(alpha2,azim_mode,1)* &
+		         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2 + ABS(AIMAG(alpha2*h)))- & 
+		         hank1(alpha2*h,azim_mode,1)*dbessj(alpha2,azim_mode,1)* &
+		         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2*h + ABS(AIMAG(alpha2)))
 
-       psi = kap_rho*f1*f2/f3
-    
-!!$    print*,'f1:',f1
-!!$    print*,'f2:',f2
-!!$    print*,'f3:',f3
-!!$    print*,'psi:',psi
-
+	       psi = kap_rho*f1*f2/f3
+	       print*, 'precompute: Evaluated psi for the incident wave'
+	   
     end if
     
 !!  the factor Kt^{-}(\mu_{mn}^{+}):
 
     if (vortswitch .EQ. 0) then
-       if (REAL(mup) < cont_cross_over_pt) then  !! muplus is below the contour; cont_cross_over_pt being the crossover pt
-          print*, ''
-          print*, 'precompute: The incident acoustic mode needs to be INSIDE the contour'
-          print*, ''
-          STOP
-       end if
-    end if
+	     
+              if (REAL(mu_plus) < cont_cross_over_pt) then  !! mu_plus is below the contour; cont_cross_over_pt being the crossover pt
+		           print*, ''
+		           print*, 'precompute: The incident acoustic mode needs to be INSIDE the contour'
+		           print*, ''
+		           STOP
+	           end if
+
+     end if
      
-!    call kernel_eval(mup,k,0,0,0)
-
     print*, 'precompute: Evaluating kernel at mu_plus'
-    call kernel_eval(mup,k,0,0,1)
+    call compute_eqn_A1_integral(mu_plus,intgrl_A1_at_mu_plus,0,0,1)
        
-    kp = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
-         LOG(compute_kernel(0,mup)/zp(0,mup)))
+    k_plus_at_mu_plus = EXP(-intgrl_A1_at_mu_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
+                        LOG(compute_kernel(0,mu_plus)/compute_U_s_factor(0,mu_plus)))
 
-!    kmmup =  compute_kernel(0,mup)/kp   !! since: Kt^{-}(s) = K^{-}(s)
-    kmmup =  compute_kernel(0,mup)/(kp*zp(0,mup)) 
-!!$    print*,'kmmup:',kmmup
+    k_minus_at_mu_plus =  compute_kernel(0,mu_plus)/(k_plus_at_mu_plus*compute_U_s_factor(0,mu_plus)) 
 
 !!  the factor Kt^{+}(s_{z1}):
 
     if (vortswitch .EQ. 0) then
   
-       print*, 'precompute: Evaluating kernel at KH_zero_1'
-       call kernel_eval(KH_zero_1,k,0,0,1)
+	       print*, 'precompute: Evaluating Kt^{+}(s_{z1}) at KH_zero_1'
+	       call compute_eqn_A1_integral(KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1)
 
-       kpsz1 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: zero KH_zero_1 has to lie below
-                                                                  !! the contour
+	       k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: zero KH_zero_1 has to lie below
+									  !! the contour
     end if
 !!  the factor K^{+}(s_{z2}):
 
-    print*, 'precompute: Evaluating kernel at KH_zero_2'
-    call kernel_eval(KH_zero_2,k,0,0,1)
+    print*, 'precompute: Evaluating Kt^{+}(s_{z2}) at KH_zero_2'
+    call compute_eqn_A1_integral(KH_zero_2,intgrl_A1_at_KH_zero_2,0,0,1)
 
-    kpsz2 = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! same for KH_zero_2
+    k_plus_sz2 = EXP(-intgrl_A1_at_KH_zero_2/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! same for KH_zero_2
 
     if (num_sup_zeros > 0) allocate(kzsp(num_sup_zeros))
 
     if (vortswitch .EQ. 0) then
-       do i1 = 1, num_sup_zeros
-          
-          print '(A, I0)', 'precompute: Evaluating kernel at supersonic zero ', i1
-          call kernel_eval(sup_zeros_list(i1),k,0,0,1)
-          
-          kzsp(i1) = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: instability zeros are below
-          
-       end do
+	       do i1 = 1, num_sup_zeros
+		  
+		       print '(A, I0)', 'precompute: Evaluating kernel at supersonic zero ', i1
+		       call compute_eqn_A1_integral(sup_zeros_list(i1),intgrl_at_sup_zero,0,0,1)
+		  
+		       kzsp(i1) = EXP(-intgrl_at_sup_zero/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! NOTE: instability zeros are below
+		  
+	       end do
     end if
 
 
   END SUBROUTINE precompute
 
 
-  SUBROUTINE kernel_eval(zi,integral,kswitch,ch,switch)
+  SUBROUTINE compute_eqn_A1_integral(s_target,integral_value,kswitch,ch,KU_K_switch)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Evaluate (A1)
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    complex(dpk)           :: zi
-    complex(dpk)           :: integral ! final value of integration
-    integer                :: N, ch
-    integer                :: switch  !! 1: K/U; else: K
+    complex(dpk)           :: s_target
+    complex(dpk)           :: integral_value ! final value of integration
+    integer                :: num_of_quad_points, ch
+    integer                :: KU_K_switch  !! 1: K/U; else: K
     integer                :: kswitch  !! 1: compute (4.10); else: compute (3.22)
 
     allocate(intpanel(tot_ker_points-1))
     allocate(Npanel(tot_ker_points-1))
 
-    call adaptive(zi,kswitch,ch,switch)
+    call adaptive(s_target,kswitch,ch,KU_K_switch)
 
-    call evalintegral(integral,N,zi)
+    call sum_panel_contributions_kernel(integral_value,num_of_quad_points,s_target)
 
     deallocate(intpanel)
     deallocate(Npanel)
 
 
-  END SUBROUTINE kernel_eval
+  END SUBROUTINE compute_eqn_A1_integral
 
 
   SUBROUTINE adaptive(si,ksw,check,sw)
@@ -1210,7 +1198,7 @@ CONTAINS
 
        end if
 
-       call trapezoid(si,ker_int_points(j),ker_int_points(j+1),ksw,sw,T)  !! the basis for comparison
+       call kernel_trapz_int(si,ker_int_points(j),ker_int_points(j+1),ksw,sw,T)  !! the basis for comparison
 
 !       print*, 'T:', T
 
@@ -1240,10 +1228,14 @@ CONTAINS
       
              if (j >= 1 .AND. j < num_ker_pts_loop+2) then
                 xp(i+1) = xp(i) + ds
-                call get_y_alg_int_contour(xp(i+1),yp(i+1),REAL(def_pts_ker_cntr(3)),REAL(def_pts_ker_cntr(2)-def_pts_ker_cntr(3)),AIMAG(def_pts_ker_cntr(2)-def_pts_ker_cntr(3)))
+                call get_y_alg_int_contour(xp(i+1),yp(i+1), & 
+                           REAL(def_pts_ker_cntr(3)),REAL(def_pts_ker_cntr(2)-def_pts_ker_cntr(3)), &
+                           AIMAG(def_pts_ker_cntr(2)-def_pts_ker_cntr(3)))
              else
                 xp(i+1) = xp(i) + ds
-                call get_y_alg_int_contour(xp(i+1),yp(i+1),REAL(def_pts_ker_cntr(3)),REAL(def_pts_ker_cntr(4)-def_pts_ker_cntr(3)),AIMAG(def_pts_ker_cntr(4)-def_pts_ker_cntr(3)))
+                call get_y_alg_int_contour(xp(i+1),yp(i+1), & 
+                           REAL(def_pts_ker_cntr(3)),REAL(def_pts_ker_cntr(4)-def_pts_ker_cntr(3)), &
+                           AIMAG(def_pts_ker_cntr(4)-def_pts_ker_cntr(3)))
                   
              end if
 
@@ -1256,7 +1248,7 @@ CONTAINS
           allocate(T_temp(panel_no))
           
           do i = 1,panel_no
-             call trapezoid(si,zp(i),zp(i+1),ksw,sw,T_temp(i))
+             call kernel_trapz_int(si,zp(i),zp(i+1),ksw,sw,T_temp(i))
           end do
           
           intpanel(j) = (0._dpk,0._dpk)
@@ -1421,101 +1413,79 @@ CONTAINS
   END SUBROUTINE read_fplus
 
 
-  FUNCTION get_fplus_value(z)  result(fplus)
+  FUNCTION get_fplus_value(s_target)  result(fplus)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Actual computation of \xi^{+}(s)
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    complex(dpk)       :: fplus, z, gpz, kpz, k
-    complex(dpk)       :: l1mmup, l2mmup, l3mmup, l1pz, l2pz, l3pz, lprod
+    complex(dpk)       :: fplus, s_target, gpz, kpz, int_A1_at_s_target
+    complex(dpk)       :: lambda_1_minus_mu_plus, lambda_2_minus_mu_plus, lambda_3_minus_mu_plus
+    complex(dpk)       :: lambda_1_plus_mu_plus, lambda_2_plus_mu_plus, lambda_3_plus_mu_plus, lambda_prod
     integer            :: f
 
 
-    l1mmup = sqrt(1._dpk - mup*(M1 - 1._dpk))
-    l2mmup = sqrt(kapT - mup*(kapT*M2 - 1._dpk))
-    l3mmup = sqrt(kapT - mup*(kapT*M3 - 1._dpk))
-    l1pz = sqrt(1._dpk - z*(M1 + 1._dpk))
-    l2pz = sqrt(kapT - z*(kapT*M2 + 1._dpk))
-    l3pz = sqrt(kapT - z*(kapT*M3 + 1._dpk))
+    lambda_1_minus_mu_plus = sqrt(1._dpk - mu_plus*(M1 - 1._dpk))
+    lambda_2_minus_mu_plus = sqrt(kapT - mu_plus*(kapT*M2 - 1._dpk))
+    lambda_3_minus_mu_plus = sqrt(kapT - mu_plus*(kapT*M3 - 1._dpk))
+    lambda_1_plus_mu_plus = sqrt(1._dpk - s_target*(M1 + 1._dpk))
+    lambda_2_plus_mu_plus = sqrt(kapT - s_target*(kapT*M2 + 1._dpk))
+    lambda_3_plus_mu_plus = sqrt(kapT - s_target*(kapT*M3 + 1._dpk))
 
-!!$    gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - z))
-    gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - KH_zero_2))
+    gpz = psi*(1._dpk - mu_plus*M2)/(k_minus_at_mu_plus*(mu_plus - KH_zero_2))
 
-!!$    gpz = psi*(1._dpk - mup*M2)/(kmmup*(mup - z)) - &
-!!$         psi*(1._dpk - mup*M2)/(kmmup*(mup - KH_zero_2))
-
-!!$    lprod = l2mmup*l3mmup*l2pz*l3pz
-
-!    call kernel_eval(z,k,0,0,0)
-    call kernel_eval(z,k,0,0,1)
+    call compute_eqn_A1_integral(s_target,int_A1_at_s_target,0,0,1)
 
     if ((farswitch == 1) .OR. (farswitch == 2)) then
-       if (REAL(z) >= cont_cross_over_pt) then
-          kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
-               LOG(compute_kernel(0,z)/zp(0,z)))  !! z is above contour; cont_cross_over_pt is crossover pt
+       if (REAL(s_target) >= cont_cross_over_pt) then
+          kpz = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
+               LOG(compute_kernel(0,s_target)/compute_U_s_factor(0,s_target)))  !! s_target is above contour; cont_cross_over_pt is crossover pt
        else
-          kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! z is below
+          kpz = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! s_target is below
        end if
     else
-       kpz = EXP(-k/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! z is always below normally
+       kpz = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! s_target is always below normally
     end if
 
-!!$    fplus = gpz/kpz*( (z - KH_zero_2)/(mup - z) + vs_param_gamma)
-    fplus = gpz*( (z - KH_zero_2)/(mup - z) + vs_param_gamma)/(kpz*zp(0,z))
-
-!!$    fplus = lprod*gpz/(kmmup*kpz)
-
-!!$    fplus = lprod*gpz*(z - KH_pole_1)/(kmmup*(z - KH_zero_1)*(z - KH_zero_2)*kpz)
-
-!!$    print*,'gpz',gpz
-
+    fplus = gpz*( (s_target - KH_zero_2)/(mu_plus - s_target) + vs_param_gamma)/(kpz*compute_U_s_factor(0,s_target))
 
   END FUNCTION get_fplus_value
 
 
-  FUNCTION zp(ss,z)
+  FUNCTION compute_U_s_factor(ss,s_target) result(u_s)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The factor U(s)
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    complex(dpk)  :: z, zp
+    complex(dpk)  :: s_target, u_s
     integer       :: j, jj, ss
 
     if (ss == 1) then
-!       zp = ((z-KH_pole_1)*(z-CONJG(KH_pole_1)))
-       zp = (z-KH_pole_1)
+       u_s = (s_target-KH_pole_1)
     else
        if (vortswitch .EQ. 0) then
-!!$       zp = (z-KH_zero_1)*(z-CONJG(KH_zero_1))*(z-KH_zero_2)*(z-CONJG(KH_zero_2)) &
-!!$            /((z-KH_pole_1)*(z-CONJG(KH_pole_1)))
-          zp = (z-KH_zero_1)*(z-KH_zero_2)/(z-KH_pole_1)
+          u_s = (s_target-KH_zero_1)*(s_target-KH_zero_2)/(s_target-KH_pole_1)
        else
-          zp = (z-KH_zero_2)
+          u_s = (s_target-KH_zero_2)
        end if
     end if
 
-!!$    zp = (z-KH_zero_1)*(z-KH_zero_2)/(z-KH_pole_1)
-
     if (ss == 1) then
        do j = 1, num_sup_poles
-          zp = zp*(z - sup_poles_list(j))
+          u_s = u_s*(s_target - sup_poles_list(j))
        end do
     else
        if (vortswitch .EQ. 0) then
           do j = 1, num_sup_zeros
              do jj = 1, num_sup_poles
-                zp = zp*(z - sup_zeros_list(j))/(z - sup_poles_list(jj))
+                u_s = u_s*(s_target - sup_zeros_list(j))/(s_target - sup_poles_list(jj))
              end do
           end do
        end if
     end if
-!!$    zp = (z-KH_zero_2)
 
-!!$    zp = CMPLX(1._dpk,0._dpk,kind=dpk)
-
-  END FUNCTION zp
+  END FUNCTION compute_U_s_factor
 
 
   SUBROUTINE get_y_alg_int_contour(x,y,p,a,b)
@@ -1533,28 +1503,28 @@ CONTAINS
   END SUBROUTINE get_y_alg_int_contour
 
 
-  SUBROUTINE trapezoid(s,z1,z2,ksw,sw,I)
+  SUBROUTINE kernel_trapz_int(s,z1,z2,ksw,sw,int_value)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The trapezoidal rule for the kernel contour
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    complex(dpk)                :: z1, z2, s, dz, I
+    complex(dpk)                :: z1, z2, s, dz, int_value
     complex(dpk)                :: f1, f2
     integer                     :: sw, ksw
 
-    f1 = integrand(ksw,sw,s,z1)
-    f2 = integrand(ksw,sw,s,z2)
+    f1 = kernel_integrand(ksw,sw,s,z1)
+    f2 = kernel_integrand(ksw,sw,s,z2)
 
     dz = (z2-z1)
 
-    I = dz/2._dpk*(f1+f2)
+    int_value = dz/2._dpk*(f1+f2)
 
 
-  END SUBROUTINE trapezoid
+  END SUBROUTINE kernel_trapz_int
 
 
-  SUBROUTINE trapezoid1(r,z,i,ss,Int)
+  SUBROUTINE IFT_trapz_int(r,z,i,ss,Int)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The trapezoidal rule for the IFT contour
@@ -1567,8 +1537,8 @@ CONTAINS
 
     if (prswitch == 0) then
 
-       f1 = integrandiftpot(r,z,i,ss)
-       f2 = integrandiftpot(r,z,i+1,ss)
+       f1 = integrand_IFT_pot(r,z,i,ss)
+       f2 = integrand_IFT_pot(r,z,i+1,ss)
 
     else
 
@@ -1582,10 +1552,10 @@ CONTAINS
     Int = ds/2._dpk*(f1+f2)
 
 
-  END SUBROUTINE trapezoid1
+  END SUBROUTINE IFT_trapz_int
 
 
-  SUBROUTINE evalintegral(Int,totpoints,z)
+  SUBROUTINE sum_panel_contributions_kernel(Int,totpoints,z)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Sum up the individual trapezoids for the kernel contour
@@ -1622,10 +1592,10 @@ CONTAINS
     write(*,'(A22,2X,I20/)'),'Quadrature pts:->', totpoints
     
 
-  END SUBROUTINE evalintegral
+  END SUBROUTINE sum_panel_contributions_kernel
 
 
- SUBROUTINE evalintegral1(panel,Int)
+ SUBROUTINE sum_panel_contribution_IFT(panel,Int)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Sum up the individual trapezoids for the IFT contour
@@ -1641,10 +1611,10 @@ CONTAINS
     end do
 
 
-  END SUBROUTINE evalintegral1
+  END SUBROUTINE sum_panel_contribution_IFT
 
 
-  FUNCTION integrand(kswitch,switch,si,zi)
+  FUNCTION kernel_integrand(kswitch,switch,si,zi) result(integrand)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the kernel integrand
@@ -1655,7 +1625,7 @@ CONTAINS
     integer         :: switch, kswitch
 
     if (switch == 1)  then !! K/U
-       In = LOG(compute_kernel(kswitch,zi)/zp(kswitch,zi))
+       In = LOG(compute_kernel(kswitch,zi)/compute_U_s_factor(kswitch,zi))
     else
        In = LOG(compute_kernel(kswitch,zi))
     end if
@@ -1679,7 +1649,7 @@ CONTAINS
     end if
 
 
-  END FUNCTION integrand
+  END FUNCTION kernel_integrand
 
 
   FUNCTION integrandiftpr(ri,zi,i,ss)
@@ -1700,30 +1670,30 @@ CONTAINS
 
 !! pressure:
 
-       integrandiftpr = (1._dpk - u*M2)**2*Trs(ri,u,1)*fplusz(i)* & 
+       integrandiftpr = (1._dpk - u*M2)**2*compute_Trs(ri,u,1)*fplusz(i)* & 
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
-!!$       integrandiftpr = Trs(ri,u,1)
+!!$       integrandiftpr = compute_Trs(ri,u,1)
     else if (ss==2) then
 
 !! pressure:
        
-       integrandiftpr = (1._dpk - u*M2)**2*Trs(ri,u,2)*fplusz(i)* &
+       integrandiftpr = (1._dpk - u*M2)**2*compute_Trs(ri,u,2)*fplusz(i)* &
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
-!!$       integrandiftpr = Trs(ri,u,2)
+!!$       integrandiftpr = compute_Trs(ri,u,2)
     else
 
 !! pressure:
 
-       integrandiftpr = (1._dpk - u*M3)**2*Trs(ri,u,3)*fplusz(i)* &
+       integrandiftpr = (1._dpk - u*M3)**2*compute_Trs(ri,u,3)*fplusz(i)* &
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
-!!$       integrandiftpr =  Trs(ri,u,3)
+!!$       integrandiftpr =  compute_Trs(ri,u,3)
     end if
 
 
   END FUNCTION integrandiftpr
 
 
-  FUNCTION integrandiftpot(ri,zi,i,ss)
+  FUNCTION integrand_IFT_pot(ri,zi,i,ss) result(integrandiftpot)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the IFT integrand when computing for potential
@@ -1741,27 +1711,27 @@ CONTAINS
 
 !! potential:
 
-       integrandiftpot = (1._dpk - u*M2)**2/(1._dpk - u*M1)*Trs(ri,u,1)*fplusz(i)* & 
+       integrandiftpot = (1._dpk - u*M2)**2/(1._dpk - u*M1)*compute_Trs(ri,u,1)*fplusz(i)* & 
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 
     else if (ss==2) then
 
 !! potential:
        
-       integrandiftpot = (1._dpk - u*M2)*Trs(ri,u,2)*fplusz(i)* &
+       integrandiftpot = (1._dpk - u*M2)*compute_Trs(ri,u,2)*fplusz(i)* &
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 
     else
 
 !! potential:
 
-       integrandiftpot = (1._dpk - u*M3)*Trs(ri,u,3)*fplusz(i)* &
+       integrandiftpot = (1._dpk - u*M3)*compute_Trs(ri,u,3)*fplusz(i)* &
             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*u*zi)
 
     end if
 
 
-  END FUNCTION integrandiftpot
+  END FUNCTION integrand_IFT_pot
 
 
   FUNCTION compute_kernel(ss,zeta)  result(kernel)
@@ -1911,7 +1881,7 @@ CONTAINS
     integer                    :: j, N, ss
 
     do j = 1, N
-       I(j) = compute_kernel(ss,z(j))/zp(ss,z(j))
+       I(j) = compute_kernel(ss,z(j))/compute_U_s_factor(ss,z(j))
     end do
 
     do j = 1, N-1
@@ -2002,7 +1972,7 @@ CONTAINS
   END FUNCTION bc
 
 
-  FUNCTION Trs(ri,si,ss)
+  FUNCTION compute_Trs(ri,si,ss) result(Trs)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute Trs of (3.33)
@@ -2096,10 +2066,10 @@ CONTAINS
 !    print*,'Rz:',Rz
 
 
-  END FUNCTION Trs
+  END FUNCTION compute_Trs
 
 
-  FUNCTION Trsin(ri,si,ss)
+  FUNCTION compute_Trs_instab(ri,si,ss)  result(Trsin)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute Trs of (4.8)
@@ -2145,10 +2115,10 @@ CONTAINS
 !    print*,'Rz:',Rz
 
 
-  END FUNCTION Trsin
+  END FUNCTION compute_Trs_instab
 
 
-  FUNCTION psi0(r,z,ss)
+  FUNCTION compute_psi_incident(r,z,ss) result(psi0)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the \Psi_{mn}(r) of (2.14) or (4.11)
@@ -2161,84 +2131,103 @@ CONTAINS
 
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
 
-       if (z >= Zo) then 
+	       if (z >= Zo) then 
+		  if (ss == 1) then
+		     psimn = omega_r*resp*(1._dpk - M1*mu_plus)*compute_Trs_instab(r,mu_plus,1)
+		     psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M1*mu_plus)* &
+			  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mu_plus*(z-Zo))
 
-          if (ss == 1) then
+		  else if (ss == 2) then
+	       
+		     psimn = omega_r*resp*(1._dpk - M2*mu_plus)*compute_Trs_instab(r,mu_plus,2)
+		     psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M2*mu_plus)* &
+			  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mu_plus*(z-Zo))
 
-             psimn = omega_r*resp*(1._dpk - M1*mup)*Trsin(r,mup,1)
-          
-             psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M1*mup)* &
-                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*(z-Zo))
+		  else
 
-          else if (ss == 2) then
-       
-             psimn = omega_r*resp*(1._dpk - M2*mup)*Trsin(r,mup,2)
-          
-             psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M2*mup)* &
-                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*(z-Zo))
+		     psi0 = 0.
 
-          else
+		  end if
 
-             psi0 = 0.
-
-          end if
-
-       else
-
-          psi0 = 0.
-
-       end if
+	       else
+		  psi0 = 0.
+	       end if
 
     else
 
-
-       if (ss == 1) then
-
-          psimn = bessj(alpha1*r,azim_mode,1)*EXP(ABS(AIMAG(alpha1*r)))
-       
-          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M1*mup)* &
-               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*z)
+	       if (ss == 1) then
+		  psimn = bessj(alpha1*r,azim_mode,1)*EXP(ABS(AIMAG(alpha1*r)))
+	       
+		  psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M1*mu_plus)* &
+		       psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mu_plus*z)
 
 
-       else if (ss == 2) then
+	       else if (ss == 2) then
 
-          f1 = (1._dpk - mup*M1)/(1._dpk - mup*M2)*bessj(alpha1*h,azim_mode,1)
-       
-          f2 = bessj(alpha2*r,azim_mode,1)* &
-               dhank1(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* & 
-               alpha2 + ABS(AIMAG(alpha2*r)))- & 
-               hank1(alpha2*r,azim_mode,1)* &
-               dbessj(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* & 
-               alpha2*r + ABS(AIMAG(alpha2)))
-          
+		  f1 = (1._dpk - mu_plus*M1)/(1._dpk - mu_plus*M2)*bessj(alpha1*h,azim_mode,1)
+	       
+		  f2 = bessj(alpha2*r,azim_mode,1)* &
+		       dhank1(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* & 
+		       alpha2 + ABS(AIMAG(alpha2*r)))- & 
+		       hank1(alpha2*r,azim_mode,1)* &
+		       dbessj(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* & 
+		       alpha2*r + ABS(AIMAG(alpha2)))
+		  
 
-          f3 = bessj(alpha2*h,azim_mode,1)* &
-               dhank1(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
-               alpha2 + ABS(AIMAG(alpha2*h)))- & 
-               hank1(alpha2*h,azim_mode,1)* &
-               dbessj(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
-               alpha2*h + ABS(AIMAG(alpha2)))
-            
+		  f3 = bessj(alpha2*h,azim_mode,1)* &
+		       dhank1(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
+		       alpha2 + ABS(AIMAG(alpha2*h)))- & 
+		       hank1(alpha2*h,azim_mode,1)* &
+		       dbessj(alpha2,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)* &
+		       alpha2*h + ABS(AIMAG(alpha2)))
+		    
 
-          psimn = kap_rho*f1*f2/f3
+		  psimn = kap_rho*f1*f2/f3
 
-          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M2*mup)* &
-               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mup*z)
+		  psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*(1._dpk - M2*mu_plus)* &
+		       psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*mu_plus*z)
 
-!!$       open(10,file='test.out',form='FORMATTED',position='APPEND')
-!!$       write(10,'(2E20.10)') psimn
-!!$       close(10)
+	!!$       open(10,file='test.out',form='FORMATTED',position='APPEND')
+	!!$       write(10,'(2E20.10)') psimn
+	!!$       close(10)
 
-       else
+	       else
 
-          psi0 = 0.
+		  psi0 = 0.
 
-       end if
+	       end if
 
     end if
 
 
-  END FUNCTION psi0
+  END FUNCTION compute_psi_incident
+
+
+
+  SUBROUTINE checkloc(z,switch)
+
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+!! 1. Subroutine to check the location of the instability zeros and pole wrt to the contours
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+
+    complex(dpk)    :: z
+    real(dpk)       :: zx, zy, zfy
+    integer         :: switch
+
+    zx = REAL(z)
+    zy = AIMAG(z)
+
+    call get_y_alg_int_contour(zx,zfy,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)),AIMAG(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)))
+!!$    zfy = AIMAG(c1)
+
+    if(zy > zfy) then
+       switch = 0  !! inside
+    else
+       switch = 1  !! outside
+    end if
+
+
+  END SUBROUTINE checkloc
 
 
   FUNCTION residueprpolar(r,phi,ss)
@@ -2251,12 +2240,12 @@ CONTAINS
     integer              :: ss, ii, jj
     complex(dpk)         :: residueprpolar, res, fn
    
-    res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss))* &
-         kmmup*kzsp(ss)*(sup_zeros_list(ss) - KH_zero_1)*(sup_zeros_list(ss) - KH_zero_2))
-!!$    res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss) - KH_pole_1)/((mup - sup_zeros_list(ss))* &
-!!$         kmmup*kzsp(ss)*(sup_zeros_list(ss) - KH_zero_1)*(sup_zeros_list(ss) - KH_zero_2))
-!!$    res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss)-KH_pole_1)*(sup_zeros_list(ss)-CONJG(KH_pole_1))/ &
-!!$            ((mup - sup_zeros_list(ss))*kmmup*kzsp(ss)*(sup_zeros_list(ss)-CONJG(KH_zero_1))* &
+    res = psi*(1._dpk - mu_plus*M2)/((mu_plus - sup_zeros_list(ss))* &
+         k_minus_at_mu_plus*kzsp(ss)*(sup_zeros_list(ss) - KH_zero_1)*(sup_zeros_list(ss) - KH_zero_2))
+!!$    res = psi*(1._dpk - mu_plus*M2)*(sup_zeros_list(ss) - KH_pole_1)/((mu_plus - sup_zeros_list(ss))* &
+!!$         k_minus_at_mu_plus*kzsp(ss)*(sup_zeros_list(ss) - KH_zero_1)*(sup_zeros_list(ss) - KH_zero_2))
+!!$    res = psi*(1._dpk - mu_plus*M2)*(sup_zeros_list(ss)-KH_pole_1)*(sup_zeros_list(ss)-CONJG(KH_pole_1))/ &
+!!$            ((mu_plus - sup_zeros_list(ss))*k_minus_at_mu_plus*kzsp(ss)*(sup_zeros_list(ss)-CONJG(KH_zero_1))* &
 !!$            (sup_zeros_list(ss)-KH_zero_1)*(sup_zeros_list(ss) - KH_zero_2)*(sup_zeros_list(ss)-CONJG(KH_zero_2)))
     do ii = 1, num_sup_zeros
        if (ii .NE. (ss)) then
@@ -2268,11 +2257,11 @@ CONTAINS
     end do
     
     if (r*SIN(phi) <= h) then
-       fn = (1._dpk - sup_zeros_list(ss)*M2)**2*Trs(r*SIN(phi),sup_zeros_list(ss),1)
+       fn = (1._dpk - sup_zeros_list(ss)*M2)**2*compute_Trs(r*SIN(phi),sup_zeros_list(ss),1)
     else if (r*SIN(phi) <= 1. .AND. r*SIN(phi) > h) then
-       fn = (1._dpk - sup_zeros_list(ss)*M2)**2*Trs(r*SIN(phi),sup_zeros_list(ss),2)
+       fn = (1._dpk - sup_zeros_list(ss)*M2)**2*compute_Trs(r*SIN(phi),sup_zeros_list(ss),2)
     else
-       fn = (1._dpk - sup_zeros_list(ss)*M3)**2*Trs(r*SIN(phi),sup_zeros_list(ss),3)  
+       fn = (1._dpk - sup_zeros_list(ss)*M3)**2*compute_Trs(r*SIN(phi),sup_zeros_list(ss),3)  
     end if
 
     residueprpolar = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
@@ -2296,10 +2285,10 @@ CONTAINS
     if (ss == 1) then
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_1-KH_pole_1)*(KH_zero_1-CONJG(KH_pole_1))/ &
-!!$            ((mup - KH_zero_1)*kmmup*kpKH_zero_1*(KH_zero_1-CONJG(KH_zero_1))*(KH_zero_1-KH_zero_2)*(KH_zero_1-CONJG(KH_zero_2)))
-!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_1 - KH_pole_1)/((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1 - KH_zero_2))
-       res = psi*(1._dpk - mup*M2)/((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1 - KH_zero_2))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(KH_zero_1-KH_pole_1)*(KH_zero_1-CONJG(KH_pole_1))/ &
+!!$            ((mu_plus - KH_zero_1)*k_minus_at_mu_plus*kpKH_zero_1*(KH_zero_1-CONJG(KH_zero_1))*(KH_zero_1-KH_zero_2)*(KH_zero_1-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(KH_zero_1 - KH_pole_1)/((mu_plus - KH_zero_1)*kmmu_plus*k_plus_sz1*(KH_zero_1 - KH_zero_2))
+       res = psi*(1._dpk - mu_plus*M2)/((mu_plus - KH_zero_1)*k_minus_at_mu_plus*k_plus_sz1*(KH_zero_1 - KH_zero_2))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
              res = res/(KH_zero_1 - sup_zeros_list(ii))
@@ -2310,11 +2299,11 @@ CONTAINS
        end if
 
        if (r <= h) then
-          fn = (1._dpk - KH_zero_1*M2)**2*Trs(r,KH_zero_1,1)
+          fn = (1._dpk - KH_zero_1*M2)**2*compute_Trs(r,KH_zero_1,1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - KH_zero_1*M2)**2*Trs(r,KH_zero_1,2)
+          fn = (1._dpk - KH_zero_1*M2)**2*compute_Trs(r,KH_zero_1,2)
        else
-          fn = (1._dpk - KH_zero_1*M3)**2*Trs(r,KH_zero_1,3)
+          fn = (1._dpk - KH_zero_1*M3)**2*compute_Trs(r,KH_zero_1,3)
        end if
        
        residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
@@ -2328,10 +2317,10 @@ CONTAINS
     elseif (ss == 2) then
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_2-KH_pole_1)*(KH_zero_2-CONJG(KH_pole_1))/ &
-!!$            ((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2-CONJG(KH_zero_1))*(KH_zero_2-KH_zero_1)*(KH_zero_2-CONJG(KH_zero_2)))
-!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_2 - KH_pole_1)/((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2 - KH_zero_1))
-       res = psi*(1._dpk - mup*M2)/((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2 - KH_zero_1))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(KH_zero_2-KH_pole_1)*(KH_zero_2-CONJG(KH_pole_1))/ &
+!!$            ((mu_plus - KH_zero_2)*k_minus_at_mu_plus*k_plus_sz2*(KH_zero_2-CONJG(KH_zero_1))*(KH_zero_2-KH_zero_1)*(KH_zero_2-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(KH_zero_2 - KH_pole_1)/((mu_plus - KH_zero_2)*k_minus_at_mu_plus*k_plus_sz2*(KH_zero_2 - KH_zero_1))
+       res = psi*(1._dpk - mu_plus*M2)/((mu_plus - KH_zero_2)*k_minus_at_mu_plus*k_plus_sz2*(KH_zero_2 - KH_zero_1))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
              res = res/(KH_zero_2 - sup_zeros_list(ii))
@@ -2342,11 +2331,11 @@ CONTAINS
        end if
           
        if (r <= h) then
-          fn = (1._dpk - KH_zero_2*M2)**2*Trs(r,KH_zero_2,1)
+          fn = (1._dpk - KH_zero_2*M2)**2*compute_Trs(r,KH_zero_2,1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - KH_zero_2*M2)**2*Trs(r,KH_zero_2,2)
+          fn = (1._dpk - KH_zero_2*M2)**2*compute_Trs(r,KH_zero_2,2)
        else
-          fn = (1._dpk - KH_zero_2*M3)**2*Trs(r,KH_zero_2,3)
+          fn = (1._dpk - KH_zero_2*M3)**2*compute_Trs(r,KH_zero_2,3)
        end if
 
        residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
@@ -2360,13 +2349,13 @@ CONTAINS
     else
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2)-KH_pole_1)*(sup_zeros_list(ss-2)-CONJG(KH_pole_1))/ &
-!!$            ((mup - sup_zeros_list(ss-2))*kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_1))* &
+!!$       res = psi*(1._dpk - mu_plus*M2)*(sup_zeros_list(ss-2)-KH_pole_1)*(sup_zeros_list(ss-2)-CONJG(KH_pole_1))/ &
+!!$            ((mu_plus - sup_zeros_list(ss-2))*k_minus_at_mu_plus*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_1))* &
 !!$            (sup_zeros_list(ss-2)-KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_2)))
-!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2) - KH_pole_1)/((mup - sup_zeros_list(ss-2))* &
-!!$            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
-       res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss-2))* &
-            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(sup_zeros_list(ss-2) - KH_pole_1)/((mu_plus - sup_zeros_list(ss-2))* &
+!!$            k_minus_at_mu_plus*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
+       res = psi*(1._dpk - mu_plus*M2)/((mu_plus - sup_zeros_list(ss-2))* &
+            k_minus_at_mu_plus*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
        do ii = 1, num_sup_zeros
           if (ii .NE. (ss-2)) then
              res = res/(sup_zeros_list(ss-2) - sup_zeros_list(ii))
@@ -2377,11 +2366,11 @@ CONTAINS
        end do
           
        if (r <= h) then
-          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2*Trs(r,sup_zeros_list(ss-2),1)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2*compute_Trs(r,sup_zeros_list(ss-2),1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2*Trs(r,sup_zeros_list(ss-2),2)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2*compute_Trs(r,sup_zeros_list(ss-2),2)
        else
-          fn = (1._dpk - sup_zeros_list(ss-2)*M3)**2*Trs(r,sup_zeros_list(ss-2),3)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M3)**2*compute_Trs(r,sup_zeros_list(ss-2),3)
        end if
 
        residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*omega_r*omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
@@ -2412,10 +2401,10 @@ CONTAINS
     if (ss == 1) then
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_1-KH_pole_1)*(KH_zero_1-CONJG(KH_pole_1))/ &
-!!$            ((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1-CONJG(KH_zero_1))*(KH_zero_1-KH_zero_2)*(KH_zero_1-CONJG(KH_zero_2)))
-!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_1 - KH_pole_1)/((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1 - KH_zero_2))
-       res = psi*(1._dpk - mup*M2)/((mup - KH_zero_1)*kmmup*kpsz1*(KH_zero_1 - KH_zero_2))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(KH_zero_1-KH_pole_1)*(KH_zero_1-CONJG(KH_pole_1))/ &
+!!$            ((mu_plus - KH_zero_1)*k_minus_at_mu_plus*k_plus_sz1*(KH_zero_1-CONJG(KH_zero_1))*(KH_zero_1-KH_zero_2)*(KH_zero_1-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(KH_zero_1 - KH_pole_1)/((mu_plus - KH_zero_1)*k_minus_at_mu_plus*k_plus_sz1*(KH_zero_1 - KH_zero_2))
+       res = psi*(1._dpk - mu_plus*M2)/((mu_plus - KH_zero_1)*k_minus_at_mu_plus*k_plus_sz1*(KH_zero_1 - KH_zero_2))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
              res = res/(KH_zero_1 - sup_zeros_list(ii))
@@ -2426,11 +2415,11 @@ CONTAINS
        end if
 
        if (r <= h) then
-          fn = (1._dpk - KH_zero_1*M2)**2/(1._dpk - KH_zero_1*M1)*Trs(r,KH_zero_1,1)
+          fn = (1._dpk - KH_zero_1*M2)**2/(1._dpk - KH_zero_1*M1)*compute_Trs(r,KH_zero_1,1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - KH_zero_1*M2)*Trs(r,KH_zero_1,2)
+          fn = (1._dpk - KH_zero_1*M2)*compute_Trs(r,KH_zero_1,2)
        else
-          fn = (1._dpk - KH_zero_1*M3)*Trs(r,KH_zero_1,3)
+          fn = (1._dpk - KH_zero_1*M3)*compute_Trs(r,KH_zero_1,3)
        end if
        
        residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*KH_zero_1*z)*res*fn
@@ -2443,10 +2432,10 @@ CONTAINS
     elseif (ss == 2) then
 
 !!$       if (z > 0.) then
-!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_2-KH_pole_1)*(KH_zero_2-CONJG(KH_pole_1))/ &
-!!$            ((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2-CONJG(KH_zero_1))*(KH_zero_2-KH_zero_1)*(KH_zero_2-CONJG(KH_zero_2)))
-!!$       res = psi*(1._dpk - mup*M2)*(KH_zero_2 - KH_pole_1)/((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2 - KH_zero_1))
-       res = psi*(1._dpk - mup*M2)/((mup - KH_zero_2)*kmmup*kpsz2*(KH_zero_2 - KH_zero_1))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(KH_zero_2-KH_pole_1)*(KH_zero_2-CONJG(KH_pole_1))/ &
+!!$            ((mu_plus - KH_zero_2)*k_minus_at_mu_plus*k_plus_sz2*(KH_zero_2-CONJG(KH_zero_1))*(KH_zero_2-KH_zero_1)*(KH_zero_2-CONJG(KH_zero_2)))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(KH_zero_2 - KH_pole_1)/((mu_plus - KH_zero_2)*k_minus_at_mu_plus*k_plus_sz2*(KH_zero_2 - KH_zero_1))
+       res = psi*(1._dpk - mu_plus*M2)/((mu_plus - KH_zero_2)*k_minus_at_mu_plus*k_plus_sz2*(KH_zero_2 - KH_zero_1))
        if (vortswitch .EQ. 0) then
           do ii = 1, num_sup_zeros
              res = res/(KH_zero_1 - sup_zeros_list(ii))
@@ -2457,11 +2446,11 @@ CONTAINS
        end if
           
        if (r <= h) then
-          fn = (1._dpk - KH_zero_2*M2)**2/(1._dpk - KH_zero_2*M1)*Trs(r,KH_zero_2,1)
+          fn = (1._dpk - KH_zero_2*M2)**2/(1._dpk - KH_zero_2*M1)*compute_Trs(r,KH_zero_2,1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - KH_zero_2*M2)*Trs(r,KH_zero_2,2)
+          fn = (1._dpk - KH_zero_2*M2)*compute_Trs(r,KH_zero_2,2)
        else
-          fn = (1._dpk - KH_zero_2*M3)*Trs(r,KH_zero_2,3)
+          fn = (1._dpk - KH_zero_2*M3)*compute_Trs(r,KH_zero_2,3)
        end if
 
        residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*KH_zero_2*z)*res*fn
@@ -2474,13 +2463,13 @@ CONTAINS
     else
 
 !!$       if (z > 0.) then
-!!$      res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2)-KH_pole_1)*(sup_zeros_list(ss-2)-CONJG(KH_pole_1))/ &
-!!$            ((mup - sup_zeros_list(ss-2))*kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_1))* &
+!!$      res = psi*(1._dpk - mu_plus*M2)*(sup_zeros_list(ss-2)-KH_pole_1)*(sup_zeros_list(ss-2)-CONJG(KH_pole_1))/ &
+!!$            ((mu_plus - sup_zeros_list(ss-2))*k_minus_at_mu_plus*kzsp(ss-2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_1))* &
 !!$            (sup_zeros_list(ss-2)-KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2)*(sup_zeros_list(ss-2)-CONJG(KH_zero_2)))
-!!$       res = psi*(1._dpk - mup*M2)*(sup_zeros_list(ss-2) - KH_pole_1)/((mup - sup_zeros_list(ss-2))* &
-!!$            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
-       res = psi*(1._dpk - mup*M2)/((mup - sup_zeros_list(ss-2))* &
-            kmmup*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
+!!$       res = psi*(1._dpk - mu_plus*M2)*(sup_zeros_list(ss-2) - KH_pole_1)/((mu_plus - sup_zeros_list(ss-2))* &
+!!$            k_minus_at_mu_plus*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
+       res = psi*(1._dpk - mu_plus*M2)/((mu_plus - sup_zeros_list(ss-2))* &
+            k_minus_at_mu_plus*kzsp(ss-2)*(sup_zeros_list(ss-2) - KH_zero_1)*(sup_zeros_list(ss-2) - KH_zero_2))
        do ii = 1, num_sup_zeros
           if (ii .NE. (ss-2)) then
              res = res/(sup_zeros_list(ss-2) - sup_zeros_list(ii))
@@ -2491,11 +2480,11 @@ CONTAINS
        end do
           
        if (r <= h) then
-          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2/(1._dpk - sup_zeros_list(ss-2)*M1)*Trs(r,sup_zeros_list(ss-2),1)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M2)**2/(1._dpk - sup_zeros_list(ss-2)*M1)*compute_Trs(r,sup_zeros_list(ss-2),1)
        else if (r <= 1. .AND. r > h) then
-          fn = (1._dpk - sup_zeros_list(ss-2)*M2)*Trs(r,sup_zeros_list(ss-2),2)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M2)*compute_Trs(r,sup_zeros_list(ss-2),2)
        else
-          fn = (1._dpk - sup_zeros_list(ss-2)*M3)*Trs(r,sup_zeros_list(ss-2),3)
+          fn = (1._dpk - sup_zeros_list(ss-2)*M3)*compute_Trs(r,sup_zeros_list(ss-2),3)
        end if
 
        residuepot = omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*omega_r*sup_zeros_list(ss-2)*z)*res*fn
@@ -2509,32 +2498,6 @@ CONTAINS
 
     
   END FUNCTION residuepot
-
-
-  SUBROUTINE checkloc(z,switch)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Subroutine to check the location of the instability zeros and pole wrt to the contours
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    complex(dpk)    :: z
-    real(dpk)       :: zx, zy, zfy
-    integer         :: switch
-
-    zx = REAL(z)
-    zy = AIMAG(z)
-
-    call get_y_alg_int_contour(zx,zfy,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)),AIMAG(def_pts_IFT_cntr(4)-def_pts_IFT_cntr(3)))
-!!$    zfy = AIMAG(c1)
-
-    if(zy > zfy) then
-       switch = 0  !! inside
-    else
-       switch = 1  !! outside
-    end if
-
-
-  END SUBROUTINE checkloc
 
   
   FUNCTION bessj(z,nu,s)
