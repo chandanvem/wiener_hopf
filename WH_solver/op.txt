@@ -1,0 +1,109 @@
+ vortswitch=           0
+ M1=   2.50000000000000     
+ M2=  0.200000000000000     
+ M3=  0.100000000000000     
+ width of the core jet h=  0.750000000000000     
+ Helmholtz number omega=   8.00000000000000     
+ Sqrt of temperature ratio=   1.00000000000000     
+ Density ratio=   1.00000000000000     
+ Azimuthal wavenumber (circmod)=  0.000000000000000E+000
+ sz1 (First instability zero) = (0.626920205400000,-0.192552780200000)
+ sz2 (Second instability zero) = (5.98431751760000,-1.98970873950000)
+ sp1 (Instability pole) = (0.440381255900000,-0.107378754800000)
+ ================== Non-incident vorticity mode =====================
+ 
+ mu for the incident mode = (6.710822730000000E-002,0.000000000000000E+000)
+ Offset between the IFT and K split contours=  1.000000000000000E-003
+ Tolerance for adaptive contour integration =  1.000000000000000E-004
+ Number of zeros to be removed from kernel =           0
+ Number of poles to be removed from kernel =           0
+ Number of supersonic zeros =           2
+ Number of supersonic poles =           1
+ 
+ ====== Mesh and contour parameters ======
+ Number of kernel points in each loop =         300
+ Stretching parameter for kernel contour =   6.00000000000000     
+ Number of IFT points in each loop num_IFT_pts_loop =        1000
+ Dimensions of domain in R = [  0.100000000000000        5.00000000000000      ]
+ Dimensions of domain in Z = [  -1.50000000000000        3.50000000000000      ]
+ Nr x Nz =         400 x         400
+ ==============================
+ Asymptotic limit of ??? =    32700.0000000000     
+ Asymptotic limit of ??? =    400.000000000000     
+ Vortex shedding parameter gamma =    1.00000000000000     
+ Solution in pressure mode 
+ Reflection mode: incident mode added
+ 
+ Computing Pressure...
+
+ The Integration Contours:
+
+ 1. The kernel integration:
+
+ key points:->
+
+ i 1 =  -10000.000000       0.000000
+
+ i 2 =      -2.500000       0.401000
+
+ i 3 =      -1.105000       0.000000
+
+ i 4 =      -0.500000      -0.199000
+
+ i 5 =   10000.000000       0.000000
+
+ 2. The inv Fourier transform:
+
+ key points:->
+
+ i 1 =     -10.000000       0.006105
+
+ i 2 =      -2.500000       0.400000
+
+ i 3 =      -1.110000       0.000000
+
+ i 4 =      -0.500000      -0.200000
+
+ i 5 =      10.000000      -0.000132
+
+   N =  2003
+
+ 
+ Starting...
+ 
+ Computing K+ at the zeros and K- at mu+:
+ 
+ The radial wave numbers:
+
+   alpha1:->     6.6361546113   0.0000000000
+   alpha2:->     7.8743465424   0.0000000000
+
+
+     Integral value:->          1.2295773458       25.6049752952
+
+     Quadrature pts:->                276563
+
+
+     Integral value:->         -8.6467786299       16.2267187179
+
+     Quadrature pts:->                266051
+
+
+     Integral value:->         -8.6885535595       28.2706765102
+
+     Quadrature pts:->                 93987
+
+
+     Integral value:->         -9.6575032935       14.8787978257
+
+     Quadrature pts:->                491843
+
+
+     Integral value:->         -9.1935393694        8.9814220514
+
+     Quadrature pts:->                516579
+
+ 
+ Near-field computation only:
+ 
+ Done!
