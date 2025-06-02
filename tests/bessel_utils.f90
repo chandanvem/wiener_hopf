@@ -6,7 +6,7 @@ Module bessel_utils
   ! iii INTEGER, PARAMETER, PUBLIC  :: dp = SELECTED_REAL_KIND(12, 60)
 
   PRIVATE
-  PUBLIC  :: bessj, bessy, hank1, hank2, dbessj, dbessy, dhank1
+  PUBLIC  :: bessj, bessy, hank1, hank2, dbessj, dbessy, dhank1, dhank2
 
   CONTAINS 
 

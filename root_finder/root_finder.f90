@@ -40,7 +40,7 @@ PROGRAM root_finder
   integer                                   :: step, limit, func_case
   real(dpk), parameter                      :: asymplim = 3.27E4
   real(dpk), parameter                      :: asymplim1 = 100
-  character(len=20)                         :: dummy_label
+  character(len=30)                         :: dummy
 
 !!$ List of functions: (func_case = X)
 !!$-----------------------------------------------------------
@@ -87,117 +87,117 @@ PROGRAM root_finder
                                                        !! For inc waves
 
 
+
+
 CONTAINS
 
 
   SUBROUTINE readdata
 
-    real(dpk)           :: temp1, temp2
-
 !! the basic data file:
+    real(dpk)           :: temp1, temp2
 
     PI = 4._dpk*ATAN(1._dpk)
 
-    open(1,file='input.list')
-      read(1,*) func_case              !! 1. list of functions
-      read(1,*) M1                     !! 2. core jet Mach number
 
-      IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
-           .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
-           .OR. func_case .EQ. 11 .OR. func_case .EQ. -11 .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
-           .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-         read(1,*) M2                     !! 3. second flow Mach number
-      ELSE
-         M2 = 0
-      END IF
+    open(unit=10, file='input.list', status='old', action='read')
 
-      IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 &
-           .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-         read(1,*) M3                  !! 4. third flow Mach number
-      ELSE
-         M3 = 0
-      END IF
-
-      IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
-           .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
-           .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
-           .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-         read(1,*) h                      !! 5. the width of the core jet, h = Ri/Ro
-      ELSE
-         h = 0
-      END IF
-      read(1,*) w0                       !! 6. the Helmholtz number
+      read(10,*) func_case, dummy
+      print '(A, I5, A)', ' func_case = (', func_case, ')'
 
 
-      IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
-           .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
-           .OR. func_case .EQ. 11 .OR. func_case .EQ. -11 .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
-           .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-         read(1,*) kap1                   !! 7. sqrt(temp ratio)
-         read(1,*) kap2                   !! 8. density ratio
-      ELSE
-         kap1 = 1.0
-         kap2 = 1.0
-      END IF
+      read(10,*) M1,        dummy
+      read(10,*) M2,        dummy
+      read(10,*) M3,        dummy
+      PRINT '(A, F8.4, ", ", F8.4, ", ", F8.4, A)', &
+                   ' (M1, M2, M3) = (', M1, M2, M3, ')'
 
-      read(1,*) del                    !! 9. phase part of frequency  
-      read(1,*) m                      !! 10. the azimuthal mode no.
-      read(1,*) Nx                     !! 11. x mesh points
-
-      IF(func_case .NE. 0 .AND. func_case .NE. 100 .AND. func_case .NE. 200) THEN
-         read(1,*) Ny                  !! 12. y mesh points
-         read(1,*) Xmin                !! 13. extent of the root search
-         read(1,*) Xmax                !! 14. extent of the root search
-         read(1,*) Ymin                !! 15. extent of the root search
-         read(1,*) Ymax                !! 16. extent of the root search
-      END IF
-
-      read(1,*) MAX_ITE                !! 17. max iterations
-      read(1,*) ZERO_ACC               !! 18. zero accuracy
-      read(1,*) ZERO_PREC              !! 19. zero precision
-      read(1,*) MAX_ZERO               !! 20. max estimated zeros
-      read(1,*) prec                   !! 21. NAG bessel routine precision digits
-      read(1,*) step                   !! 22. step=0 : take stepsize=delta; step!=0 : "find" a good step
-      IF(step .EQ. 0) READ(1,*) delta  !! 23. the step size
-      read(1,*) limit                  !! 24. limit=0 : DO NOT print the values; limit!=0 : print
-      close(1)
-
-    omega = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
-
-    IF(func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-       Ny = 2
-       Xmin = -kap1/(1._dpk - kap1*M3) + 1.E-6
-       Xmax = 1._dpk/(1._dpk + M1) - 1.E-6
-       Ymin = 0.
-       Ymax = 0.
-    END IF
-
-    IF(func_case .EQ. 200) THEN
-       Ny = 2
-       Xmin = -1._dpk/(1._dpk - M1) + 1.E-6
-       Xmax = 1._dpk/(1._dpk + M1) - 1.E-6
-
-       IF(M1 > 1) THEN
-          temp1 = Xmin
-          temp2 = Xmax
-          Xmid = (Xmin + Xmax)/2
-          Xm1 = temp2 - 1.E-6
-          Xmin = 2*temp2 - Xmid
-          Xm2 = temp1 + 1.E-6
-          Xmax = 2*temp1 - Xmid
-       END IF
-
-       Ymin = 0.
-       Ymax = 0.
-    END IF
-
-    ALLOCATE(zero(Nx,Ny))
-    ALLOCATE(zerolist(MAX_ZERO))
-    ALLOCATE(checkzero(MAX_ZERO))
+      read(10,*) h,         dummy
+      read(10,*) w0,        dummy
+      read(10,*) del,       dummy
+      read(10,*) m,         dummy
+      PRINT '(A, F8.4, ", ", F8.4, ", ", F8.4, ", ", F8.4,A)', &
+                   ' (h, w0, del, m) = (', h, w0, del, m, ')'
 
 
-  END SUBROUTINE readdata
+      read(10,*) Nx,        dummy
+      read(10,*) Ny,        dummy
 
+      PRINT '(A, I5, ", ", I5,A)', &
+                   ' (Nx, Ny) = (', Nx, Ny, ')'
+
+
+      read(10,*) Xmin, dummy           
+      read(10,*) Xmax, dummy           
+
+      PRINT '(A, F8.4, ", ", F8.4,A)', &
+                   ' (Xmin, Xmax) = (', Xmin, Xmax, ')'
+
+
+      read(10,*) Ymin, dummy           
+      read(10,*) Ymax, dummy           
+
+      PRINT '(A, F8.4, ", ", F8.4,A)', &
+                   ' (Ymin, Ymax) = (', Ymin, Ymax, ')'
+
+
+      read(10,*) MAX_ITE,   dummy
+      PRINT '(A, I5, A)', &
+                   ' Max iterations = (', MAX_ITE, ')'
+
+
+      read(10,*) ZERO_ACC,  dummy
+      read(10,*) ZERO_PREC, dummy
+      PRINT '(A, E12.4, ", ", E12.4,A)', &
+                   ' (ZERO_ACC, ZERO_PREC) = (', ZERO_ACC, ZERO_PREC, ')'
+
+      read(10,*) MAX_ZERO,  dummy
+      print *, "MAX_ZERO =", MAX_ZERO
+
+      read(10,*) prec,      dummy
+      read(10,*) step,      dummy
+      read(10,*) delta,     dummy
+      read(10,*) limit,     dummy
+      PRINT '(A, I5, ", ", I5, ", ", E12.4, ", ", I5,A)', &
+                   ' (prec, step, delta, limit) = (', prec, step, delta, limit, ')'
+
+
+     close(10)
+
+     omega = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
+
+     IF(func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
+        Ny = 2
+        Xmin = -kap1/(1._dpk - kap1*M3) + 1.E-6
+        Xmax = 1._dpk/(1._dpk + M1) - 1.E-6
+        Ymin = 0.
+        Ymax = 0.
+     END IF
+
+     IF(func_case .EQ. 200) THEN
+        Ny = 2
+        Xmin = -1._dpk/(1._dpk - M1) + 1.E-6
+        Xmax = 1._dpk/(1._dpk + M1) - 1.E-6
+
+        IF(M1 > 1) THEN
+           temp1 = Xmin
+           temp2 = Xmax
+           Xmid = (Xmin + Xmax)/2
+           Xm1 = temp2 - 1.E-6
+           Xmin = 2*temp2 - Xmid
+           Xm2 = temp1 + 1.E-6
+           Xmax = 2*temp1 - Xmid
+        END IF
+
+        Ymin = 0.
+        Ymax = 0.
+     END IF
+
+     ALLOCATE(zero(Nx,Ny))
+     ALLOCATE(zerolist(MAX_ZERO))
+     ALLOCATE(checkzero(MAX_ZERO))
+
+    END SUBROUTINE readdata
 
   SUBROUTINE limitcase
 
@@ -1248,6 +1248,7 @@ CONTAINS
     print*, "WARNING: Max Iterations Exceeded!" !! Failure to achieve accuracy
 
   END FUNCTION newt
+
 
 
 END PROGRAM root_finder
