@@ -1,4 +1,4 @@
-PROGRAM nrcomplex
+PROGRAM root_finder
 
 !***! This program computes the zeros of a complex function using a modified
 !***! Newton-Raphson technique. It uses a numerical derivative computing
@@ -8,6 +8,8 @@ PROGRAM nrcomplex
 !***! Last modified: Jan 16 2015
 
 !!$  USE nag_bessel_fun, ONLY : nag_bessel_j, nag_bessel_y
+  USE bessel_utils
+
 
   IMPLICIT none
   
@@ -38,6 +40,7 @@ PROGRAM nrcomplex
   integer                                   :: step, limit, func_case
   real(dpk), parameter                      :: asymplim = 3.27E4
   real(dpk), parameter                      :: asymplim1 = 100
+  character(len=20)                         :: dummy_label
 
 !!$ List of functions: (func_case = X)
 !!$-----------------------------------------------------------
@@ -96,60 +99,68 @@ CONTAINS
     PI = 4._dpk*ATAN(1._dpk)
 
     open(1,file='input.list')
-    read(1,*) func_case              !! 1. list of functions
-    read(1,*) M1                     !! 2. core jet Mach number
-    IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
-         .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
-         .OR. func_case .EQ. 11 .OR. func_case .EQ. -11 .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
-         .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-       read(1,*) M2                     !! 3. second flow Mach number
-    ELSE
-       M2 = 0
-    END IF
-    IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 &
-         .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-       read(1,*) M3                  !! 4. third flow Mach number
-    ELSE
-       M3 = 0
-    END IF
-    IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
-         .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
-         .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
-         .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-       read(1,*) h                      !! 5. the width of the core jet, h = Ri/Ro
-    ELSE
-       h = 0
-    END IF
-    read(1,*) w0                     !! 6. the Helmholtz number
-    IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
-         .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
-         .OR. func_case .EQ. 11 .OR. func_case .EQ. -11 .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
-         .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
-       read(1,*) kap1                   !! 7. sqrt(temp ratio)
-       read(1,*) kap2                   !! 8. density ratio
-    ELSE
-       kap1 = 1.0
-       kap2 = 1.0
-    END IF
-    read(1,*) del                    !! 9. phase part of frequency  
-    read(1,*) m                      !! 10. the azimuthal mode no.
-    read(1,*) Nx                     !! 11. x mesh points
-    IF(func_case .NE. 0 .AND. func_case .NE. 100 .AND. func_case .NE. 200) THEN
-       read(1,*) Ny                  !! 12. y mesh points
-       read(1,*) Xmin                !! 13. extent of the root search
-       read(1,*) Xmax                !! 14. extent of the root search
-       read(1,*) Ymin                !! 15. extent of the root search
-       read(1,*) Ymax                !! 16. extent of the root search
-    END IF
-    read(1,*) MAX_ITE                !! 17. max iterations
-    read(1,*) ZERO_ACC               !! 18. zero accuracy
-    read(1,*) ZERO_PREC              !! 19. zero precision
-    read(1,*) MAX_ZERO               !! 20. max estimated zeros
-    read(1,*) prec                   !! 21. NAG bessel routine precision digits
-    read(1,*) step                   !! 22. step=0 : take stepsize=delta; step!=0 : "find" a good step
-    IF(step .EQ. 0) READ(1,*) delta  !! 23. the step size
-    read(1,*) limit                  !! 24. limit=0 : DO NOT print the values; limit!=0 : print
-    close(1)
+      read(1,*) func_case              !! 1. list of functions
+      read(1,*) M1                     !! 2. core jet Mach number
+
+      IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
+           .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
+           .OR. func_case .EQ. 11 .OR. func_case .EQ. -11 .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
+           .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
+         read(1,*) M2                     !! 3. second flow Mach number
+      ELSE
+         M2 = 0
+      END IF
+
+      IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 &
+           .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
+         read(1,*) M3                  !! 4. third flow Mach number
+      ELSE
+         M3 = 0
+      END IF
+
+      IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
+           .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
+           .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
+           .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
+         read(1,*) h                      !! 5. the width of the core jet, h = Ri/Ro
+      ELSE
+         h = 0
+      END IF
+      read(1,*) w0                       !! 6. the Helmholtz number
+
+
+      IF(func_case .EQ. 1 .OR. func_case .EQ. -1 .OR. func_case .EQ. 2 .OR. func_case .EQ. -2 &
+           .OR. func_case .EQ. 3 .OR. func_case .EQ. -3 .OR. func_case .EQ. 4 .OR. func_case .EQ. -4 &
+           .OR. func_case .EQ. 11 .OR. func_case .EQ. -11 .OR. func_case .EQ. 101 .OR. func_case .EQ. -101 &
+           .OR. func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
+         read(1,*) kap1                   !! 7. sqrt(temp ratio)
+         read(1,*) kap2                   !! 8. density ratio
+      ELSE
+         kap1 = 1.0
+         kap2 = 1.0
+      END IF
+
+      read(1,*) del                    !! 9. phase part of frequency  
+      read(1,*) m                      !! 10. the azimuthal mode no.
+      read(1,*) Nx                     !! 11. x mesh points
+
+      IF(func_case .NE. 0 .AND. func_case .NE. 100 .AND. func_case .NE. 200) THEN
+         read(1,*) Ny                  !! 12. y mesh points
+         read(1,*) Xmin                !! 13. extent of the root search
+         read(1,*) Xmax                !! 14. extent of the root search
+         read(1,*) Ymin                !! 15. extent of the root search
+         read(1,*) Ymax                !! 16. extent of the root search
+      END IF
+
+      read(1,*) MAX_ITE                !! 17. max iterations
+      read(1,*) ZERO_ACC               !! 18. zero accuracy
+      read(1,*) ZERO_PREC              !! 19. zero precision
+      read(1,*) MAX_ZERO               !! 20. max estimated zeros
+      read(1,*) prec                   !! 21. NAG bessel routine precision digits
+      read(1,*) step                   !! 22. step=0 : take stepsize=delta; step!=0 : "find" a good step
+      IF(step .EQ. 0) READ(1,*) delta  !! 23. the step size
+      read(1,*) limit                  !! 24. limit=0 : DO NOT print the values; limit!=0 : print
+      close(1)
 
     omega = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
 
@@ -1239,410 +1250,4 @@ CONTAINS
   END FUNCTION newt
 
 
-  FUNCTION bessj(z,nu,s)
-
-!***! All the Bessel and similar functions use the NAG library routines. The present
-!***! versions also accept negative mode numbers, nu. In addition, an accuracy check
-!***! ensures they compute the corresponding asymptotic forms whenever needed instead
-!***! of giving garbage values, which NAG routines give beyond a prescribed accuracy.
-    
-    complex(dpk)      :: z, bessj, psi, bj, by, cwrk
-    real(dpk)         :: nu, q, expo, pow
-    integer           :: s, nz, ifail
-    
-    if ((nu == 0.) .AND. (ABS(z) == 0.)) q = 1._dpk
-    if ((nu == 0.) .AND. (ABS(z) /= 0.)) q = MAX(1._dpk, ABS(LOG10(ABS(z))))
-    if ((nu /= 0.) .AND. (ABS(z) == 0.)) q = MAX(1._dpk, ABS(LOG10(ABS(nu))))
-    if ((nu /= 0.) .AND. (ABS(z) /= 0.)) q = MAX(1._dpk, ABS(LOG10(ABS(z))), ABS(LOG10(ABS(nu))))
-    
-
-    pow = -(prec - q)
-    expo = 10._dpk**pow
-
-!!$    if (ABS(REAL(bessj)) < expo .OR. ABS(AIMAG(bessj)) < expo .AND. ABS(z /= 0.)) then 
-!!$    if (ABS(z) > asymplim .OR. ABS(AIMAG(z)) > asymplim1) then 
-!!$       bessj = abessj(z,nu)  !! Asymptotic form
-!!$
-!!$    else
-    
-       if (nu < 0.) then
-          if (s == 0) then
-             call S17DEF(-nu,z,1,'U',bj,nz,ifail)
-             call S17DCF(-nu,z,1,'U',by,nz,cwrk,ifail)
-             bessj = bj*COS(-PI*nu) - by*SIN(-PI*nu)
-          else
-             call S17DEF(-nu,z,1,'S',bj,nz,ifail)
-             call S17DCF(-nu,z,1,'S',by,nz,cwrk,ifail)
-             bessj = bj*COS(-PI*nu) - by*SIN(-PI*nu)
-          end if
-       else
-          if (s == 0) then
-             call S17DEF(nu,z,1,'U',bessj,nz,ifail)
-          else
-             call S17DEF(nu,z,1,'S',bessj,nz,ifail)
-          end if
-       end if
-
-!!$    end if
-
-
-  END FUNCTION bessj
-
-
-  FUNCTION abessj(z,nu)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! These are asymptotic forms (starting with an "a")
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    complex(dpk)      :: z, abessj, psi
-    real(dpk)         :: nu
-
-
-    psi = z - PI*(nu/2._dpk + 0.25_dpk)
-    abessj = SQRT(2._dpk/(PI*z))*(COS(psi) - (4._dpk*nu*nu - 1._dpk)/ &
-         (8._dpk*z)*SIN(psi))
-   
-  END FUNCTION abessj
-
-
-  FUNCTION bessy(z,nu,s)
-
-    complex(dpk)      :: z, bessy, psi, bj, by, cwrk
-    real(dpk)         :: nu, q, expo, pow
-    integer           :: s, nz, ifail
-
-    if (nu == 0.) then
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))))
-    else
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))), ABS(LOG10(ABS(nu))))
-    end if
-
-    pow = -(prec - q)
-    expo = 10._dpk**pow
-
-!!$    if (ABS(REAL(bessy)) < expo .OR. ABS(AIMAG(bessy)) < expo .AND. ABS(z /= 0.)) then 
-!!$    if (ABS(z) > asymplim .OR. ABS(AIMAG(z)) > asymplim1) then 
-!!$       bessy = abessy(z,nu)  !! Asymptotic form
-!!$
-!!$    else
-
-       if (nu < 0.) then
-          if (s == 0) then
-             call S17DEF(-nu,z,1,'U',bj,nz,ifail)
-             call S17DCF(-nu,z,1,'U',by,nz,cwrk,ifail)
-             bessy = by*COS(-PI*nu) + bj*SIN(-PI*nu)
-          else
-             call S17DEF(-nu,z,1,'S',bj,nz,ifail)
-             call S17DCF(-nu,z,1,'S',by,nz,cwrk,ifail)
-             bessy = by*COS(-PI*nu) + bj*SIN(-PI*nu)
-          end if
-       else
-          if (s == 0) then
-             call S17DCF(nu,z,1,'U',bessy,nz,cwrk,ifail)
-          else
-             call S17DCF(nu,z,1,'S',bessy,nz,cwrk,ifail)
-          end if
-       end if
-
-!!$    end if
-
-    
-  END FUNCTION bessy
-
-
-  FUNCTION abessy(z,nu)
-
-    complex(dpk)      :: z, abessy, psi
-    real(dpk)         :: nu
-
-
-    psi = z - PI*(nu/2._dpk + 0.25_dpk)
-    abessy = SQRT(2._dpk/(PI*z))*(SIN(psi) + (4._dpk*nu*nu - 1._dpk)/ &
-            (8._dpk*z)*COS(psi))
-
-
-  END FUNCTION abessy
-
-
-  FUNCTION hank1(z,nu,s)
-
-    complex(dpk)      :: z, hank1, psi, h1
-    real(dpk)         :: nu, q, expo, pow
-    integer           :: s, nz, ifail
-
-    if (nu == 0.) then
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))))
-    else
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))), ABS(LOG10(ABS(nu))))
-    end if
-
-    pow = -(prec - q)
-    expo = 10._dpk**pow
-
-!!$    if (ABS(REAL(hank1)) < expo .OR. ABS(AIMAG(hank1)) < expo .AND. ABS(z /= 0.)) then 
-!!$    if (ABS(z) > asymplim .OR. ABS(AIMAG(z)) > asymplim1) then 
-!!$       hank1 = ahank1(z,nu)  !! Asymptotic form
-!!$
-!!$    else
-       if (nu < 0.) then
-          if (s == 0) then
-             call S17DLF(1,-nu,z,1,'U',h1,nz,ifail)
-             hank1 = EXP(-nu*PI*CMPLX(0._dpk,1._dpk,kind=dpk))*h1
-          else
-             call S17DLF(1,-nu,z,1,'S',h1,nz,ifail)
-             hank1 = EXP(-nu*PI*CMPLX(0._dpk,1._dpk,kind=dpk))*h1
-          end if
-       else
-          if (s == 0) then
-             call S17DLF(1,nu,z,1,'U',hank1,nz,ifail)
-          else
-             call S17DLF(1,nu,z,1,'S',hank1,nz,ifail)
-          end if
-       end if
-
-!!$    end if
-    
-    
-  END FUNCTION hank1
-
-
-  FUNCTION ahank1(z,nu)
-
-    complex(dpk)      :: z, ahank1, psi
-    real(dpk)         :: nu
-
-
-    psi = z - PI*(nu/2._dpk + 0.25_dpk)
-    ahank1 = SQRT(2._dpk/(PI*z))*(1._dpk + CMPLX(0._dpk,1._dpk,kind=dpk)*(4._dpk*nu*nu - 1._dpk)/ &
-            (8._dpk*z))*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*psi)
-
-  END FUNCTION ahank1
-
-
-  FUNCTION hank2(z,nu,s)
-
-    complex(dpk)      :: z, hank2, psi, h1
-    real(dpk)         :: nu, q, expo, pow
-    integer           :: s, nz, ifail
-
-    if (nu == 0.) then
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))))
-    else
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))), ABS(LOG10(ABS(nu))))
-    end if
-
-    pow = -(prec - q)
-    expo = 10._dpk**pow
-
-!!$    if (ABS(REAL(hank2)) < expo .OR. ABS(AIMAG(hank2)) < expo .AND. ABS(z /= 0.)) then 
-!!$    if (ABS(z) > asymplim .OR. ABS(AIMAG(z)) > asymplim1) then 
-!!$       hank2 = ahank2(z,nu)  !! Asymptotic form
-!!$
-!!$    else
-
-       if (nu < 0.) then
-          if (s == 0) then
-             call S17DLF(2,-nu,z,1,'U',h1,nz,ifail)
-             hank2 = EXP(nu*PI*CMPLX(0._dpk,1._dpk,kind=dpk))*h1
-          else
-             call S17DLF(2,-nu,z,1,'S',h1,nz,ifail)
-             hank2 = EXP(nu*PI*CMPLX(0._dpk,1._dpk,kind=dpk))*h1
-          end if
-       else
-          if (s == 0) then
-             call S17DLF(2,nu,z,1,'U',hank2,nz,ifail)
-          else
-             call S17DLF(2,nu,z,1,'S',hank2,nz,ifail)
-          end if
-       end if
-
-!!$    end if
-    
-    
-  END FUNCTION hank2
-
-
-  FUNCTION ahank2(z,nu)
-
-    complex(dpk)      :: z, ahank2, psi
-    real(dpk)         :: nu
-
-
-    psi = z - PI*(nu/2._dpk + 0.25_dpk)
-    ahank2 = SQRT(2._dpk/(PI*z))*(1._dpk - CMPLX(0._dpk,1._dpk,kind=dpk)*(4._dpk*nu*nu - 1._dpk)/ &
-            (8._dpk*z))*EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*psi)
-
-  END FUNCTION ahank2
-
-
-  FUNCTION dbessj(z,nu,s)
-
-    complex(dpk)    :: z, dbessj, psi
-    real(dpk)       :: nu, q, expo, pow
-    integer         :: s
-
-    if (nu == 0.) then
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))))
-    else
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))), ABS(LOG10(ABS(nu))))
-    end if
-
-    pow = -(prec - q)
-    expo = 10._dpk**pow
-
-!!$    if (ABS(REAL(dbessj)) < expo .OR. ABS(AIMAG(dbessj)) < expo) then 
-!!$    if (ABS(z) > asymplim .OR. ABS(AIMAG(z)) > asymplim1) then 
-!!$       dbessj = adbessj(z,nu)  !! Asymptotic form
-!!$
-!!$    else
-
-       dbessj = 0.5*(bessj(z,nu-1,s) - bessj(z,nu+1,s))
-
-!!$    end if
-
-  END FUNCTION dbessj
-
-
-  FUNCTION adbessj(z,nu)
-
-    complex(dpk)      :: z, adbessj, psi
-    real(dpk)         :: nu
-
-
-    psi = z - PI*(nu/2._dpk + 0.25_dpk)
-    adbessj = SQRT(2._dpk/(PI*z))*(-SIN(psi) - (4._dpk*nu*nu + 3._dpk)/ &
-            (8._dpk*z)*COS(psi))
-
-
-  END FUNCTION adbessj
-
-
-  FUNCTION dbessy(z,nu,s)
-
-    complex(dpk)    :: z, dbessy, psi
-    real(dpk)       :: nu, q, expo, pow
-    integer         :: s
-
-    if (nu == 0.) then
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))))
-    else
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))), ABS(LOG10(ABS(nu))))
-    end if
-
-    pow = -(prec - q)
-    expo = 10._dpk**pow
-
-!!$    if (ABS(REAL(dbessy)) < expo .OR. ABS(AIMAG(dbessy)) < expo) then 
-!!$    if (ABS(z) > asymplim .OR. ABS(AIMAG(z)) > asymplim1) then 
-!!$       dbessy = adbessy(z,nu)  !! Asymptotic form
-!!$
-!!$    else
-
-       dbessy = 0.5*(bessy(z,nu-1,s) - bessy(z,nu+1,s))
-
-!!$    end if
-
-
-  END FUNCTION dbessy
-
-
-  FUNCTION adbessy(z,nu)
-
-    complex(dpk)      :: z, adbessy, psi
-    real(dpk)         :: nu
-
-
-    psi = z - PI*(nu/2._dpk + 0.25_dpk)
-    adbessy = SQRT(2._dpk/(PI*z))*(COS(psi) - (4._dpk*nu*nu + 3._dpk)/ &
-            (8._dpk*z)*SIN(psi))
-
-
-  END FUNCTION adbessy
-
-
-  FUNCTION dhank1(z,nu,s)
-
-    complex(dpk)    :: z, dhank1, psi
-    real(dpk)       :: nu, q, expo, pow
-    integer         :: s
-
-    if (nu == 0.) then
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))))
-    else
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))), ABS(LOG10(ABS(nu))))
-    end if
-
-    pow = -(prec - q)
-    expo = 10._dpk**pow
-
-!!$    if (ABS(REAL(dhank1)) < expo .OR. ABS(AIMAG(dhank1)) < expo) then 
-!!$    if (ABS(z) > asymplim .OR. ABS(AIMAG(z)) > asymplim1) then 
-!!$       dhank1 = adhank1(z,nu)  !! Asymptotic form
-!!$
-!!$    else
-       
-       dhank1 = 0.5*(hank1(z,nu-1,s) - hank1(z,nu+1,s))
-
-!!$    end if
-
-
-  END FUNCTION dhank1
-
-
-  FUNCTION adhank1(z,nu)
-
-    complex(dpk)      :: z, adhank1, psi
-    real(dpk)         :: nu
-
-
-    psi = z - PI*(nu/2._dpk + 0.25_dpk)
-    adhank1 = SQRT(2._dpk/(PI*z))*(CMPLX(0._dpk,1._dpk,kind=dpk) - (4._dpk*nu*nu + 3._dpk)/ &
-            (8._dpk*z))*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*psi)
-
-  END FUNCTION adhank1
-
-
-  FUNCTION dhank2(z,nu,s)
-
-    complex(dpk)    :: z, dhank2, psi
-    real(dpk)       :: nu, q, expo, pow
-    integer         :: s
-
-    if (nu == 0.) then
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))))
-    else
-       q = MAX(1._dpk, ABS(LOG10(ABS(z))), ABS(LOG10(ABS(nu))))
-    end if
-
-    pow = -(prec - q)
-    expo = 10._dpk**pow
-
-!!$    if (ABS(REAL(dhank2)) < expo .OR. ABS(AIMAG(dhank2)) < expo) then 
-!!$    if (ABS(z) > asymplim .OR. ABS(AIMAG(z)) > asymplim1) then 
-!!$       dhank2 = adhank2(z,nu)  !! Asymptotic form
-!!$
-!!$    else
-
-       dhank2 = 0.5*(hank2(z,nu-1,s) - hank2(z,nu+1,s))
-
-!!$    end if
-
-
-  END FUNCTION dhank2
-
-
-  FUNCTION adhank2(z,nu)
-
-    complex(dpk)      :: z, adhank2, psi
-    real(dpk)         :: nu
-
-
-    psi = z - PI*(nu/2._dpk + 0.25_dpk)
-    adhank2 = SQRT(2._dpk/(PI*z))*(-CMPLX(0._dpk,1._dpk,kind=dpk) - (4._dpk*nu*nu + 3._dpk)/ &
-            (8._dpk*z))*EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*psi)
-
-  END FUNCTION adhank2
-
-
-END PROGRAM nrcomplex
+END PROGRAM root_finder
