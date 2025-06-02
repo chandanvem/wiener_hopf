@@ -119,6 +119,12 @@ CONTAINS
       PRINT '(A, F8.4, ", ", F8.4, ", ", F8.4, ", ", F8.4,A)', &
                    ' (h, w0, del, m) = (', h, w0, del, m, ')'
 
+      read(10,*) kap1, dummy           
+      read(10,*) kap2, dummy           
+
+      PRINT '(A, F8.4, ", ", F8.4,A)', &
+                   ' (kap1, kap2) = (', kap1, kap2, ')'
+
 
       read(10,*) Nx,        dummy
       read(10,*) Ny,        dummy
