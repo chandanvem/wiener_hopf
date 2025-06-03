@@ -5,9 +5,6 @@ PROGRAM root_finder
 !***! scheme due to Ridders'. This scheme finds multiple zeros by checking
 !***! against a database of already-found zeros.
 
-!***! Last modified: Jan 16 2015
-
-!!$  USE nag_bessel_fun, ONLY : nag_bessel_j, nag_bessel_y
   USE bessel_utils
 
 
@@ -314,17 +311,19 @@ CONTAINS
     complex(dpk), dimension(MAX_ZERO)          :: zl, cz
     complex(dpk)                               :: Z, a, check
     real(dpk)                                  :: zeror, zeroi
-    integer                                    :: Nz
+    integer                                    :: Nz, grid_count,total_grid_points
     character(10)                              :: zflag
     integer                                    :: i, j, k
 
     zl(:) = (0.,0.)
     Nz = 0
+    total_grid_points = Nx*Ny
+    grid_count = 1 
 
     do i = 1, Nx
        do j = 1, Ny
           Z = CMPLX(X(i),Y(j),kind=dpk)
-          zz(i,j) = newt(Z,w,zflag)
+          zz(i,j) = newt(Z,w,zflag,grid_count,total_grid_points)
           
           if (zflag == 'green') then
              zeror = REAL(zz(i,j))
@@ -365,7 +364,8 @@ CONTAINS
                      REAL(check),'+',AIMAG(check),'i'
              end if
           end if
-          
+       
+       grid_count = grid_count + 1   
        end do
     end do
 
@@ -1216,7 +1216,7 @@ CONTAINS
   END SUBROUTINE mesh
 
 
-  FUNCTION newt(gz,w,flg)
+  FUNCTION newt(gz,w,flg,grid_count,total_grid_points)
 
 !***! The Newton-Raphson routine for complex functions using derivatives. The
 !***! algorithm removes zeros from the function as soon as it is found, thereby
@@ -1228,16 +1228,14 @@ CONTAINS
     real(dpk)          :: newtr, newti
     real(dpk)          :: err1, err2
     character(10)      :: flg
-    integer            :: i, j, k
+    integer            :: i, j, k, grid_count, total_grid_points
 
 
     newt = gz
     flg = 'red' !! 'Green' flag means zero found
     do i = 1, MAX_ITE
        f = fun(newt,w)
-!       print*,f, newt
        df = dfun(newt,w,delta,err1,err2) !! Numerical derivative
-!       print*, err1
 
        dz = f/df
        newt = newt - dz
@@ -1247,8 +1245,10 @@ CONTAINS
 
        if(newtr > Xmax+ZERO_ACC/10 .OR. newtr < Xmin-ZERO_ACC/10 .OR. &
             newti > Ymax+ZERO_ACC/10 .OR. newti < Ymin-ZERO_ACC/10) then
-!          print*, "Jumped out of bounds: may be approaching a pole"
-          RETURN
+           
+            PRINT '(I8,"/",I8, " Jumped out of bounds ")', grid_count, &
+                 total_grid_points 
+           RETURN
        end if
 
        if (ABS(REAL(dz)) < ZERO_ACC .AND. ABS(AIMAG(dz)) < ZERO_ACC) then 
@@ -1258,7 +1258,8 @@ CONTAINS
 
     end do
 
-    print*, "WARNING: Max Iterations Exceeded!" !! Failure to achieve accuracy
+    PRINT '(I5, "/", I8, "WARNING: Max Iterations Exceeded! ")', grid_count, &
+                 total_grid_points 
 
   END FUNCTION newt
 
