@@ -33,16 +33,20 @@ PROGRAM root_finder
   real(dpk)                                 :: h, w0
   real(dpk)                                 :: m
   real(dpk)                                 :: del  !! phase angle in degrees
-  real(dpk)                                 :: kap1  !! sqrt(T1/T0)
-  real(dpk)                                 :: kap2  !! rho1/rho0
+  real(dpk)                                 :: kap_T  !! sqrt(T1/T0)
+  real(dpk)                                 :: kap_rho  !! rho1/rho0
   complex(dpk)                              :: omega
   real(dpk)                                 :: PI
   integer                                   :: step, limit, func_case
   real(dpk), parameter                      :: asymplim = 3.27E4
   real(dpk), parameter                      :: asymplim1 = 100
   character(len=30)                         :: dummy
+  real :: start_time, end_time, elapsed_time
 
-!!$ List of functions: (func_case = X)
+ call cpu_time(start_time)
+
+
+!$ List of functions: (func_case = X)
 !!$-----------------------------------------------------------
 !!$ X = 0    :: Samanta & Freund, JFM, 2008 (incident wave)
 !!$ X = 100  :: Samanta & Freund, JFM, 2008 (reflected wave)
@@ -86,7 +90,10 @@ PROGRAM root_finder
        CALL printinfoplus(omega,Nzero,Nzero_inc,alpha,alphap)   
                                                        !! For inc waves
 
+  call cpu_time(end_time)
+  elapsed_time = end_time - start_time
 
+  print *, 'Elapsed CPU time (seconds):', elapsed_time
 
 
 CONTAINS
@@ -119,11 +126,11 @@ CONTAINS
       PRINT '(A, F8.4, ", ", F8.4, ", ", F8.4, ", ", F8.4,A)', &
                    ' (h, w0, del, m) = (', h, w0, del, m, ')'
 
-      read(10,*) kap1, dummy           
-      read(10,*) kap2, dummy           
+      read(10,*) kap_T, dummy           
+      read(10,*) kap_rho, dummy           
 
       PRINT '(A, F8.4, ", ", F8.4,A)', &
-                   ' (kap1, kap2) = (', kap1, kap2, ')'
+                   ' (kap_T, kap_rho) = (', kap_T, kap_rho, ')'
 
 
       read(10,*) Nx,        dummy
@@ -174,7 +181,7 @@ CONTAINS
 
      IF(func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
         Ny = 2
-        Xmin = -kap1/(1._dpk - kap1*M3) + 1.E-6
+        Xmin = -kap_T/(1._dpk - kap_T*M3) + 1.E-6
         Xmax = 1._dpk/(1._dpk + M1) - 1.E-6
         Ymin = 0.
         Ymax = 0.
@@ -222,9 +229,9 @@ CONTAINS
 
        print*,'Low frequency and low Mach no limits:'
 
-       write(*,'(/A4,F15.10,1X,A1,1X,F15.10,A1)'),'sz1:',REAL(sz1),'+',AIMAG(sz1),'i'
-       write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1)'),'sz2:',REAL(sz2),'+',AIMAG(sz2),'i'
-       write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1/)'),'sp1:',REAL(sp1),'+',AIMAG(sp1),'i'
+       write(*,'(/A4,F15.10,1X,A1,1X,F15.10,A1)')'sz1:',REAL(sz1),'+',AIMAG(sz1),'i'
+       write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1)')'sz2:',REAL(sz2),'+',AIMAG(sz2),'i'
+       write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1/)')'sp1:',REAL(sp1),'+',AIMAG(sp1),'i'
 
     END IF
 
@@ -289,9 +296,9 @@ CONTAINS
 
     hopt = H(optindex)
 
-    write(*,'(/A25,F6.2/)'),'Optimum step size:',hopt
-    write(*,'(A25,F15.10/)'),'Maximum error value:',max_error(optindex)
-    write(*,'(A25,I5/)'),'Error index:',error_index(optindex)
+    write(*,'(/A25,F6.2/)')'Optimum step size:',hopt
+    write(*,'(A25,F15.10/)')'Maximum error value:',max_error(optindex)
+    write(*,'(A25,I5/)')'Error index:',error_index(optindex)
 
   END SUBROUTINE teststep
     
@@ -347,14 +354,14 @@ CONTAINS
              zl(Nz) = zz(i,j)
              cz(Nz) = check
              
-             write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1)'),'at:',&
+             write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1)')'at:',&
                   REAL(zz(i,j)),'+',AIMAG(zz(i,j)),'i'
 
              if (func_case .GE. 0) then
-                write(*,'(A11,E16.8,1X,A1,1X,E16.8,A1)'),'func@zero:',&
+                write(*,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@zero:',&
                      REAL(check),'+',AIMAG(check),'i'
              else
-                write(*,'(A11,E16.8,1X,A1,1X,E16.8,A1)'),'func@pole:',&
+                write(*,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@pole:',&
                      REAL(check),'+',AIMAG(check),'i'
              end if
           end if
@@ -393,7 +400,7 @@ CONTAINS
     do i = 1, Nzero
        al(i,1) = REAL(zl(i))
        al(i,2) = w*sqrt((1._dpk - REAL(zl(i))*M1)**2 - REAL(zl(i))**2)
-       al(i,3) = w*sqrt(kap1**2*(1._dpk - REAL(zl(i))*M2)**2 - REAL(zl(i))**2)
+       al(i,3) = w*sqrt(kap_T**2*(1._dpk - REAL(zl(i))*M2)**2 - REAL(zl(i))**2)
     end do
 
     CALL findzero(w+wdel,Nz,zl1,cz1,zz1)
@@ -464,14 +471,14 @@ CONTAINS
                      '[',Xm2,',',Xmax,']'
              end if
 
-             write(*,'(/A44)'),'--------------------------------------------'
-             write(*,'(A44)'),'              Summary of Zeros              '
-             write(*,'(A44)'),'--------------------------------------------'
+             write(*,'(/A44)')'--------------------------------------------'
+             write(*,'(A44)')'              Summary of Zeros              '
+             write(*,'(A44)')'--------------------------------------------'
              do i = 1, Nz
-                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)'),'ZERO',i,':',&
+                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
-             write(*,'(A44/)'),'--------------------------------------------'
+             write(*,'(A44/)')'--------------------------------------------'
 
              open(10,file='zerolist.out',form='FORMATTED')
              write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
@@ -489,14 +496,14 @@ CONTAINS
 
           else
 
-             write(*,'(/A44)'),'--------------------------------------------'
-             write(*,'(A44)'),'              Summary of Poles              '
-             write(*,'(A44)'),'--------------------------------------------'
+             write(*,'(/A44)')'--------------------------------------------'
+             write(*,'(A44)')'              Summary of Poles              '
+             write(*,'(A44)')'--------------------------------------------'
              do i = 1, Nz
-                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)'),'POLE',i,':',&
+                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
-             write(*,'(A44/)'),'--------------------------------------------'
+             write(*,'(A44/)')'--------------------------------------------'
              
              open(10,file='polelist.out',form='FORMATTED')
              write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
@@ -518,14 +525,14 @@ CONTAINS
 
           if (func_case .GE. 0) then
 
-             write(*,'(/A44)'),'--------------------------------------------'
-             write(*,'(A44)'),'              Summary of Zeros              '
-             write(*,'(A44)'),'--------------------------------------------'
+             write(*,'(/A44)')'--------------------------------------------'
+             write(*,'(A44)')'              Summary of Zeros              '
+             write(*,'(A44)')'--------------------------------------------'
              do i = 1, Nz
-                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)'),'ZERO',i,':',&
+                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
-             write(*,'(A44/)'),'--------------------------------------------'
+             write(*,'(A44/)')'--------------------------------------------'
 
              open(10,file='zerolist.out',form='FORMATTED')
              write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
@@ -539,14 +546,14 @@ CONTAINS
 
           else
 
-             write(*,'(/A44)'),'--------------------------------------------'
-             write(*,'(A44)'),'              Summary of Poles              '
-             write(*,'(A44)'),'--------------------------------------------'
+             write(*,'(/A44)')'--------------------------------------------'
+             write(*,'(A44)')'              Summary of Poles              '
+             write(*,'(A44)')'--------------------------------------------'
              do i = 1, Nz
-                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)'),'POLE',i,':',&
+                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
-             write(*,'(A44/)'),'--------------------------------------------'
+             write(*,'(A44/)')'--------------------------------------------'
              
              open(10,file='polelist.out',form='FORMATTED')
              write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
@@ -589,13 +596,13 @@ CONTAINS
 
     else
 
-       write(*,'(/A52)'),'----------------------------------------------------'
-       write(*,'(A52)'),'   n         mu            alpha            beta    '
-       write(*,'(A52)'),'----------------------------------------------------'
+       write(*,'(/A52)')'----------------------------------------------------'
+       write(*,'(A52)')'   n         mu            alpha            beta    '
+       write(*,'(A52)')'----------------------------------------------------'
        do i = 1, Nz
-          write(*,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)'),i,al(i,1),al(i,2),al(i,3)
+          write(*,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)') i,al(i,1),al(i,2),al(i,3)
        end do
-       write(*,'(A52/)'),'-----------------------------------------------------'
+       write(*,'(A52/)')'-----------------------------------------------------'
 
        open(10,file='zerolist.out',form='FORMATTED')
        write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
@@ -614,13 +621,13 @@ CONTAINS
           print*,'Considering only the -Z (LEFT) moving waves......'
        end if
 
-       write(*,'(/A52)'),'----------------------------------------------------'
-       write(*,'(A52)'),'   n         mu            alpha            beta    '
-       write(*,'(A52)'),'----------------------------------------------------'
+       write(*,'(/A52)')'----------------------------------------------------'
+       write(*,'(A52)')'   n         mu            alpha            beta    '
+       write(*,'(A52)')'----------------------------------------------------'
        do i = 1, Nzi
-          write(*,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)'),i,alp(i,1),alp(i,2),alp(i,3)
+          write(*,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)')i,alp(i,1),alp(i,2),alp(i,3)
        end do
-       write(*,'(A52/)'),'-----------------------------------------------------'
+       write(*,'(A52/)')'-----------------------------------------------------'
 
        if (func_case .EQ. 0) then
           open(10,file='incident_waves.out',form='FORMATTED')
@@ -652,7 +659,7 @@ CONTAINS
 
 
     l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
-    l2 = sqrt(1._dpk*kap1 - z*(kap1*M2+1._dpk))*sqrt(1._dpk*kap1 - z*(kap1*M2-1._dpk))
+    l2 = sqrt(1._dpk*kap_T - z*(kap_T*M2+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M2-1._dpk))
 
     SELECT CASE (func_case)
 
@@ -661,7 +668,7 @@ CONTAINS
 !!$!! Samanta & Freund, JFM, 2008 (Acoustic Incident Waves)
 
        l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-       l2 = w*sqrt(kap1**2*(1._dpk - z*M2)**2 - z**2)
+       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
 
        F1n = dbessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
             CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,m,1)*dbessj(l2,m,1)* &
@@ -682,7 +689,7 @@ CONTAINS
 !!$!! Samanta & Freund, JFM, 2008 (Acoustic Reflected Waves)
 
        l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-       l2 = w*sqrt(kap1**2*(1._dpk - z*M2)**2 - z**2)
+       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
 
        F1n = dbessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
             CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,m,1)*dbessj(l2,m,1)* &
@@ -712,8 +719,8 @@ CONTAINS
 
 !!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the zeros)
 
-       lz = kap2*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
-       l3 = sqrt(1._dpk*kap1 - z*(kap1*M3+1._dpk))*sqrt(1._dpk*kap1 - z*(kap1*M3-1._dpk))
+       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
+       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
 
        if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
             (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
@@ -770,8 +777,8 @@ CONTAINS
        
 !!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the poles)
 
-       lz = kap2*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
-       l3 = sqrt(1._dpk*kap1 - z*(kap1*M3+1._dpk))*sqrt(1._dpk*kap1 - z*(kap1*M3-1._dpk))
+       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
+       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
 
        if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
             (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
@@ -837,7 +844,7 @@ CONTAINS
             EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
        F1s = F1n/F1d
 
-       F1 = kap2*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
        
        F2n = hank1(l2*w,m,1)
        F2d = dhank1(l2*w,m,1)
@@ -859,7 +866,7 @@ CONTAINS
             EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
        F1s = F1n/F1d
 
-       F1 = kap2*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
        
        F2n = hank1(l2*w,m,1)
        F2d = dhank1(l2*w,m,1)
@@ -874,8 +881,8 @@ CONTAINS
 
 !! Taylor et al, JSV, 1993 (zeros)
 
-       lz = kap2*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
-       l3 = sqrt(1._dpk*kap1 - z*(kap1*M3+1._dpk))*sqrt(1._dpk*kap1 - z*(kap1*M3-1._dpk))
+       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
+       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
        
        Rnz = (lz*bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
             EXP(ABS(AIMAG(l2*w*h)))
@@ -901,8 +908,8 @@ CONTAINS
 
 !! Taylor et al, JSV, 1993 (poles)
 
-       lz = kap2*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
-       l3 = sqrt(1._dpk*kap1 - z*(kap1*M3+1._dpk))*sqrt(1._dpk*kap1 - z*(kap1*M3-1._dpk))
+       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
+       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
        
        Rnz = (lz*bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
             EXP(ABS(AIMAG(l2*w*h)))
@@ -933,7 +940,7 @@ CONTAINS
        F1d = dbessj(l1*w*h,m,1)
        F1s = F1n/F1d
 
-       F1 = kap2*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
 
        F2n = dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
             CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
@@ -955,7 +962,7 @@ CONTAINS
        F1d = dbessj(l1*w*h,m,1)
        F1s = F1n/F1d
 
-       F1 = kap2*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
 
        F2n = dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
             CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
@@ -978,7 +985,7 @@ CONTAINS
        F1d = dbessj(l1*w,m,1)
        F1s = F1n/F1d
        
-       F1 = kap2*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
        
        F2n = hank1(l2*w,m,1)
        F2d = dhank1(l2*w,m,1)
@@ -996,7 +1003,7 @@ CONTAINS
        F1d = dbessj(l1*w,m,1)
        F1s = F1n/F1d
        
-       F1 = kap2*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
        
        F2n = hank1(l2*w,m,1)
        F2d = dhank1(l2*w,m,1)
@@ -1197,13 +1204,13 @@ CONTAINS
 
     open(20,file='mesh.x')
     do i = 1, Nx
-       write(20,'(I10,2X,F20.10)'), i, X(i)
+       write(20,'(I10,2X,F20.10)') i, X(i)
     end do
     close(20)
     
     open(20,file='mesh.y')
     do i = 1, Ny
-       write(20,'(I10,2X,F20.10)'), i, Y(i)
+       write(20,'(I10,2X,F20.10)') i, Y(i)
     end do
     
   END SUBROUTINE mesh
