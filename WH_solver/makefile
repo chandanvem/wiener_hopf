@@ -1,22 +1,23 @@
-LIBNAG           =  /usr/local/lib32/NAG/fllux23dcl/lib/libnag_nag.a
-FORT             =  ifort
-OPTF             = -O3 -Dintel_ -DALLOW_NON_INIT -nofor_main
-OPTL             = -O3 -nofor_main
-OPTS             = -O3
-#FORT             =  nagfor
-#OPTF             = -O4 -fpp -Dintel_ -DALLOW_NON_INIT -kind=byte
-#OPTL             = -O4
-DEBUG            = 
+FC = gfortran
+FLAGS = -O2
+BESSEL_UTILS_DIR= ../tests
+OBJS = bessel_functions_toms.o bessel_utils.o WH_solver.o
+TARGET = WH_solver
 
-OBJECTS =  main.f90
+all: $(TARGET)
 
-main: 
-	$(FORT) $(OPTS) $(OBJECTS) $(LIBNAG) -o main
+$(TARGET): $(OBJS)
+	$(FC) $(FLAGS) -o $@ $(OBJS)
+
+bessel_functions_toms.o: $(BESSEL_UTILS_DIR)/bessel_functions_toms.f90
+	$(FC) $(FLAGS) -c $(BESSEL_UTILS_DIR)/bessel_functions_toms.f90
+
+bessel_utils.o:  $(BESSEL_UTILS_DIR)/bessel_utils.f90 bessel_functions_toms.o
+	$(FC) $(FLAGS) -c  $(BESSEL_UTILS_DIR)/bessel_utils.f90
+
+WH_solver.o: WH_solver.f90 bessel_utils.o
+	$(FC) $(FLAGS) -c WH_solver.f90
 
 clean:
-	rm *.o -f
-	rm le -f
-	rm -rf main
-	rm -rf *.out
-	rm -rf mesh_polar.*
-	rm -rf supinstabilitypr_*
+	rm -f *.o *.mod $(TARGET)
+
