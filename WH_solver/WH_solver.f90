@@ -89,35 +89,33 @@ CONTAINS
     open(1,file='input.list.p')
 
     read(1,*) vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
-    print *, 'initialize:  vortswitch=', vortswitch
+
+    PRINT '(A, I3, A)', &
+                   ' vortswitch = (', vortswitch, ')'
 
     read(1,*) M1  !! core jet Mach number
-    print *, 'initialize:  M1=', M1
-
     read(1,*) M2  !! coflow Mach number
-    print *, 'initialize:  M2=', M2
-
     read(1,*) M3  !! ambient flow Mach number
-    print *, 'initialize:  M3=', M3
+
+    PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2, A)', &
+                   ' (M1, M2, M3) = (', M1, M2, M3, ')'
+
 
     read(1,*) h   !! the width of the core jet, h = Ri/Ro
-    print *, 'initialize:  width of the core jet h=', h
 
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
        read(1,*) Zo  !! starting point of inc instability (-ve)
     end if
 
     read(1,*) w0  !! the Helmholtz number
-    print *, 'initialize:  Helmholtz number omega=', w0
-
     read(1,*) kapT  !! sqrt(temp ratio)
-    print *, 'initialize:  Sqrt of temperature ratio=', kapT
- 
     read(1,*) kap_rho  !! density ratio
-    print*, 'initialize:  Density ratio=', kap_rho
-
     read(1,*) azim_mode  !! the circumferential mode no
-    print*, 'initialize:  Azimuthal wavenumber (azim_mode)=', azim_mode
+
+    PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2, ", ", F8.2,A)', &
+          ' (h, w0, kapT, kap_rho, azim_mode) = (', h, w0, kapT, &
+                                           kap_rho , azim_mode, ')'
+
 
     read(1,*) KH_zero_1
     print*, 'initialize:  KH_zero_1 (First instability zero) =', KH_zero_1
@@ -146,18 +144,30 @@ CONTAINS
 
     read(1,*) tol  !! the tolerance of the adaptive contour integration routine
     print*,'initialize:  Tolerance for adaptive contour integration =', tol
+    
+    PRINT '(A, E12.4, ", ", E12.4,A)', &
+                   ' initialize: (offset, tol) = (', offset, tol, ')'
+
 
     read(1,*) num_zeros_s1_s2  !! zeros needed to be removed from the kernel
-    print*,'initialize:  Number of zeros to be removed from kernel =', num_zeros_s1_s2
+    PRINT '(A, I3, A)', &
+                   'initialize:  Number of zeros to be removed from kernel ', num_zeros_s1_s2
+
 
     read(1,*) num_poles_s1_s2  !! poles needed to be removed from the kernel
-    print*,'initialize:  Number of poles to be removed from kernel =', num_poles_s1_s2
+    PRINT '(A, I3, A)', &
+                   'initialize:  Number of poles to be removed from kernel ', num_poles_s1_s2
+
 
     read(1,*) num_sup_zeros  !! supersonic zeros
-    print*,'initialize:  Number of supersonic zeros =', num_sup_zeros
+    PRINT '(A, I3, A)', &
+                   'initialize:  Number of supersonic zeros ', num_sup_zeros
+
 
     read(1,*) num_sup_poles  !! supersonic poles
-    print*,'initialize:  Number of supersonic poles =', num_sup_poles
+    PRINT '(A, I3, A)', &
+                   'initialize:  Number of supersonic poles ', num_sup_poles
+
 
     if (vortswitch == 2) then
        if (num_sup_poles == 0) then
@@ -170,7 +180,8 @@ CONTAINS
     print*,'','====== Mesh and contour parameters ======',''
     
     read(1,*) num_ker_pts_loop
-    print*,'initialize:  Number of kernel points in each loop =', num_ker_pts_loop
+     PRINT '(A, I5, A)', &
+       'initialize:  Number of kernel points in each loop =', num_ker_pts_loop
 
     read(1,*) theta  !! the stretching parameter for kernel contour meshpoints
     print*,'initialize:  Stretching parameter for kernel contour =', theta
@@ -257,7 +268,7 @@ CONTAINS
     if (num_sup_zeros > 0) then
         allocate(sup_zeros_list(num_sup_zeros))
         do i1 = 1, num_sup_zeros
-          print*, i1
+          !print*, i1
           read(1,*) sup_zeros_list(i1)
 !         print*, sup_zeros_list(i1)
         end do
