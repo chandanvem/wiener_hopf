@@ -65,7 +65,7 @@ PROGRAM WH_solver
 !! Only two calls:
 
   call initialize  !! this subrtn reads and initializes data
-  call solve  !! this subrtn is the main solver
+!  call solve  !! this subrtn is the main solver
 
 
 CONTAINS
@@ -79,10 +79,12 @@ CONTAINS
 !! 4. Check if the instability zeros and pole lie appropriately wrt the contours
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    integer             :: i1, i2, i3
+    integer             :: i, i1, i2, i3
     real(dpk)           :: t, ai, ai_im, af, af_im
     real(dpk)           :: aki, aki_im, akf, akf_im
     character(60)       :: pos
+
+!!================================================================
 
 !! the basic data file:
     open(10, file='input.list.p', status='old')
@@ -168,6 +170,22 @@ CONTAINS
     PRINT '(A, I3, A)', &
                    'initialize:  Number of supersonic poles ', num_sup_poles
 
+    if (num_sup_zeros > 0) then
+        allocate(sup_zeros_list(num_sup_zeros))
+        do i = 1, num_sup_zeros
+          read(10,*) sup_zeros_list(i)
+          print*, sup_zeros_list(i)
+        end do
+    end if
+
+     if (num_sup_poles > 0) then
+        allocate(sup_poles_list(num_sup_poles))
+        do i = 1, num_sup_poles
+          !print*, i1
+          read(10,*) sup_poles_list(i)
+          print*, sup_poles_list(i)
+        end do
+    end if
 
     if (vortswitch == 2) then
        if (num_sup_poles == 0) then
@@ -197,7 +215,7 @@ CONTAINS
     read(10,*) Nmeshr
     read(10,*) Nmeshz
 
-    print*,'initialize:  Dimensions of domain in R = [',Rmin,Rmax,']' 
+    print*,'initialize:  Dimensions of domain in R = [',Rmin,Rmax,']'  
     print*,'initialize:  Dimensions of domain in Z = [',Zmin,Zmax,']' 
     print*,'initialize:  Nr x Nz =',Nmeshr,'x',Nmeshz
 
@@ -244,50 +262,15 @@ CONTAINS
 
     read(10,*) restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
 
-!! read the zeros & poles that need to be excluded, if any:
-!! USE: when the effect of particular modes need to be studied individually
+!
+ 
+ ! do i = 1, n
+ !    read(10,*) arr(i)  ! Directly reads complex numbers like (1.0, 2.0)
+ ! end do
+
+  close(10)
     
-    if (num_zeros_s1_s2 > 0) then
-        allocate(zeros_list_bw_s1_s2(num_zeros_s1_s2))
-        do i1 = 1, num_zeros_s1_s2
-           read(10,*) zeros_list_bw_s1_s2(i1)
-!          print*, zeros_list_bw_s1_s2(i1)
-        end do
-    end if
-
-
-    if (num_poles_s1_s2 > 0) then
-       allocate(poles_list_bw_s1_s2(num_poles_s1_s2))
-
-       do i1 = 1, num_poles_s1_s2
-          read(10,*) poles_list_bw_s1_s2(i1)
-!         print*, poles_list_bw_s1_s2(i1)
-       end do
-    end if
-
-    if (num_sup_zeros > 0) then
-        allocate(sup_zeros_list(num_sup_zeros))
-        do i1 = 1, num_sup_zeros
-          !print*, i1
-          read(10,*) sup_zeros_list(i1)
-!         print*, sup_zeros_list(i1)
-        end do
-   end if
-
-   
-   if (num_sup_poles > 0) then 
-       allocate(sup_poles_list(num_sup_poles))
-       do i1 = 1, num_sup_poles
-         read(10,*) sup_poles_list(i1)
-!        print*, sup_poles_list(i1)
-       end do
-  end if
-
-    close(10)
-
-!!================================================================
-
-    PI = 4._dpk*ATAN(1.)
+PI = 4._dpk*ATAN(1.)
     delr = 0._dpk   !! for real omega
     deli = PI/2._dpk  !! for purely imaginary omega
 

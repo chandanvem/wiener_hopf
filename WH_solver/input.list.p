@@ -7,19 +7,22 @@
 1.0                                      kapT
 1.0                                      kap_rho
 0.0                                      azim_mode
-(0.6269202054,-0.1925527802)             hydro_zero_1
-(5.9843175176,-1.9897087395)             hydro_zero_2
-(0.4403812559,-0.1073787548)             hydro_pole_1
-(0.0671082273,0.)                        mup
+(0.6269202054,-0.1925527802)             KH_zero_1
+(5.9843175176,-1.9897087395)             KH_zero_2
+(0.4403812559,-0.1073787548)             KH_pole_1
+(0.0671082273,0.)                        mu_plus
 1.0e-3                                   offset
 1.0e-4                                   tol
 0                                        num_zeros_s1_s2
 0                                        num_poles_s1_s2
 2                                        num_sup_zeros
 1                                        num_sup_poles
+(0.7078811961,-0.0376876241)             
+(0.8639042425,-0.0238236257)             
+(0.8450817607,-0.0845733677)            
 300                                      num_ker_pts_loop
 6.0                                      theta
-1000                                     Nmax
+1000                                     num_IFT_pts_loop
 0.1                                      Rmin
 5.0                                      Rmax
 -1.5                                     Zmin
@@ -34,6 +37,4 @@
 0                                        farswitch
 0                                        restart
 300                                      Nphi
-(0.7078811961,-0.0376876241)             sup_zeros_list(1)
-(0.8639042425,-0.0238236257)             sup_zeros_list(2)
-(0.8450817607,-0.0845733677)             sup_poles_list(1)
+
