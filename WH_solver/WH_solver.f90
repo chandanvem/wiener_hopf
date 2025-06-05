@@ -85,86 +85,86 @@ CONTAINS
     character(60)       :: pos
 
 !! the basic data file:
+    open(10, file='input.list.p', status='old')
+    !open(1,file='input.list.p'
 
-    open(1,file='input.list.p')
-
-    read(1,*) vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
+    read(10,*) vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
 
     PRINT '(A, I3, A)', &
                    ' vortswitch = (', vortswitch, ')'
 
-    read(1,*) M1  !! core jet Mach number
-    read(1,*) M2  !! coflow Mach number
-    read(1,*) M3  !! ambient flow Mach number
+    read(10,*) M1  !! core jet Mach number
+    read(10,*) M2  !! coflow Mach number
+    read(10,*) M3  !! ambient flow Mach number
 
     PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2, A)', &
                    ' (M1, M2, M3) = (', M1, M2, M3, ')'
 
 
-    read(1,*) h   !! the width of the core jet, h = Ri/Ro
+    read(10,*) h   !! the width of the core jet, h = Ri/Ro
 
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
-       read(1,*) Zo  !! starting point of inc instability (-ve)
+       read(10,*) Zo  !! starting point of inc instability (-ve)
     end if
 
-    read(1,*) w0  !! the Helmholtz number
-    read(1,*) kapT  !! sqrt(temp ratio)
-    read(1,*) kap_rho  !! density ratio
-    read(1,*) azim_mode  !! the circumferential mode no
+    read(10,*) w0  !! the Helmholtz number
+    read(10,*) kapT  !! sqrt(temp ratio)
+    read(10,*) kap_rho  !! density ratio
+    read(10,*) azim_mode  !! the circumferential mode no
 
     PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2, ", ", F8.2,A)', &
           ' (h, w0, kapT, kap_rho, azim_mode) = (', h, w0, kapT, &
                                            kap_rho , azim_mode, ')'
 
 
-    read(1,*) KH_zero_1
+    read(10,*) KH_zero_1
     print*, 'initialize:  KH_zero_1 (First instability zero) =', KH_zero_1
 
 
-    read(1,*) KH_zero_2
+    read(10,*) KH_zero_2
     print*, 'initialize:  KH_zero_2 (Second instability zero) =', KH_zero_2
 
 
-    read(1,*) KH_pole_1
+    read(10,*) KH_pole_1
     print*, 'initialize:  KH_pole_1 (Instability pole) =', KH_pole_1
 
 
     if ((vortswitch == 1) .OR. (vortswitch == 2)) then
-               read(1,*) mu0  !! upstream inc acoustic mode
+               read(10,*) mu0  !! upstream inc acoustic mode
                print*, 'initialize:  Incident Vorticity mode activated'
     else
-               read(1,*) mu_plus
+               read(10,*) mu_plus
                print*, '================== Non-incident vorticity mode ====================='
                print*,''
                print*, 'initialize:  mu for the incident mode =',mu_plus
     end if
 
-    read(1,*) offset  !! the offset between the two integration contours
+    read(10,*) offset  !! the offset between the two integration contours
     print*,'initialize:  Offset between the IFT and K split contours=', offset
 
-    read(1,*) tol  !! the tolerance of the adaptive contour integration routine
+    read(10,*) tol  !! the tolerance of the adaptive contour integration routine
     print*,'initialize:  Tolerance for adaptive contour integration =', tol
     
     PRINT '(A, E12.4, ", ", E12.4,A)', &
                    ' initialize: (offset, tol) = (', offset, tol, ')'
 
 
-    read(1,*) num_zeros_s1_s2  !! zeros needed to be removed from the kernel
+    read(10,*) num_zeros_s1_s2  !! zeros needed to be removed from the kernel
     PRINT '(A, I3, A)', &
                    'initialize:  Number of zeros to be removed from kernel ', num_zeros_s1_s2
 
 
-    read(1,*) num_poles_s1_s2  !! poles needed to be removed from the kernel
+    read(10,*) num_poles_s1_s2  !! poles needed to be removed from the kernel
     PRINT '(A, I3, A)', &
                    'initialize:  Number of poles to be removed from kernel ', num_poles_s1_s2
 
 
-    read(1,*) num_sup_zeros  !! supersonic zeros
+    read(10,*) num_sup_zeros  !! supersonic zeros
     PRINT '(A, I3, A)', &
                    'initialize:  Number of supersonic zeros ', num_sup_zeros
 
 
-    read(1,*) num_sup_poles  !! supersonic poles
+    read(10,*) num_sup_poles  !! supersonic poles
     PRINT '(A, I3, A)', &
                    'initialize:  Number of supersonic poles ', num_sup_poles
 
@@ -179,23 +179,23 @@ CONTAINS
     print*,''
     print*,'','====== Mesh and contour parameters ======',''
     
-    read(1,*) num_ker_pts_loop
+    read(10,*) num_ker_pts_loop
      PRINT '(A, I5, A)', &
        'initialize:  Number of kernel points in each loop =', num_ker_pts_loop
 
-    read(1,*) theta  !! the stretching parameter for kernel contour meshpoints
+    read(10,*) theta  !! the stretching parameter for kernel contour meshpoints
     print*,'initialize:  Stretching parameter for kernel contour =', theta
 
-    read(1,*) num_IFT_pts_loop
+    read(10,*) num_IFT_pts_loop
     print*,'initialize:  Number of IFT points in each loop num_IFT_pts_loop =', num_IFT_pts_loop
 
-    read(1,*) Rmin
-    read(1,*) Rmax
-    read(1,*) Zmin
-    read(1,*) Zmax
+    read(10,*) Rmin
+    read(10,*) Rmax
+    read(10,*) Zmin
+    read(10,*) Zmax
    
-    read(1,*) Nmeshr
-    read(1,*) Nmeshz
+    read(10,*) Nmeshr
+    read(10,*) Nmeshz
 
     print*,'initialize:  Dimensions of domain in R = [',Rmin,Rmax,']' 
     print*,'initialize:  Dimensions of domain in Z = [',Zmin,Zmax,']' 
@@ -203,17 +203,17 @@ CONTAINS
 
     print*,'=============================='
 
-    read(1,*) asymplim
+    read(10,*) asymplim
     print*,'initialize:  Asymptotic limit of ??? = ',asymplim
 
-    read(1,*) asymplim1
+    read(10,*) asymplim1
     print*,'initialize:  Asymptotic limit of ??? = ',asymplim1
 
-    read(1,*) vs_param_gamma  !! Default = 1.0 (0,1)
+    read(10,*) vs_param_gamma  !! Default = 1.0 (0,1)
     print*,'initialize:  Vortex shedding parameter gamma = ',vs_param_gamma 
       
 !!============================
-    read(1,*) prswitch  !! 0 = Potential; 1 = Pressure
+    read(10,*) prswitch  !! 0 = Potential; 1 = Pressure
 
     if (prswitch == 0) then
        print*,'initialize:  Solution in potential mode'
@@ -221,17 +221,17 @@ CONTAINS
        print*,'initialize:  Solution in pressure mode '
     end if
 !!============================
-    read(1,*) reflswitch  !! 1 = Reflection mode: incident mode not added
+    read(10,*) reflswitch  !! 1 = Reflection mode: incident mode not added
     if (reflswitch == 1) then
        print*,'initialize:  Reflection mode: incident mode not added'
     else 
        print*,'initialize:  Reflection mode: incident mode added'
     end if
 !!============================
-    read(1,*) farswitch  !! 1 = Far-field mode: compute directivity; 2 = 1 + nearfield of sup zeros in polar mode
+    read(10,*) farswitch  !! 1 = Far-field mode: compute directivity; 2 = 1 + nearfield of sup zeros in polar mode
 
     if ((farswitch == 1) .OR. (farswitch == 2)) then
-       read(1,*) Nphi
+       read(10,*) Nphi
        allocate(cnanglei(num_sup_zeros+2))
     end if
 
@@ -242,7 +242,7 @@ CONTAINS
 
 !!=====================================================
 
-    read(1,*) restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
+    read(10,*) restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
 
 !! read the zeros & poles that need to be excluded, if any:
 !! USE: when the effect of particular modes need to be studied individually
@@ -250,7 +250,7 @@ CONTAINS
     if (num_zeros_s1_s2 > 0) then
         allocate(zeros_list_bw_s1_s2(num_zeros_s1_s2))
         do i1 = 1, num_zeros_s1_s2
-           read(1,*) zeros_list_bw_s1_s2(i1)
+           read(10,*) zeros_list_bw_s1_s2(i1)
 !          print*, zeros_list_bw_s1_s2(i1)
         end do
     end if
@@ -260,7 +260,7 @@ CONTAINS
        allocate(poles_list_bw_s1_s2(num_poles_s1_s2))
 
        do i1 = 1, num_poles_s1_s2
-          read(1,*) poles_list_bw_s1_s2(i1)
+          read(10,*) poles_list_bw_s1_s2(i1)
 !         print*, poles_list_bw_s1_s2(i1)
        end do
     end if
@@ -269,7 +269,7 @@ CONTAINS
         allocate(sup_zeros_list(num_sup_zeros))
         do i1 = 1, num_sup_zeros
           !print*, i1
-          read(1,*) sup_zeros_list(i1)
+          read(10,*) sup_zeros_list(i1)
 !         print*, sup_zeros_list(i1)
         end do
    end if
@@ -278,12 +278,12 @@ CONTAINS
    if (num_sup_poles > 0) then 
        allocate(sup_poles_list(num_sup_poles))
        do i1 = 1, num_sup_poles
-         read(1,*) sup_poles_list(i1)
+         read(10,*) sup_poles_list(i1)
 !        print*, sup_poles_list(i1)
        end do
   end if
 
-    close(1)
+    close(10)
 
 !!================================================================
 
@@ -324,15 +324,15 @@ CONTAINS
 !! algebraic contour starts & ends; def_pts_IFT_cntr(3) is where it crosses
 !! real axis
 
-    open(1,file='input.iftpts')
+    open(10,status='old',file='input.iftpts')
 
-    read(1,*) t
+    read(10,*) t
     ai = t
-    read(1,*) def_pts_IFT_cntr(2)
-    read(1,*) t
+    read(10,*) def_pts_IFT_cntr(2)
+    read(10,*) t
     def_pts_IFT_cntr(3) = CMPLX(t,0._dpk,kind=dpk)
-    read(1,*) def_pts_IFT_cntr(4)
-    read(1,*) t
+    read(10,*) def_pts_IFT_cntr(4)
+    read(10,*) t
     af = t
 
     call get_y_alg_int_contour(ai,ai_im,REAL(def_pts_IFT_cntr(3)),REAL(def_pts_IFT_cntr(2)-def_pts_IFT_cntr(3)), &
@@ -344,9 +344,9 @@ CONTAINS
     def_pts_IFT_cntr(1) = CMPLX(ai,ai_im,kind=dpk)  
     def_pts_IFT_cntr(5) = CMPLX(af,af_im,kind=dpk)
 
-    read(1,*) t
+    read(10,*) t
     aki = t
-    read(1,*) t
+    read(10,*) t
     akf = t
 
     close(1)
