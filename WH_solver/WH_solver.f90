@@ -9,6 +9,7 @@ PROGRAM WH_solver
 !!$           6. Vortex shedding parameter
 
   USE bessel_utils
+  USE io_utils
 
   IMPLICIT none
 
@@ -62,10 +63,9 @@ PROGRAM WH_solver
   real(dpk)                                  :: asymplim, asymplim1 !! asymptotic limit for the kernel functions
 
 
-!! Only two calls:
-
   call initialize  !! this subrtn reads and initializes data
-!  call solve  !! this subrtn is the main solver
+  call create_req_dirs
+  call solve  !! this subrtn is the main solver
 
 
 CONTAINS
@@ -453,6 +453,13 @@ PI = 4._dpk*ATAN(1.)
 
   END SUBROUTINE initialize
 
+
+  SUBROUTINE create_req_dirs
+
+    call create_directory('./DataDump/Ift')
+    call create_directory('./DataDump/Kernel')
+
+  END SUBROUTINE create_req_dirs
 
   SUBROUTINE solve
 
