@@ -1317,36 +1317,44 @@ PI = 4._dpk*ATAN(1.)
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
     
     integer :: i, switch, index
-    integer :: thread_id, num_threads, chunk, tot_IFT_pts
+    integer :: thread_id, num_threads, chunk
     integer :: start_idx, end_idx, file_ID
     character(len=200) :: filename
+    real :: start_time, end_time, elapsed_time
 
     allocate(fplusz(tot_IFT_pts))  !! fplus is same as \xi^{+}(s) of (3.30)
     fplusz = (0._dpk,0._dpk)
 
-    !$omp parallel private(i, thread_id, num_threads, chunk, start_idx, end_idx, filename, file_ID)
-  
-    thread_id = omp_get_thread_num()
-    num_threads = omp_get_num_threads()
-    
-    chunk = tot_IFT_pts / num_threads
-    start_idx = thread_id * chunk + 1
-    end_idx = (thread_id + 1) * chunk
-    
-    if (thread_id == num_threads - 1) end_idx = tot_IFT_pts
+    !$omp parallel private(i,thread_id,num_threads,chunk,start_idx,end_idx,filename,file_ID,start_time,end_time,elapsed_time)
+     block 
+        thread_id = omp_get_thread_num()
+        num_threads = omp_get_num_threads()
+        
+        chunk = tot_IFT_pts / num_threads
 
-    write(filename, '("./DataDump/compute_fplus_log/log_", I0, ".out")') thread_id + 1
-    file_ID = 10 + thread_id
+        start_idx = thread_id * chunk + 1
+        end_idx = (thread_id + 1) * chunk
+        
+        if (thread_id == num_threads - 1) end_idx = tot_IFT_pts
 
-    open(file_ID, file=filename, form='FORMATTED', status='UNKNOWN')
+        write(filename, '("./DataDump/compute_fplus_log/log_", I0, ".out")') thread_id + 1
+     
+        file_ID = 10 + thread_id
 
-    do i = start_idx, end_idx
-      fplusz(i) = get_fplus_value(iftpoints(i))
-      write(file_ID,'(I5,4E20.10)') i,iftpoints(i),fplusz(i)
-    end do
+        open(file_ID, file=filename, form='FORMATTED', status='UNKNOWN')
 
-    close(file_ID)
+        call cpu_time(start_time)
+        do i = start_idx, end_idx
+          fplusz(i) =  get_fplus_value(iftpoints(i))
+          write(file_ID,'(I5,4E20.10)') i,iftpoints(i),fplusz(i)
+        end do
+        call cpu_time(end_time)
+        elapsed_time = end_time - start_time
+        write(file_ID, *) 'Elapsed CPU time (seconds):', elapsed_time
 
+        close(file_ID)
+
+     end block
     !$omp end parallel
     
     open(10,file='fplus.out',form='FORMATTED')
