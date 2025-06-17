@@ -10,6 +10,7 @@ PROGRAM WH_solver
 
   USE bessel_utils
   USE io_utils
+  USE omp_lib
 
   IMPLICIT none
 
@@ -458,6 +459,7 @@ PI = 4._dpk*ATAN(1.)
 
     call create_directory('./DataDump/Ift')
     call create_directory('./DataDump/Kernel')
+    call create_directory('./DataDump/compute_fplus_log')
 
   END SUBROUTINE create_req_dirs
 
@@ -489,13 +491,8 @@ PI = 4._dpk*ATAN(1.)
 
        call meshgrid
 
-       if (restart .NE. 0) then
-                   call read_fplus(index)  !! assumes the fplus_part.out file to be present
-                   call compute_fplus(restart,index)
-       else
-         print*,'solve: Now computing F+. This takes a while:'
-                   call compute_fplus(restart,0)
-       end if
+       print*,'solve: Now computing F+. This takes a while:'
+       call compute_fplus(restart,0)
 
        print*,''
        print*,'solve: Now starting the IFT:'
@@ -1201,8 +1198,6 @@ PI = 4._dpk*ATAN(1.)
 
        call kernel_trapz_int(si,ker_int_points(j),ker_int_points(j+1),ksw,sw,T)  !! the basis for comparison
 
-!       print*, 'T:', T
-
        Np = 1
 
 !! the adaptive loop starts here:
@@ -1211,8 +1206,6 @@ PI = 4._dpk*ATAN(1.)
           
           panel_no = 2**Np  !! min no of panels = 2
           ds = len/panel_no
-
-!          print*, 'panels:', panel_no
           
           allocate(xp(panel_no+1))
           allocate(yp(panel_no+1))
@@ -1244,7 +1237,6 @@ PI = 4._dpk*ATAN(1.)
              
           end do
 
-!          print*, 'zp(i):', zp(i), 'zp(i+1):', zp(i+1)
           
           allocate(T_temp(panel_no))
           
@@ -1262,8 +1254,6 @@ PI = 4._dpk*ATAN(1.)
           deallocate(yp)
           deallocate(T_temp)
 
-!          print*, 'ker_int_points:', ker_int_points(j)
-!          print*, 'intpanel:', intpanel(j)
 
 !! the tolerance check:
 
@@ -1325,59 +1315,46 @@ PI = 4._dpk*ATAN(1.)
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Evaluate (3.30)
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    integer          :: i, index, switch
+    
+    integer :: i, switch, index
+    integer :: thread_id, num_threads, chunk, tot_IFT_pts
+    integer :: start_idx, end_idx, file_ID
+    character(len=200) :: filename
 
     allocate(fplusz(tot_IFT_pts))  !! fplus is same as \xi^{+}(s) of (3.30)
     fplusz = (0._dpk,0._dpk)
 
-    if (switch == 0) then  !! switch = 0 :> fresh job; no restart file read before
+    !$omp parallel private(i, thread_id, num_threads, chunk, start_idx, end_idx, filename, file_ID)
+  
+    thread_id = omp_get_thread_num()
+    num_threads = omp_get_num_threads()
+    
+    chunk = tot_IFT_pts / num_threads
+    start_idx = thread_id * chunk + 1
+    end_idx = (thread_id + 1) * chunk
+    
+    if (thread_id == num_threads - 1) end_idx = tot_IFT_pts
 
-       do i = 1,tot_IFT_pts
-          print *, 'compute_fplus: F+ at index: ', i, '  point = ', iftpoints(i)
-          fplusz(i) = get_fplus_value(iftpoints(i))
-          
-          write(*,'(A22,2X,2F20.10/)') 'F+:->',fplusz(i)
+    write(filename, '("./DataDump/compute_fplus_log/log_", I0, ".out")') thread_id + 1
+    file_ID = 10 + thread_id
 
-          if (i == 1) then
-             open(10,file='fplus_part.out',form='FORMATTED',status='UNKNOWN')
-          else
-             open(10,file='fplus_part.out',form='FORMATTED',position='APPEND')
-          end if
+    open(file_ID, file=filename, form='FORMATTED', status='UNKNOWN')
 
-          write(10,'(I5,4E20.10)') i,iftpoints(i),fplusz(i)
-          close(10)
+    do i = start_idx, end_idx
+      fplusz(i) = get_fplus_value(iftpoints(i))
+      write(file_ID,'(I5,4E20.10)') i,iftpoints(i),fplusz(i)
+    end do
 
-       end do
+    close(file_ID)
 
-    else
-
-       fplusz = fplusz_temp
-
-       if (index .NE. tot_IFT_pts) then
-
-          do i = index+1,tot_IFT_pts
-             print*, 'F+ at:', iftpoints(i)
-             fplusz(i) = get_fplus_value(iftpoints(i))
-          
-             write(*,'(A22,2X,2F20.10/)') 'F+:->',fplusz(i)
-
-             open(10,file='fplus_part.out',form='FORMATTED',position='APPEND')
-             write(10,'(I5,4E20.10)') i,iftpoints(i),fplusz(i)
-             close(10)
-
-          end do
-
-       end if
-
-    end if
-
+    !$omp end parallel
+    
     open(10,file='fplus.out',form='FORMATTED')
     do i = 1, tot_IFT_pts
        write(10,'(I5,4E20.10)') i,iftpoints(i),fplusz(i)
-    end do
+     end do
     close(10)
-    
+
 
   END SUBROUTINE compute_fplus
 
@@ -1575,22 +1552,22 @@ PI = 4._dpk*ATAN(1.)
 
 !! dump data:
 
-    write(arg,"('u=',E12.5,'+',E12.5,'i')") REAL(z),AIMAG(z)
+  !  write(arg,"('u=',E12.5,'+',E12.5,'i')") REAL(z),AIMAG(z)
 
-    open(10,file='DataDump/Kernel/intkernel.'//arg,form='FORMATTED')
-    do i = 1, tot_ker_points-1
-       write(10,'(I5,2E20.10)') i,intpanel(i)
-    end do
-    close(10)
+   ! open(10,file='DataDump/Kernel/intkernel.'//arg,form='FORMATTED')
+  !  do i = 1, tot_ker_points-1
+  !     write(10,'(I5,2E20.10)') i,intpanel(i)
+  !  end do
+  !  close(10)
     
-    write(*,'(/A22,2X,2F20.10/)') 'Integral value:->', Int
+  !  write(*,'(/A22,2X,2F20.10/)') 'Integral value:->', Int
 
     totpoints = 1
     do i = 1,tot_ker_points-1
        totpoints = totpoints + Npanel(i)  !! total quadrature points
     end do
 
-    write(*,'(A22,2X,I20/)') 'Quadrature pts:->', totpoints
+   ! write(*,'(A22,2X,I20/)') 'Quadrature pts:->', totpoints
     
 
   END SUBROUTINE sum_panel_contributions_kernel

@@ -1,5 +1,5 @@
 FC = gfortran
-FLAGS = -O2
+FLAGS = -O2 -fopenmp
 BESSEL_UTILS_DIR= ../tests
 OBJS = bessel_functions_toms.o bessel_utils.o io_utils.o WH_solver.o 
 TARGET = WH_solver
