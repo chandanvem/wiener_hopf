@@ -17,10 +17,8 @@ PROGRAM WH_solver
   integer, parameter                         :: dpk = kind(1.0d0)  !! double precision kind
   real(dpk)                                  :: tol  !! specified tolerance level
   complex(dpk), allocatable, dimension(:)    :: ker_int_points  !! location of the starting pts
-  complex(dpk), allocatable, dimension(:)    :: intpanel  !! integral value at each panel
-  integer, allocatable, dimension(:)         :: Npanel  !! number of times a panel is divided
   integer                                    :: num_ker_pts_loop !! number of starting pts for kernel contour
-  integer                                    :: tot_ker_points, tot_IFT_pts
+  integer                                    :: total_ker_points, tot_IFT_pts
   integer                                    :: prswitch, restart, reflswitch, farswitch, vortswitch
   integer                                    :: num_zeros_s1_s2, num_poles_s1_s2  !! num  zeros & poles in between s_1- s_2
   integer                                    :: num_sup_zeros, num_sup_poles  !! number of supersonic zeros & poles
@@ -428,7 +426,7 @@ PI = 4._dpk*ATAN(1.)
 
 !! compute the various contour parameters:
 
-    tot_ker_points = 2*num_ker_pts_loop + 3  !! total number of kernel contor pts
+    total_ker_points = 2*num_ker_pts_loop + 3  !! total number of kernel contor pts
 
     tot_IFT_pts = 2*num_IFT_pts_loop + 3  !! total number of IFT contor pts
 
@@ -519,7 +517,7 @@ PI = 4._dpk*ATAN(1.)
     real(dpk)                     :: panel_len_left, panel_len_right  !! length of each panel
     integer                       :: i
 
-    allocate(ker_int_points(tot_ker_points))
+    allocate(ker_int_points(total_ker_points))
 
 !! length of each panel (kernel contour):
 
@@ -533,7 +531,7 @@ PI = 4._dpk*ATAN(1.)
 
     open(10,file='initialpoints.out',form='FORMATTED')
    
-    do i = 1,tot_ker_points
+    do i = 1,total_ker_points
        write(10,'(I10,2F30.20)') i, ker_int_points(i)
     end do
    
@@ -1150,13 +1148,16 @@ PI = 4._dpk*ATAN(1.)
     integer                :: num_of_quad_points, ch
     integer                :: KU_K_switch  !! 1: K/U; else: K
     integer                :: kswitch  !! 1: compute (4.10); else: compute (3.22)
+    complex(dpk), allocatable, dimension(:)    :: intpanel !! integral value at each panel
+    integer(dpk), allocatable, dimension(:)    ::  Npanel 
 
-    allocate(intpanel(tot_ker_points-1))
-    allocate(Npanel(tot_ker_points-1))
+    allocate(intpanel(total_ker_points-1))
+    allocate(Npanel(total_ker_points-1))
 
-    call adaptive(s_target,kswitch,ch,KU_K_switch)
+    call adaptive(s_target,kswitch,ch,KU_K_switch,intpanel,Npanel)
 
-    call sum_panel_contributions_kernel(integral_value,num_of_quad_points,s_target)
+    call sum_panel_contributions_kernel(integral_value,num_of_quad_points,s_target, &
+                                                                     intpanel,Npanel)
 
     deallocate(intpanel)
     deallocate(Npanel)
@@ -1165,7 +1166,7 @@ PI = 4._dpk*ATAN(1.)
   END SUBROUTINE compute_eqn_A1_integral
 
 
-  SUBROUTINE adaptive(si,ksw,check,sw)
+  SUBROUTINE adaptive(si,ksw,check,sw,intpanel,Npanel)
     
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The kernel integration is computed using an adaptive routine; which not feasible
@@ -1173,6 +1174,8 @@ PI = 4._dpk*ATAN(1.)
 !! 2. This is integrated with the trapezoidal rule used for quadrature
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
+    complex(dpk)  ::  intpanel(total_ker_points-1)
+    integer(dpk)  ::  Npanel(total_ker_points-1)
     complex(dpk), allocatable, dimension(:)    :: zp, T_temp
     complex(dpk), allocatable, dimension(:)    :: knl, zall, zall_temp
     real(dpk), allocatable, dimension(:)       :: xp, yp
@@ -1182,7 +1185,7 @@ PI = 4._dpk*ATAN(1.)
     integer                                    :: i, j, ii
 
 
-    do j = 1, tot_ker_points-1  !! the integration points already specified
+    do j = 1, total_ker_points-1  !! the integration points already specified
 
        len = ker_int_points(j+1) - ker_int_points(j)  !! the length of a mini panel
 
@@ -1329,29 +1332,28 @@ PI = 4._dpk*ATAN(1.)
      block 
         thread_id = omp_get_thread_num()
         num_threads = omp_get_num_threads()
-        
         chunk = tot_IFT_pts / num_threads
-
         start_idx = thread_id * chunk + 1
         end_idx = (thread_id + 1) * chunk
         
         if (thread_id == num_threads - 1) end_idx = tot_IFT_pts
 
         write(filename, '("./DataDump/compute_fplus_log/log_", I0, ".out")') thread_id + 1
-     
         file_ID = 10 + thread_id
-
-        open(file_ID, file=filename, form='FORMATTED', status='UNKNOWN')
 
         call cpu_time(start_time)
         do i = start_idx, end_idx
           fplusz(i) =  get_fplus_value(iftpoints(i))
+          if (i == start_idx) then
+              open(file_ID,file=filename,form='FORMATTED',status='UNKNOWN')
+          else
+              open(file_ID,file=filename,form='FORMATTED',position='APPEND')
+          end if
           write(file_ID,'(I5,4E20.10)') i,iftpoints(i),fplusz(i)
         end do
         call cpu_time(end_time)
         elapsed_time = end_time - start_time
         write(file_ID, *) 'Elapsed CPU time (seconds):', elapsed_time
-
         close(file_ID)
 
      end block
@@ -1541,20 +1543,22 @@ PI = 4._dpk*ATAN(1.)
   END SUBROUTINE IFT_trapz_int
 
 
-  SUBROUTINE sum_panel_contributions_kernel(Int,totpoints,z)
+  SUBROUTINE sum_panel_contributions_kernel(Int,totpoints,z,intpanel,Npanel)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Sum up the individual trapezoids for the kernel contour
 !! 2. Dump data
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    complex(dpk)                               :: Int, z
-    integer                                    :: totpoints
-    integer                                    :: i
-    character(60)                              :: arg
+    
+    complex(dpk)  ::  intpanel(total_ker_points-1)
+    integer(dpk)  ::   Npanel(total_ker_points-1)
+    complex(dpk)    :: Int, z
+    integer         :: totpoints
+    integer         :: i
+    character(60)   :: arg
 
     Int = (0._dpk,0._dpk)
-    do i = 1,tot_ker_points-1
+    do i = 1,total_ker_points-1
        Int = Int + intpanel(i)  !! summing up the individual panels
     end do
 
@@ -1563,7 +1567,7 @@ PI = 4._dpk*ATAN(1.)
   !  write(arg,"('u=',E12.5,'+',E12.5,'i')") REAL(z),AIMAG(z)
 
    ! open(10,file='DataDump/Kernel/intkernel.'//arg,form='FORMATTED')
-  !  do i = 1, tot_ker_points-1
+  !  do i = 1, total_ker_points-1
   !     write(10,'(I5,2E20.10)') i,intpanel(i)
   !  end do
   !  close(10)
@@ -1571,7 +1575,7 @@ PI = 4._dpk*ATAN(1.)
   !  write(*,'(/A22,2X,2F20.10/)') 'Integral value:->', Int
 
     totpoints = 1
-    do i = 1,tot_ker_points-1
+    do i = 1,total_ker_points-1
        totpoints = totpoints + Npanel(i)  !! total quadrature points
     end do
 
