@@ -113,52 +113,52 @@ CONTAINS
       read(10,*) M1,        dummy
       read(10,*) M2,        dummy
       read(10,*) M3,        dummy
-      PRINT '(A, F8.4, ", ", F8.4, ", ", F8.4, A)', &
+      print '(A, F8.4, ", ", F8.4, ", ", F8.4, A)', &
                    ' (M1, M2, M3) = (', M1, M2, M3, ')'
 
       read(10,*) h,         dummy
       read(10,*) w0,        dummy
       read(10,*) del,       dummy
       read(10,*) m,         dummy
-      PRINT '(A, F8.4, ", ", F8.4, ", ", F8.4, ", ", F8.4,A)', &
+      print '(A, F8.4, ", ", F8.4, ", ", F8.4, ", ", F8.4,A)', &
                    ' (h, w0, del, m) = (', h, w0, del, m, ')'
 
       read(10,*) kap_T, dummy           
       read(10,*) kap_rho, dummy           
 
-      PRINT '(A, F8.4, ", ", F8.4,A)', &
+      print '(A, F8.4, ", ", F8.4,A)', &
                    ' (kap_T, kap_rho) = (', kap_T, kap_rho, ')'
 
 
       read(10,*) Nx,        dummy
       read(10,*) Ny,        dummy
 
-      PRINT '(A, I5, ", ", I5,A)', &
+      print '(A, I5, ", ", I5,A)', &
                    ' (Nx, Ny) = (', Nx, Ny, ')'
 
 
       read(10,*) Xmin, dummy           
       read(10,*) Xmax, dummy           
 
-      PRINT '(A, F8.4, ", ", F8.4,A)', &
+      print '(A, F8.4, ", ", F8.4,A)', &
                    ' (Xmin, Xmax) = (', Xmin, Xmax, ')'
 
 
       read(10,*) Ymin, dummy           
       read(10,*) Ymax, dummy           
 
-      PRINT '(A, F8.4, ", ", F8.4,A)', &
+      print '(A, F8.4, ", ", F8.4,A)', &
                    ' (Ymin, Ymax) = (', Ymin, Ymax, ')'
 
 
       read(10,*) MAX_ITE,   dummy
-      PRINT '(A, I5, A)', &
+      print '(A, I5, A)', &
                    ' Max iterations = (', MAX_ITE, ')'
 
 
       read(10,*) ZERO_ACC,  dummy
       read(10,*) ZERO_PREC, dummy
-      PRINT '(A, E12.4, ", ", E12.4,A)', &
+      print '(A, E12.4, ", ", E12.4,A)', &
                    ' (ZERO_ACC, ZERO_PREC) = (', ZERO_ACC, ZERO_PREC, ')'
 
       read(10,*) MAX_ZERO,  dummy
@@ -168,7 +168,7 @@ CONTAINS
       read(10,*) step,      dummy
       read(10,*) delta,     dummy
       read(10,*) limit,     dummy
-      PRINT '(A, I5, ", ", I5, ", ", E12.4, ", ", I5,A)', &
+      print '(A, I5, ", ", I5, ", ", E12.4, ", ", I5,A)', &
                    ' (prec, step, delta, limit) = (', prec, step, delta, limit, ')'
 
 
@@ -239,8 +239,7 @@ CONTAINS
 
 !***! This subroutine can be used to find an optimum stepsize for the numerical
 !***! derivative. It works by testing step sizes in the range (hmin,hmax) over
-!***! the specified grid (X,Y) and then comparing the resulting error measures.
-!***! Two such error measures are used, viz., max_error and error_index. The  
+!***! the specified grid (X,Y) and then comparzerolisto!***! Two such error measures are used, viz., max_error and error_index. The  
 !***! former is just the maximum error made over (X,Y) for a given h. The latter
 !***! one is, although, supposed to be more useful since it measures how 'deep'
 !***! the tableau in Ridders' scheme is traversed for a given h. Early exit from 
@@ -454,6 +453,7 @@ CONTAINS
     complex(dpk), dimension(MAX_ZERO)          :: zl, cz
     integer                                    :: Nz
     integer                                    :: i, j
+    character(len=200)                         :: file_name
 
     if (Nz == 0) then
 
@@ -480,7 +480,8 @@ CONTAINS
              end do
              write(*,'(A44/)')'--------------------------------------------'
 
-             open(10,file='zerolist.out',form='FORMATTED')
+             write(file_name, '("zerolist_", F0.3, ".out")') real(w)  
+             open(10,file=file_name,form='FORMATTED')
              write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
              write(10,'(A2,2F15.5)') '#',w
              if (M1 < 1) then
@@ -504,8 +505,11 @@ CONTAINS
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
              write(*,'(A44/)')'--------------------------------------------'
-             
-             open(10,file='polelist.out',form='FORMATTED')
+           
+             write(file_name, '("polelist_", F0.3, ".out")') real(w)
+             open(10,file=file_name,form='FORMATTED')
+
+             !open(10,file='polelist.out',form='FORMATTED')
              write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
              write(10,'(A2,2F15.5)') '#',w
              if (M1 < 1) then
@@ -534,7 +538,11 @@ CONTAINS
              end do
              write(*,'(A44/)')'--------------------------------------------'
 
-             open(10,file='zerolist.out',form='FORMATTED')
+             !open(10,file='zerolist.out',form='FORMATTED')
+
+             write(file_name, '("zerolist_", F0.3, ".out")') real(w)
+             open(10,file=file_name,form='FORMATTED')
+
              write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
              write(10,'(A2,2F15.5)') '#',w
              write(10,'(A2,2F10.5)') '#',Xmin, Xmax
@@ -555,7 +563,11 @@ CONTAINS
              end do
              write(*,'(A44/)')'--------------------------------------------'
              
-             open(10,file='polelist.out',form='FORMATTED')
+             
+             write(file_name, '("polelist_", F0.3, ".out")') real(w)
+             open(10,file=file_name,form='FORMATTED')
+
+             !open(10,file='polelist.out',form='FORMATTED')
              write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
              write(10,'(A2,2F15.5)') '#',w
              write(10,'(A2,2F10.5)') '#',Xmin, Xmax
@@ -589,7 +601,7 @@ CONTAINS
     complex(dpk)                               :: w
     integer                                    :: Nz, Nzi
     integer                                    :: i, j
-
+    character(len=200)                         :: file_name
     if (Nz == 0) then
 
        print*,'No zero found in the box!!'
@@ -604,7 +616,10 @@ CONTAINS
        end do
        write(*,'(A52/)')'-----------------------------------------------------'
 
-       open(10,file='zerolist.out',form='FORMATTED')
+       write(file_name, '("zerolist_", F0.3, ".out")') real(w)
+       open(10,file=file_name,form='FORMATTED')
+
+     !  open(10,file='zerolist.out',form='FORMATTED')
        write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
        write(10,'(A2,2F15.5)') '#',w
        write(10,'(A2,2F10.5)') '#',Xmin, Xmax
@@ -1246,8 +1261,7 @@ CONTAINS
        if(newtr > Xmax+ZERO_ACC/10 .OR. newtr < Xmin-ZERO_ACC/10 .OR. &
             newti > Ymax+ZERO_ACC/10 .OR. newti < Ymin-ZERO_ACC/10) then
            
-            PRINT '(I8,"/",I8, " Jumped out of bounds ")', grid_count, &
-                 total_grid_points 
+             print *, grid_count, "/", total_grid_points, " Jumped out of bounds"
            RETURN
        end if
 
@@ -1257,9 +1271,9 @@ CONTAINS
        end if
 
     end do
+             
+    print *, grid_count, "/", total_grid_points, " WARNING: Max Iterations Exceeded!"
 
-    PRINT '(I5, "/", I8, "WARNING: Max Iterations Exceeded! ")', grid_count, &
-                 total_grid_points 
 
   END FUNCTION newt
 
