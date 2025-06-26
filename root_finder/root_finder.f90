@@ -29,6 +29,7 @@ PROGRAM root_finder
 
   USE bessel_utils
   USE omp_lib
+  USE io_utils
 
   IMPLICIT none
   
@@ -49,7 +50,7 @@ PROGRAM root_finder
   real(dpk)                                 :: ZERO_PREC !! The precision in finding zeros
   integer                                   :: prec !! nag_bessel precision digits
   real(dpk)                                 :: M1, M2, M3, h
-  real(dpk)                                 :: omega_start, omega_end,d_omega
+  real(dpk)                                 :: omega_start,omega_end,d_omega
   complex(dpk)                              :: omega
   real(dpk)                                 :: azim_mode
   real(dpk)                                 :: del  !! phase angle in degrees
@@ -59,52 +60,71 @@ PROGRAM root_finder
   integer                                   :: step, limit,func_case,num_of_frequencies
   real(dpk), parameter                      :: asymplim = 3.27E4
   real(dpk), parameter                      :: asymplim1 = 100
-  character(len=200)                        :: dummy, file_name
+  character(len=200)                        :: dummy, file_name, data_file_name, omega_real, omega_imag
   real :: start_time, end_time, elapsed_time
   integer :: thread_id, num_threads, chunk
-  integer :: start_idx, end_idx, file_ID, freq_idx
+  integer :: start_idx, end_idx, file_ID, data_file_ID, freq_idx
  
   call cpu_time(start_time)
 
   call readdata                          !! Reads the input file
+
+  call create_directory('./log')
+  call create_directory('./DataDump')
+   
   call mesh                              !! The grid. Make it fine enough to detect all the zeros
 
   !$omp parallel  &
   !$omp&  private(freq_idx,thread_id,num_threads, &
-  !$omp&          chunk,start_idx,end_idx,file_ID,file_name, &
-  !$omp&          omega,Nzero,zerolist,checkzero,zero)
+  !$omp&          chunk,start_idx,end_idx,file_ID,data_file_ID,file_name,data_file_name, &
+  !$omp&          omega,omega_real,omega_imag,Nzero,zerolist,checkzero,zero)
+
+   block 
+     thread_id = omp_get_thread_num()
+     num_threads = omp_get_num_threads()
+     chunk = num_of_frequencies / num_threads
+     start_idx = thread_id * chunk + 1
+     end_idx = (thread_id + 1) * chunk
+
+     if (thread_id == num_threads - 1) end_idx = num_of_frequencies
+
+     do freq_idx = start_idx, end_idx
+   
+        omega = omega_start + d_omega*( freq_idx - 1 )
+        omega = ABS(omega)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
+        write(omega_real, '(F10.3)') REAL(omega)
+        write(omega_imag, '(F10.3)') AIMAG(omega)
 
 
-     block 
-        thread_id = omp_get_thread_num()
-        num_threads = omp_get_num_threads()
-        chunk = num_of_frequencies / num_threads
-        start_idx = thread_id * chunk + 1
-        end_idx = (thread_id + 1) * chunk
- 
-        if (thread_id == num_threads - 1) end_idx = num_of_frequencies
+        write(file_name, '("./log/log_", I0, ".out")') freq_idx
 
-        do freq_idx = start_idx, end_idx
-           write(file_name, '("./log/log_", I0, ".out")') freq_idx 
-            
-           file_ID = 10 + freq_idx
+        if (func_case > 0 ) then 
+           write(data_file_name, '("DataDump/zeroslist_", A, "_i", A, ".dat")') &
+                                            trim(adjustl(omega_real)), trim(adjustl(omega_imag))
+        else 
+           write(data_file_name, '("DataDump/poleslist_", A, "_i", A, ".dat")') & 
+                                            trim(adjustl(omega_real)), trim(adjustl(omega_imag))
+        end if 
 
-           open(file_ID,file=file_name,form='FORMATTED',status='UNKNOWN') 
-           omega = omega_start + d_omega*( freq_idx - 1 )
-           omega = ABS(omega)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
+        
+        file_ID = 1000 + freq_idx
+        data_file_ID = 2000 + freq_idx
 
-           call findzero(omega,Nzero,zerolist,checkzero,zero,file_ID)   !! The main subroutine
-        !  call printinfo(omega,Nzero,zerolist,checkzero,zero)  !! Print & write data
-           close(file_ID)
-        end do
-      end block
+        open(file_ID,file=file_name,form='FORMATTED',status='UNKNOWN') 
+        open(data_file_ID,file=data_file_name,form='FORMATTED',status='UNKNOWN') 
+        call findzero(omega,Nzero,zerolist,checkzero,zero,file_ID)   !! The main subroutine
+        call printinfo(omega,Nzero,zerolist,checkzero,zero,file_ID,data_file_ID)  !! Print & write data
+        close(file_ID)
+        close(data_file_ID)
+
+     end do
+    end block
    !$omp end parallel
-
  
-  call cpu_time(end_time)
+   call cpu_time(end_time)
   
-  elapsed_time = end_time - start_time
-  print *, 'Elapsed CPU time (seconds):', elapsed_time
+   elapsed_time = end_time - start_time
+   print *, 'Elapsed CPU time (seconds):', elapsed_time
 
 
 CONTAINS
@@ -141,9 +161,12 @@ CONTAINS
       print '(A, I5,A)', &
                    ' (number of frequencies) = (', num_of_frequencies, ')'
 
-
-      d_omega = (omega_end - omega_start)/(num_of_frequencies - 1)
-
+      if (num_of_frequencies == 1) then
+         d_omega = 0.0
+      else
+         d_omega = (omega_end - omega_start)/(num_of_frequencies - 1)
+      end if
+  
       print '(A, F8.4, ", ", F8.4, ", ", F12.4,A)', &
                    ' (omega_start, omega_end, d_omega) = (', omega_start, omega_end, d_omega, ')'
 
@@ -469,154 +492,137 @@ CONTAINS
 !  END SUBROUTINE findzeroplus
 !
 !
-!  SUBROUTINE printinfo(w,Nz,zl,cz,zz)
-!
-!    complex(dpk)                               :: w
-!    complex(dpk), dimension(Nx,Ny)             :: zz
-!    complex(dpk), dimension(MAX_ZERO)          :: zl, cz
-!    integer                                    :: Nz
-!    integer                                    :: i, j
-!    character(len=200)                         :: file_name
-!
-!    if (Nz == 0) then
-!
-!       print*,'No zero/pole found in the box!!'
-!
-!    else
-!
-!       if (func_case .EQ. 200) then
-!
-!          if (func_case .GE. 0) then
-!
-!             if(M1 > 1) then
-!                write(*,'(/A10)') 'Limits:-->'
-!                write(*,'(A1,F6.3,A1,F6.3,A1,1X,A3,1X,A1,F6.3,A1,F6.3,A1)') '[',Xmin,',',Xm1,']','AND', &
-!                     '[',Xm2,',',Xmax,']'
-!             end if
-!
-!             write(*,'(/A44)')'--------------------------------------------'
-!             write(*,'(A44)')'              Summary of Zeros              '
-!             write(*,'(A44)')'--------------------------------------------'
-!             do i = 1, Nz
-!                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
-!                     REAL(zl(i)),'+',AIMAG(zl(i)),'i'
-!             end do
-!             write(*,'(A44/)')'--------------------------------------------'
-!
-!             write(file_name, '("zerolist_", F0.3, ".out")') real(w)  
-!             open(10,file=file_name,form='FORMATTED')
-!             write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-!             write(10,'(A2,2F15.5)') '#',w
-!             if (M1 < 1) then
-!                write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-!             else
-!                write(10,'(A2,4F10.5)') '#',Xmin, Xm1, Xm2, Xmax
-!             end if
-!             write(10,'(A2,2F10.5)') '#',Ymin, Ymax
-!             do i = 1, Nz
-!                write(10,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
-!             end do
-!             close(10)
-!
-!          else
-!
-!             write(*,'(/A44)')'--------------------------------------------'
-!             write(*,'(A44)')'              Summary of Poles              '
-!             write(*,'(A44)')'--------------------------------------------'
-!             do i = 1, Nz
-!                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
-!                     REAL(zl(i)),'+',AIMAG(zl(i)),'i'
-!             end do
-!             write(*,'(A44/)')'--------------------------------------------'
-!           
-!             write(file_name, '("polelist_", F0.3, ".out")') real(w)
-!             open(10,file=file_name,form='FORMATTED')
-!
-!             !open(10,file='polelist.out',form='FORMATTED')
-!             write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-!             write(10,'(A2,2F15.5)') '#',w
-!             if (M1 < 1) then
-!                write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-!             else
-!                write(10,'(A2,4F10.5)') '#',Xmin, Xm1, Xm2, Xmax
-!             end if
-!             write(10,'(A2,2F10.5)') '#',Ymin, Ymax
-!             do i = 1, Nz
-!                write(10,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
-!             end do
-!             close(10)
-!
-!          end if
-!
-!       else
-!
-!          if (func_case .GE. 0) then
-!
-!             write(*,'(/A44)')'--------------------------------------------'
-!             write(*,'(A44)')'              Summary of Zeros              '
-!             write(*,'(A44)')'--------------------------------------------'
-!             do i = 1, Nz
-!                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
-!                     REAL(zl(i)),'+',AIMAG(zl(i)),'i'
-!             end do
-!             write(*,'(A44/)')'--------------------------------------------'
-!
-!             !open(10,file='zerolist.out',form='FORMATTED')
-!
-!             write(file_name, '("zerolist_", F0.3, ".out")') real(w)
-!             open(10,file=file_name,form='FORMATTED')
-!
-!             write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-!             write(10,'(A2,2F15.5)') '#',w
-!             write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-!             write(10,'(A2,2F10.5)') '#',Ymin, Ymax
-!             do i = 1, Nz
-!                write(10,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
-!             end do
-!             close(10)
-!
-!          else
-!
-!             write(*,'(/A44)')'--------------------------------------------'
-!             write(*,'(A44)')'              Summary of Poles              '
-!             write(*,'(A44)')'--------------------------------------------'
-!             do i = 1, Nz
-!                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
-!                     REAL(zl(i)),'+',AIMAG(zl(i)),'i'
-!             end do
-!             write(*,'(A44/)')'--------------------------------------------'
-!             
-!             
-!             write(file_name, '("polelist_", F0.3, ".out")') real(w)
-!             open(10,file=file_name,form='FORMATTED')
-!
-!             !open(10,file='polelist.out',form='FORMATTED')
-!             write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-!             write(10,'(A2,2F15.5)') '#',w
-!             write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-!             write(10,'(A2,2F10.5)') '#',Ymin, Ymax
-!             do i = 1, Nz
-!                write(10,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
-!             end do
-!             close(10)
-!
-!          end if
-!
-!       end if
-!
-!    end if
-!    
-!    open(10,file='log.out',form='FORMATTED')
-!    do i = 1, Nx
-!       do j = 1, Ny
-!          write(10,'(4F20.10)') X(i),Y(j),zz(i,j)
-!       end do
-!    end do
-!    close(10)
-!
-!
-!  END SUBROUTINE printinfo
-!
+  SUBROUTINE printinfo(w,Nz,zl,cz,zz,file_ID,data_file_ID)
+
+    complex(dpk)                               :: w
+    complex(dpk), dimension(Nx,Ny)             :: zz
+    complex(dpk), dimension(MAX_ZERO)          :: zl, cz
+    integer                                    :: Nz
+    integer                                    :: i, j, file_ID, data_file_ID
+    character(len=200)                         :: file_name
+
+    if (Nz == 0) then
+
+       print*,'No zero/pole found in the box!!'
+
+    else
+
+       if (func_case .EQ. 200) then
+
+          if (func_case .GE. 0) then
+
+             if(M1 > 1) then
+                write(file_ID,'(/A10)') 'Limits:-->'
+                write(file_ID,'(A1,F6.3,A1,F6.3,A1,1X,A3,1X,A1,F6.3,A1,F6.3,A1)') '[',Xmin,',',Xm1,']','AND', &
+                     '[',Xm2,',',Xmax,']'
+             end if
+
+             write(file_ID,'(/A44)')'--------------------------------------------'
+             write(file_ID,'(A44)')'              Summary of Zeros              '
+             write(file_ID,'(A44)')'--------------------------------------------'
+             do i = 1, Nz
+                write(file_ID,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
+                     REAL(zl(i)),'+',AIMAG(zl(i)),'i'
+             end do
+             write(file_ID,'(A44/)')'--------------------------------------------'
+             
+             write(data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+             write(data_file_ID,'(A2,2F15.5)') '#',w
+             if (M1 < 1) then
+                write(data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+             else
+                write(data_file_ID,'(A2,4F10.5)') '#',Xmin, Xm1, Xm2, Xmax
+             end if
+             write(data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
+             do i = 1, Nz
+                write(data_file_ID,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
+             end do
+             close(10)
+
+          else
+
+             write(file_ID,'(/A44)')'--------------------------------------------'
+             write(file_ID,'(A44)')'              Summary of Poles              '
+             write(file_ID,'(A44)')'--------------------------------------------'
+             do i = 1, Nz
+                write(file_ID,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
+                     REAL(zl(i)),'+',AIMAG(zl(i)),'i'
+             end do
+             write(file_ID,'(A44/)')'--------------------------------------------'
+           
+             write(data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+             write(data_file_ID,'(A2,2F15.5)') '#',w
+             if (M1 < 1) then
+                write(data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+             else
+                write(data_file_ID,'(A2,4F10.5)') '#',Xmin, Xm1, Xm2, Xmax
+             end if
+             write(data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
+             do i = 1, Nz
+                write(data_file_ID,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
+             end do
+             close(10)
+
+          end if
+
+       else
+
+          if (func_case .GE. 0) then
+
+             write(file_ID,'(/A44)')'--------------------------------------------'
+             write(file_ID,'(A44)')'              Summary of Zeros              '
+             write(file_ID,'(A44)')'--------------------------------------------'
+             do i = 1, Nz
+                write(file_ID,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
+                     REAL(zl(i)),'+',AIMAG(zl(i)),'i'
+             end do
+             write(file_ID,'(A44/)')'--------------------------------------------'
+
+
+             write(data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+             write(data_file_ID,'(A2,2F15.5)') '#',w
+             write(data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+             write(data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
+             do i = 1, Nz
+                write(data_file_ID,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
+             end do
+
+          else
+
+             write(file_ID,'(/A44)')'--------------------------------------------'
+             write(file_ID,'(A44)')'              Summary of Poles              '
+             write(file_ID,'(A44)')'--------------------------------------------'
+             do i = 1, Nz
+                write(file_ID,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
+                     REAL(zl(i)),'+',AIMAG(zl(i)),'i'
+             end do
+             write(file_ID,'(A44/)')'--------------------------------------------'
+             
+             write(data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+             write(data_file_ID,'(A2,2F15.5)') '#',w
+             write(data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+             write(data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
+             do i = 1, Nz
+                write(data_file_ID,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
+             end do
+
+          end if
+
+       end if
+
+    end if
+    
+   ! open(10,file='log.out',form='FORMATTED')
+   ! do i = 1, Nx
+    !   do j = 1, Ny
+    !      write(10,'(4F20.10)') X(i),Y(j),zz(i,j)
+    !   end do
+   ! end do
+   ! close(10)
+
+
+  END SUBROUTINE printinfo
+
 !
 !  SUBROUTINE printinfoplus(w,Nz,Nzi,al,alp)
 !
@@ -1240,13 +1246,13 @@ CONTAINS
 
     end if
 
-    open(20,file='mesh.x')
+    open(20,file='./DataDump/mesh.x')
     do i = 1, Nx
        write(20,'(I10,2X,F20.10)') i, X(i)
     end do
     close(20)
     
-    open(20,file='mesh.y')
+    open(20,file='./DataDump/mesh.y')
     do i = 1, Ny
        write(20,'(I10,2X,F20.10)') i, Y(i)
     end do
