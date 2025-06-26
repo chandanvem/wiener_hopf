@@ -48,8 +48,9 @@ PROGRAM root_finder
   real(dpk)                                 :: ZERO_ACC !! The accuracy in finding zeros
   real(dpk)                                 :: ZERO_PREC !! The precision in finding zeros
   integer                                   :: prec !! nag_bessel precision digits
-  real(dpk)                                 :: M1, M2, M3
-  real(dpk)                                 :: h, omega_start, omega_end,d_omega
+  real(dpk)                                 :: M1, M2, M3, h
+  real(dpk)                                 :: omega_start, omega_end,d_omega
+  complex(dpk)                              :: omega
   real(dpk)                                 :: azim_mode
   real(dpk)                                 :: del  !! phase angle in degrees
   real(dpk)                                 :: kap_T  !! sqrt(T1/T0)
@@ -58,17 +59,48 @@ PROGRAM root_finder
   integer                                   :: step, limit,func_case,num_of_frequencies
   real(dpk), parameter                      :: asymplim = 3.27E4
   real(dpk), parameter                      :: asymplim1 = 100
-  character(len=30)                         :: dummy
+  character(len=200)                        :: dummy, file_name
   real :: start_time, end_time, elapsed_time
-
+  integer :: thread_id, num_threads, chunk
+  integer :: start_idx, end_idx, file_ID, freq_idx
+ 
   call cpu_time(start_time)
 
   call readdata                          !! Reads the input file
-!  call mesh                              !! The grid. Make it fine enough to detect all the zeros
+  call mesh                              !! The grid. Make it fine enough to detect all the zeros
 
-!  call findzero(omega,Nzero,zerolist,checkzero,zero)   !! The main subroutine
-!  call printinfo(omega,Nzero,zerolist,checkzero,zero)  !! Print & write data
+  !$omp parallel  &
+  !$omp&  private(freq_idx,thread_id,num_threads, &
+  !$omp&          chunk,start_idx,end_idx,file_ID,file_name, &
+  !$omp&          omega,Nzero,zerolist,checkzero,zero)
 
+
+     block 
+        thread_id = omp_get_thread_num()
+        num_threads = omp_get_num_threads()
+        chunk = num_of_frequencies / num_threads
+        start_idx = thread_id * chunk + 1
+        end_idx = (thread_id + 1) * chunk
+ 
+        if (thread_id == num_threads - 1) end_idx = num_of_frequencies
+
+        do freq_idx = start_idx, end_idx
+           write(file_name, '("./log/log_", I0, ".out")') freq_idx 
+            
+           file_ID = 10 + freq_idx
+
+           open(file_ID,file=file_name,form='FORMATTED',status='UNKNOWN') 
+           omega = omega_start + d_omega*( freq_idx - 1 )
+           omega = ABS(omega)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
+
+           call findzero(omega,Nzero,zerolist,checkzero,zero,file_ID)   !! The main subroutine
+        !  call printinfo(omega,Nzero,zerolist,checkzero,zero)  !! Print & write data
+           close(file_ID)
+        end do
+      end block
+   !$omp end parallel
+
+ 
   call cpu_time(end_time)
   
   elapsed_time = end_time - start_time
@@ -76,7 +108,6 @@ PROGRAM root_finder
 
 
 CONTAINS
-
 
   SUBROUTINE readdata
 
@@ -107,10 +138,13 @@ CONTAINS
       read(10,*) omega_start,dummy
       read(10,*) omega_end,dummy
       read(10,*) num_of_frequencies,dummy
+      print '(A, I5,A)', &
+                   ' (number of frequencies) = (', num_of_frequencies, ')'
 
-      d_omega = (omega_end - omega_end)/(num_of_frequencies - 1)
 
-      print '(A, F8.4, ", ", F8.4, ", ", F8.4,A)', &
+      d_omega = (omega_end - omega_start)/(num_of_frequencies - 1)
+
+      print '(A, F8.4, ", ", F8.4, ", ", F12.4,A)', &
                    ' (omega_start, omega_end, d_omega) = (', omega_start, omega_end, d_omega, ')'
 
       read(10,*) kap_T, dummy           
@@ -164,7 +198,6 @@ CONTAINS
 
      close(10)
 
-    ! omega = ABS(!)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
 
      IF(func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
         Ny = 2
@@ -289,87 +322,87 @@ CONTAINS
 !  END SUBROUTINE teststep
 !    
 !
-!  SUBROUTINE findzero(w,Nz,zl,cz,zz)
-!
-!!***! The main subroutine that finds the zeros. It actually calls the Newton-Raphson
-!!***! method function 'newt' to find the roots. It then collects the zeros and
-!!***! sorts them in ascending fashion.
-!
-!    complex(dpk)                               :: w
-!    complex(dpk), dimension(Nx,Ny)             :: zz
-!    complex(dpk), dimension(MAX_ZERO)          :: zl, cz
-!    complex(dpk)                               :: Z, a, check
-!    real(dpk)                                  :: zeror, zeroi
-!    integer                                    :: Nz, grid_count,total_grid_points
-!    character(10)                              :: zflag
-!    integer                                    :: i, j, k
-!
-!    zl(:) = (0.,0.)
-!    Nz = 0
-!    total_grid_points = Nx*Ny
-!    grid_count = 1 
-!
-!    do i = 1, Nx
-!       do j = 1, Ny
-!          Z = CMPLX(X(i),Y(j),kind=dpk)
-!          zz(i,j) = newt(Z,w,zflag,grid_count,total_grid_points)
-!          
-!          if (zflag == 'green') then
-!             zeror = REAL(zz(i,j))
-!             zeroi = AIMAG(zz(i,j))
-!
-!             check = fun(zz(i,j),w)
-!
-!             if (ABS(REAL(check)) > ZERO_ACC .OR. & 
-!                  ABS(AIMAG(check)) > ZERO_ACC) zflag = 'red'
-!
-!             do k = 1,Nz !! Check against the database of zeros already found
-!                if ((((REAL(zl(k))-ZERO_PREC) < zeror).AND. &
-!                     (zeror < (REAL(zl(k))+ZERO_PREC))).AND. & 
-!                     (((AIMAG(zl(k))-ZERO_PREC) < zeroi).AND. &
-!                     (zeroi < (AIMAG(zl(k))+ZERO_PREC)))) then
-!                   zflag = 'red' !! The zero found is not unique
-!                   EXIT
-!                end if
-!             end do
-!
-!          end if
-!
-!          if (zflag == 'green') then
-!             if (func_case .GE. 0) print*, "A new zero found!"
-!             if (func_case .LT. 0) print*, "A new pole found!"
-!             Nz = Nz + 1
-!             zl(Nz) = zz(i,j)
-!             cz(Nz) = check
-!             
-!             write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1)')'at:',&
-!                  REAL(zz(i,j)),'+',AIMAG(zz(i,j)),'i'
-!
-!             if (func_case .GE. 0) then
-!                write(*,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@zero:',&
-!                     REAL(check),'+',AIMAG(check),'i'
-!             else
-!                write(*,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@pole:',&
-!                     REAL(check),'+',AIMAG(check),'i'
-!             end if
-!          end if
-!       
-!       grid_count = grid_count + 1   
-!       end do
-!    end do
-!
-!    do j = 2, Nz  !! Sorted in terms of ascending order of the ABS value
-!       a = zl(j)
-!       do i = j-1, 1, -1
-!          if (ABS(zl(i)) <= ABS(a)) EXIT
-!          zl(i+1) = zl(i)
-!          zl(i) = a
-!       end do
-!    end do
-!
-!
-!  END SUBROUTINE findzero
-!
+  SUBROUTINE findzero(w,Nz,zl,cz,zz,file_ID)
+
+!***! The main subroutine that finds the zeros. It actually calls the Newton-Raphson
+!***! method function 'newt' to find the roots. It then collects the zeros and
+!***! sorts them in ascending fashion.
+
+    complex(dpk)                               :: w
+    complex(dpk), dimension(Nx,Ny)             :: zz
+    complex(dpk), dimension(MAX_ZERO)          :: zl, cz
+    complex(dpk)                               :: Z, a, check
+    real(dpk)                                  :: zeror, zeroi
+    integer                                    :: Nz, grid_count,total_grid_points
+    character(10)                              :: zflag
+    integer                                    :: i, j, k, file_ID
+
+    zl(:) = (0.,0.)
+    Nz = 0
+    total_grid_points = Nx*Ny
+    grid_count = 1 
+
+    do i = 1, Nx
+       do j = 1, Ny
+          Z = CMPLX(X(i),Y(j),kind=dpk)
+          zz(i,j) = newt(Z,w,zflag,grid_count,total_grid_points, file_ID)
+          
+          if (zflag == 'green') then
+             zeror = REAL(zz(i,j))
+             zeroi = AIMAG(zz(i,j))
+
+             check = fun(zz(i,j),w)
+
+             if (ABS(REAL(check)) > ZERO_ACC .OR. & 
+                  ABS(AIMAG(check)) > ZERO_ACC) zflag = 'red'
+
+             do k = 1,Nz !! Check against the database of zeros already found
+                if ((((REAL(zl(k))-ZERO_PREC) < zeror).AND. &
+                     (zeror < (REAL(zl(k))+ZERO_PREC))).AND. & 
+                     (((AIMAG(zl(k))-ZERO_PREC) < zeroi).AND. &
+                     (zeroi < (AIMAG(zl(k))+ZERO_PREC)))) then
+                   zflag = 'red' !! The zero found is not unique
+                   EXIT
+                end if
+             end do
+
+          end if
+
+          if (zflag == 'green') then
+             if (func_case .GE. 0) write(file_ID, *) "A new zero found!"
+             if (func_case .LT. 0) write(file_ID, *) "A new pole found!"
+             Nz = Nz + 1
+             zl(Nz) = zz(i,j)
+             cz(Nz) = check
+             
+             write(file_ID,'(A4,F15.10,1X,A1,1X,F15.10,A1)')'at:',&
+                  REAL(zz(i,j)),'+',AIMAG(zz(i,j)),'i'
+
+             if (func_case .GE. 0) then
+                write(file_ID,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@zero:',&
+                     REAL(check),'+',AIMAG(check),'i'
+             else
+                write(file_ID,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@pole:',&
+                     REAL(check),'+',AIMAG(check),'i'
+             end if
+          end if
+       
+       grid_count = grid_count + 1   
+       end do
+    end do
+
+    do j = 2, Nz  !! Sorted in terms of ascending order of the ABS value
+       a = zl(j)
+       do i = j-1, 1, -1
+          if (ABS(zl(i)) <= ABS(a)) EXIT
+          zl(i+1) = zl(i)
+          zl(i) = a
+       end do
+    end do
+
+
+  END SUBROUTINE findzero
+
 !
 !  SUBROUTINE findzeroplus(w,Nz,Nzi,zl,cz,zz,al,alp)
 !
@@ -654,619 +687,619 @@ CONTAINS
 !  END SUBROUTINE printinfoplus
 !
 !  
-!  FUNCTION fun(z,w)
-!
-!    !***! This subroutine specifies the function.
-!
-!    complex(dpk)              :: z, fun, w
-!    complex(dpk)              :: l1, l2, l3, lz, F1n, F1d, F2n, F2d, F1s, F2s, F1, F2
-!    complex(dpk)              :: Rnz, Rdz, Rz, R1nz, R1dz, R1z, R2nz, R2dz, R2z
-!
-!
-!    l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
-!    l2 = sqrt(1._dpk*kap_T - z*(kap_T*M2+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M2-1._dpk))
-!
-!    SELECT CASE (func_case)
-!
-!    CASE (0)
-!
-!!!$!! Samanta & Freund, JFM, 2008 (Acoustic Incident Waves)
-!
-!       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-!       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
-!
-!       F1n = dbessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,m,1)*dbessj(l2,m,1)* &
-!            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
-!
-!       F1 = l2*(1._dpk - z*M1)**2*bessj(h*l1,m,1)*EXP(ABS(AIMAG(h*l1)))*F1n
-!
-!       F2n = bessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - hank1(h*l2,m,1)*dbessj(l2,m,1)* &
-!            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
-!
-!       F2 = l1*(1._dpk - z*M2)**2*dbessj(h*l1,m,1)*EXP(ABS(AIMAG(h*l1)))*F2n
-!
-!       fun = F1 - F2
-!
-!    CASE (100)
-!
-!!!$!! Samanta & Freund, JFM, 2008 (Acoustic Reflected Waves)
-!
-!       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-!       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
-!
-!       F1n = dbessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,m,1)*dbessj(l2,m,1)* &
-!            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
-!
-!       F1 = l2*(1._dpk - z*M1)**2*bessj(h*l1,m,1)*EXP(ABS(AIMAG(h*l1)))*F1n
-!
-!       F2n = bessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - hank1(h*l2,m,1)*dbessj(l2,m,1)* &
-!            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
-!
-!       F2 = l1*(1._dpk - z*M2)**2*dbessj(h*l1,m,1)*EXP(ABS(AIMAG(h*l1)))*F2n
-!
-!       fun = F1 - F2
-!
-!    CASE (200)
-!
-!!!$!! Hollow duct incident waves
-!
-!       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-!
-!       F1n = dbessj(l1,m,1)*EXP(ABS(AIMAG(l1)))
-!
-!       fun = F1n
-!
-!    CASE (1)
-!
-!!!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the zeros)
-!
-!       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
-!       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
-!
-!       if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
-!            (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
-!            (ABS(l1*w*h) < asymplim .AND. ABS(AIMAG(l1*w*h)) < asymplim1)) then
-!      
-!          Rdz = (lz*bessj(l1*w*h,m,1)*dhank1(l2*w*h,m,1) - hank1(l2*w*h,m,1)*dbessj(l1*w*h,m,1))* &
-!               EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-!          Rnz = (bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - lz*bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
-!               EXP(ABS(AIMAG(l2*w*h)))
-!
-!!!$              Rnz = lz*bessj(l1*w*h,m,0)*dhank1(l2*w*h,m,0) - hank1(l2*w*h,m,0)*dbessj(l1*w*h,m,0)
-!!!$              Rdz = bessj(l2*w*h,m,0)*dbessj(l1*w*h,m,0) - lz*bessj(l1*w*h,m,0)*dbessj(l2*w*h,m,0)
-!
-!          Rz = Rnz/Rdz
-!          
-!          F1n = Rz*hank1(l2*w,m,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + bessj(l2*w,m,1)* &
-!               EXP(ABS(AIMAG(l2*w)))
-!          F1d = Rz*dhank1(l2*w,m,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + dbessj(l2*w,m,1)* &
-!               EXP(ABS(AIMAG(l2*w)))
-!
-!!!$              F1n = hank1(l2*w,m,0) + Rz*bessj(l2*w,m,0)
-!!!$              F1d = dhank1(l2*w,m,0) + Rz*dbessj(l2*w,m,0)
-!          
-!          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
-!
-!       else
-!
-!          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*CMPLX(0._dpk,1._dpk,kind=dpk)
-!
-!       end if
-!
-!       if (ABS(l3*w) < asymplim .AND. ABS(AIMAG(l3*w)) < asymplim1) then
-!       
-!          F2n = hank1(l3*w,m,1)
-!          F2d = dhank1(l3*w,m,1)
-!
-!!!$              F2n = hank1(l3*w,m,0)
-!!!$              F2d = dhank1(l3*w,m,0)
-!
-!          F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
-!
-!       else
-!
-!          F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*(8._dpk*l3*w + &
-!            4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*m*m - &
-!            CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*w - &
-!            4._dpk*m*m - 3._dpk)
-!
-!       end if
-!      
-!       fun = w*(F1 - F2)
-!       
-!    CASE (-1)
-!       
-!!!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the poles)
-!
-!       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
-!       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
-!
-!       if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
-!            (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
-!            (ABS(l1*w*h) < asymplim .AND. ABS(AIMAG(l1*w*h)) < asymplim1)) then
-!       
-!          Rdz = (lz*bessj(l1*w*h,m,1)*dhank1(l2*w*h,m,1) - hank1(l2*w*h,m,1)*dbessj(l1*w*h,m,1))* &
-!               EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-!          Rnz = (bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - lz*bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
-!               EXP(ABS(AIMAG(l2*w*h)))
-!       
-!          !    Rnz = lz*bessj(l1*w*h,m,0)*dhank1(l2*w*h,m,0) - hank1(l2*w*h,m,0)*dbessj(l1*w*h,m,0)
-!          !    Rdz = bessj(l2*w*h,m,0)*dbessj(l1*w*h,m,0) - lz*bessj(l1*w*h,m,0)*dbessj(l2*w*h,m,0)
-!       
-!          Rz = Rnz/Rdz
-!       
-!          F1n = Rz*hank1(l2*w,m,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + bessj(l2*w,m,1)* &
-!               EXP(ABS(AIMAG(l2*w)))
-!          F1d = Rz*dhank1(l2*w,m,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + dbessj(l2*w,m,1)* &
-!               EXP(ABS(AIMAG(l2*w)))
-!       
-!          !    F1n = hank1(l2*w,m,0) + Rz*bessj(l2*w,m,0)
-!          !    F1d = dhank1(l2*w,m,0) + Rz*dbessj(l2*w,m,0)
-!       
-!          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
-!
-!       else
-!
-!          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*CMPLX(0._dpk,1._dpk,kind=dpk)
-!
-!       end if
-!
-!       if (ABS(l3*w) < asymplim .AND. ABS(AIMAG(l3*w)) < asymplim1) then
-!       
-!          F2n = hank1(l3*w,m,1)
-!          F2d = dhank1(l3*w,m,1)
-!       
-!          !    F2n = hank1(l3*w,m,0)
-!          !    F2d = dhank1(l3*w,m,0)
-!       
-!          F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
-!
-!       else
-!
-!          F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*(8._dpk*l3*w + &
-!               4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*m*m - &
-!               CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*w - &
-!               4._dpk*m*m - 3._dpk)
-!
-!       end if
-!       
-!       fun = w*(F1 - F2)
-!       fun = 1._dpk/fun
-!       
-!    CASE (2)
-!
-!!!$ Gabard & Astley, JFM, 2006 (compute the zeros)
-!
-!       F1n = dhank1(l1*w*h,m,1)*bessj(l1*w,m,1)*EXP(ABS(AIMAG(l1*w))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,m,1)*hank1(l1*w,m,1)* &
-!            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
-!       F1d = dhank1(l1*w*h,m,1)*dbessj(l1*w,m,1)*EXP(ABS(AIMAG(l1*w))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,m,1)*dhank1(l1*w,m,1)* &
-!            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
-!       F1s = F1n/F1d
-!
-!       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
-!       
-!       F2n = hank1(l2*w,m,1)
-!       F2d = dhank1(l2*w,m,1)
-!       F2s = F2n/F2d
-!
-!       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
-!       
-!       fun = F1 - F2
-!
-!    CASE (-2)
-!
-!!!$ Gabard & Astley, JFM, 2006 (compute the poles)
-!
-!       F1n = dhank1(l1*w*h,m,1)*bessj(l1*w,m,1)*EXP(ABS(AIMAG(l1*w))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,m,1)*hank1(l1*w,m,1)* &
-!            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
-!       F1d = dhank1(l1*w*h,m,1)*dbessj(l1*w,m,1)*EXP(ABS(AIMAG(l1*w))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,m,1)*dhank1(l1*w,m,1)* &
-!            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
-!       F1s = F1n/F1d
-!
-!       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
-!       
-!       F2n = hank1(l2*w,m,1)
-!       F2d = dhank1(l2*w,m,1)
-!       F2s = F2n/F2d
-!
-!       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
-!       
-!       fun = F1 - F2
-!       fun = 1._dpk/fun
-!
-!    CASE (3)
-!
-!!! Taylor et al, JSV, 1993 (zeros)
-!
-!       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
-!       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
-!       
-!       Rnz = (lz*bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
-!            EXP(ABS(AIMAG(l2*w*h)))
-!       Rdz = (bessj(l1*w*h,m,1)*dhank2(l2*w*h,m,1) - lz*dbessj(l1*w*h,m,1)*hank2(l2*w*h,m,1))* &
-!            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-!
-!       Rz = Rnz/Rdz
-!       
-!       F1n = bessj(l2*w,m,1)*EXP(ABS(AIMAG(l2*w))) + Rz*hank2(l2*w,m,1)* &
-!            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
-!       F1d = dbessj(l2*w,m,1)*EXP(ABS(AIMAG(l2*w))) + Rz*dhank2(l2*w,m,1)* &
-!            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
-!
-!       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
-!       
-!       F2n = hank2(l3*w,m,1)
-!       F2d = dhank2(l3*w,m,1)
-!       F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
-!       
-!       fun = w*(F1 - F2)
-!
-!    CASE (-3)
-!
-!!! Taylor et al, JSV, 1993 (poles)
-!
-!       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
-!       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
-!       
-!       Rnz = (lz*bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
-!            EXP(ABS(AIMAG(l2*w*h)))
-!       Rdz = (bessj(l1*w*h,m,1)*dhank2(l2*w*h,m,1) - lz*dbessj(l1*w*h,m,1)*hank2(l2*w*h,m,1))* &
-!            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-!
-!       Rz = Rnz/Rdz
-!       
-!       F1n = bessj(l2*w,m,1)*EXP(ABS(AIMAG(l2*w))) + Rz*hank2(l2*w,m,1)* &
-!            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
-!       F1d = dbessj(l2*w,m,1)*EXP(ABS(AIMAG(l2*w))) + Rz*dhank2(l2*w,m,1)* &
-!            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
-!
-!       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
-!       
-!       F2n = hank2(l3*w,m,1)
-!       F2d = dhank2(l3*w,m,1)
-!       F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
-!       
-!       fun = w*(F1 - F2)
-!       fun = 1._dpk/fun
-!
-!    CASE (4)
-!
-!!!$ Samanta & Freund, JFM, 2008 (4.10) (zeros)
-!
-!       F1n = bessj(l1*w*h,m,1)
-!       F1d = dbessj(l1*w*h,m,1)
-!       F1s = F1n/F1d
-!
-!       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
-!
-!       F2n = dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
-!            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-!       F2d = dhank1(l2*w,m,1)*dbessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*dhank1(l2*w*h,m,1)* &
-!            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-!       F2s = F2n/F2d
-!       
-!       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/l2*F2s
-!       
-!       fun = w*(F1 - F2)
-!
-!    CASE (-4)
-!
-!!!$ Samanta & Freund, JFM, 2008 (4.10) (poles)
-!
-!       F1n = bessj(l1*w*h,m,1)
-!       F1d = dbessj(l1*w*h,m,1)
-!       F1s = F1n/F1d
-!
-!       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
-!
-!       F2n = dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
-!            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-!       F2d = dhank1(l2*w,m,1)*dbessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*dhank1(l2*w*h,m,1)* &
-!            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-!       F2s = F2n/F2d
-!       
-!       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/l2*F2s
-!       
-!       fun = w*(F1 - F2)
-!       fun = 1._dpk/fun
-!
-!    CASE (11)
-!
-!!!$ Munt's Duct (zeros)
-!
-!       F1n = bessj(l1*w,m,1)
-!       F1d = dbessj(l1*w,m,1)
-!       F1s = F1n/F1d
-!       
-!       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
-!       
-!       F2n = hank1(l2*w,m,1)
-!       F2d = dhank1(l2*w,m,1)
-!       F2s = F2n/F2d
-!       
-!       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
-!       
-!       fun = F1 - F2
-!
-!    CASE (-11)
-!
-!!!$ Munt's Duct (poles)
-!
-!       F1n = bessj(l1*w,m,1)
-!       F1d = dbessj(l1*w,m,1)
-!       F1s = F1n/F1d
-!       
-!       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
-!       
-!       F2n = hank1(l2*w,m,1)
-!       F2d = dhank1(l2*w,m,1)
-!       F2s = F2n/F2d
-!       
-!       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
-!       
-!       fun = F1 - F2
-!       fun = 1._dpk/fun
-!
-!
-!    CASE (101)
-!
-!!! Test functions: Supersonic kernel (2nd part)  ! No density ratio
-!
-!       F1s = dbessj(l1*w*h,m,1)*EXP(ABS(AIMAG(l1*w*h)))
-!       F2s = bessj(l1*w*h,m,1)*EXP(ABS(AIMAG(l1*w*h)))
-!
-!       F1n = (dhank1(l2*w,m,1)*bessj(l2*w,m,1) - &
-!            dbessj(l2*w,m,1)*hank1(l2*w,m,1))*EXP(ABS(AIMAG(l2*w)) + &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)  ! this term has no zeros; do not include
-!
-!       F1 = F1s
-!
-!       F1d = lz*F2s*(dhank1(l2*w,m,1)*dbessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*dhank1(l2*w*h,m,1)* &
-!            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
-!       
-!       F2d = F1s*(dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
-!            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
-!
-!       F2 = F1d - F2d
-!       
-!       fun = F1/F2
-!       
-!    CASE (-101)
-!
-!!! Test functions: Supersonic kernel (2nd part)  ! No density ratio
-!
-!       F1s = dbessj(l1*w*h,m,1)*EXP(ABS(AIMAG(l1*w*h)))
-!       F2s = bessj(l1*w*h,m,1)*EXP(ABS(AIMAG(l1*w*h)))
-!
-!       F1n = (dhank1(l2*w,m,1)*bessj(l2*w,m,1) - &
-!            dbessj(l2*w,m,1)*hank1(l2*w,m,1))*EXP(ABS(AIMAG(l2*w)) + &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)  ! this term has no zeros; do not include
-!
-!       F1 = F1s
-!
-!       F1d = lz*F2s*(dhank1(l2*w,m,1)*dbessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*dhank1(l2*w*h,m,1)* &
-!            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
-!
-!       F2d = F1s*(dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-!            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
-!            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
-!       
-!       F2 = F1d - F2d
-!       
-!       fun = F1/F2
-!       fun = 1._dpk/fun
-!
-!    CASE DEFAULT 
-!
-!       STOP 'Not a valid function to find roots!! Program Terminated.'
-!       
-!    END SELECT
-!
-!
-!  END FUNCTION fun
-!
-!
-!  FUNCTION dfun(z,w,h,err,Nt)
-!
-!!***! Computes the numerical derivative using the Ridders' method (Adv. Eng. Software.,
-!!***! Vol. 4, No. 2, 1982; also see Numerical Recipes, Section 5.7).
-!
-!    complex(dpk)                          :: z, dfun, w
-!    real(dpk)                             :: err, fac, Nt, h, hh
-!    integer, parameter                    :: NTAB = 20 !! Tableau size
-!    complex(dpk), dimension(NTAB,NTAB)    :: a
-!    real(dpk), dimension(NTAB-1)          :: errt
-!    real(dpk), parameter                  :: DIV = 1.5_dpk, BIG = HUGE(ABS(z)), SAFE = 2._dpk
-!    integer, dimension(1)                 :: imin
-!    integer                               :: ierrmin, i, j
-!
-!
-!    hh = h
-!    a(1,1) = (fun(z+hh,w) - fun(z-hh,w))/(2._dpk*hh)
-!    err = BIG
-!    
-!    do i = 2, NTAB
-!
-!       hh = hh/DIV !! Higher extrapolation orders are also of reduced step size
-!       a(1,i) = (fun(z+hh,w) - fun(z-hh,w))/(2._dpk*hh)
-!       fac = DIV*DIV
-!
-!       do j = 2, i
-!          a(j,i) = (a(j-1,i)*fac - a(j-1,i-1))/(fac - 1._dpk)
-!          fac = DIV*DIV*fac
-!       end do
-!
-!       errt(1:i-1) = MAX(ABS(a(2:i,i) - a(1:i-1,i)), ABS(a(2:i,i) - a(1:i-1,i-1)))
-!       imin = MINLOC(errt(1:i-1))
-!       ierrmin = imin(1)
-!
-!       if (errt(ierrmin) <= err) then !! Error checking
-!          err = errt(ierrmin)
-!          dfun = a(ierrmin+1,i)
-!       end if
-!
-!       if (ABS(a(i,i) - a(i-1,i-1)) >= SAFE*err) then !! When the higher order becomes worse,
-!          Nt = i/NTAB                                 !! quit early
-!          RETURN
-!       end if
-!
-!    end do
-!
-!    Nt = 1._dpk
-!
-!
-!  END FUNCTION dfun
-!
-!
-!  SUBROUTINE mesh
-!
-!!***! The computation grid.
-!
-!    real(dpk)    :: dx, dy, dx1
-!    integer      :: i, j
-!
-!    if (func_case .EQ. 200) then
-!       if ( M1 < 1) then
-!          dx = (Xmax - Xmin)/(Nx - 1)
-!          dy = (Ymax - Ymin)/(Ny - 1)
-!    
-!          allocate(X(Nx))
-!          allocate(Y(Ny))
-!    
-!          X(1) = Xmin
-!          X(Nx) = Xmax
-!          Y(1) = Ymin
-!          Y(Ny) = Ymax
-!    
-!          do i = 1, Nx-2
-!             X(i+1) = X(i) + dx
-!          end do
-!          do i = 1, Ny-2
-!             Y(i+1) = Y(i) + dy
-!          end do
-!       else
-!          dx = (Xmax - Xm2)/(Nx/2 - 1)
-!          dx1 = (Xm1 - Xmin)/(Nx/2 - 1)
-!          dy = (Ymax - Ymin)/(Ny - 1)
-!    
-!          allocate(X(Nx))
-!          allocate(Y(Ny))
-!    
-!          X(1) = Xmin
-!          X(Nx/2) = Xm1
-!          X(Nx/2+1) = Xm2
-!          X(Nx) = Xmax
-!          Y(1) = Ymin
-!          Y(Ny) = Ymax
-!    
-!          do i = 1, Nx/2-2
-!             X(i+1) = X(i) + dx1
-!          end do
-!          do i = Nx/2+1, Nx-2
-!             X(i+1) = X(i) + dx
-!          end do
-!          do i = 1, Ny-2
-!             Y(i+1) = Y(i) + dy
-!          end do
-!       end if
-!
-!    else
-!
-!       dx = (Xmax - Xmin)/(Nx - 1)
-!       dy = (Ymax - Ymin)/(Ny - 1)
-!    
-!       allocate(X(Nx))
-!       allocate(Y(Ny))
-!    
-!       X(1) = Xmin
-!       X(Nx) = Xmax
-!       Y(1) = Ymin
-!       Y(Ny) = Ymax
-!    
-!       do i = 1, Nx-2
-!          X(i+1) = X(i) + dx
-!       end do
-!       do i = 1, Ny-2
-!          Y(i+1) = Y(i) + dy
-!       end do
-!
-!    end if
-!
-!    open(20,file='mesh.x')
-!    do i = 1, Nx
-!       write(20,'(I10,2X,F20.10)') i, X(i)
-!    end do
-!    close(20)
-!    
-!    open(20,file='mesh.y')
-!    do i = 1, Ny
-!       write(20,'(I10,2X,F20.10)') i, Y(i)
-!    end do
-!    
-!  END SUBROUTINE mesh
-!
-!
-!  FUNCTION newt(gz,w,flg,grid_count,total_grid_points)
-!
-!!***! The Newton-Raphson routine for complex functions using derivatives. The
-!!***! algorithm removes zeros from the function as soon as it is found, thereby
-!!***! preventing duplication and speeding up the process. This also enables
-!!***! to find multiple zeros, if any.
-!
-!    complex(dpk)       :: newt, gz, w
-!    complex(dpk)       :: f, df, dz, zp, zq, zw
-!    real(dpk)          :: newtr, newti
-!    real(dpk)          :: err1, err2
-!    character(10)      :: flg
-!    integer            :: i, j, k, grid_count, total_grid_points
-!
-!
-!    newt = gz
-!    flg = 'red' !! 'Green' flag means zero found
-!    do i = 1, MAX_ITE
-!       f = fun(newt,w)
-!       df = dfun(newt,w,delta,err1,err2) !! Numerical derivative
-!
-!       dz = f/df
-!       newt = newt - dz
-!
-!       newtr = REAL(newt)
-!       newti = AIMAG(newt)
-!
-!       if(newtr > Xmax+ZERO_ACC/10 .OR. newtr < Xmin-ZERO_ACC/10 .OR. &
-!            newti > Ymax+ZERO_ACC/10 .OR. newti < Ymin-ZERO_ACC/10) then
-!           
-!             print *, grid_count, "/", total_grid_points, " Jumped out of bounds"
-!           RETURN
-!       end if
-!
-!       if (ABS(REAL(dz)) < ZERO_ACC .AND. ABS(AIMAG(dz)) < ZERO_ACC) then 
-!          flg = 'green'
-!          RETURN
-!       end if
-!
-!    end do
-!             
-!    print *, grid_count, "/", total_grid_points, " WARNING: Max Iterations Exceeded!"
-!
-!
-!  END FUNCTION newt
-!
+  FUNCTION fun(z,w)
+
+    !***! This subroutine specifies the function.
+
+    complex(dpk)              :: z, fun, w
+    complex(dpk)              :: l1, l2, l3, lz, F1n, F1d, F2n, F2d, F1s, F2s, F1, F2
+    complex(dpk)              :: Rnz, Rdz, Rz, R1nz, R1dz, R1z, R2nz, R2dz, R2z
+
+
+    l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
+    l2 = sqrt(1._dpk*kap_T - z*(kap_T*M2+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M2-1._dpk))
+
+    SELECT CASE (func_case)
+
+    CASE (0)
+
+!!$!! Samanta & Freund, JFM, 2008 (Acoustic Incident Waves)
+
+       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
+
+       F1n = dbessj(h*l2,azim_mode,1)*dhank1(l2,azim_mode,1)*EXP(ABS(AIMAG(h*l2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,azim_mode,1)*dbessj(l2,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+
+       F1 = l2*(1._dpk - z*M1)**2*bessj(h*l1,azim_mode,1)*EXP(ABS(AIMAG(h*l1)))*F1n
+
+       F2n = bessj(h*l2,azim_mode,1)*dhank1(l2,azim_mode,1)*EXP(ABS(AIMAG(h*l2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - hank1(h*l2,azim_mode,1)*dbessj(l2,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+
+       F2 = l1*(1._dpk - z*M2)**2*dbessj(h*l1,azim_mode,1)*EXP(ABS(AIMAG(h*l1)))*F2n
+
+       fun = F1 - F2
+
+    CASE (100)
+
+!!$!! Samanta & Freund, JFM, 2008 (Acoustic Reflected Waves)
+
+       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
+
+       F1n = dbessj(h*l2,azim_mode,1)*dhank1(l2,azim_mode,1)*EXP(ABS(AIMAG(h*l2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,azim_mode,1)*dbessj(l2,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+
+       F1 = l2*(1._dpk - z*M1)**2*bessj(h*l1,azim_mode,1)*EXP(ABS(AIMAG(h*l1)))*F1n
+
+       F2n = bessj(h*l2,azim_mode,1)*dhank1(l2,azim_mode,1)*EXP(ABS(AIMAG(h*l2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - hank1(h*l2,azim_mode,1)*dbessj(l2,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+
+       F2 = l1*(1._dpk - z*M2)**2*dbessj(h*l1,azim_mode,1)*EXP(ABS(AIMAG(h*l1)))*F2n
+
+       fun = F1 - F2
+
+    CASE (200)
+
+!!$!! Hollow duct incident waves
+
+       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+
+       F1n = dbessj(l1,azim_mode,1)*EXP(ABS(AIMAG(l1)))
+
+       fun = F1n
+
+    CASE (1)
+
+!!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the zeros)
+
+       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
+       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
+
+       if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
+            (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
+            (ABS(l1*w*h) < asymplim .AND. ABS(AIMAG(l1*w*h)) < asymplim1)) then
+      
+          Rdz = (lz*bessj(l1*w*h,azim_mode,1)*dhank1(l2*w*h,azim_mode,1) - hank1(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1))* &
+               EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+          Rnz = (bessj(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1) - lz*bessj(l1*w*h,azim_mode,1)*dbessj(l2*w*h,azim_mode,1))* &
+               EXP(ABS(AIMAG(l2*w*h)))
+
+!!$              Rnz = lz*bessj(l1*w*h,azim_mode,0)*dhank1(l2*w*h,azim_mode,0) - hank1(l2*w*h,azim_mode,0)*dbessj(l1*w*h,azim_mode,0)
+!!$              Rdz = bessj(l2*w*h,azim_mode,0)*dbessj(l1*w*h,azim_mode,0) - lz*bessj(l1*w*h,azim_mode,0)*dbessj(l2*w*h,azim_mode,0)
+
+          Rz = Rnz/Rdz
+          
+          F1n = Rz*hank1(l2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + bessj(l2*w,azim_mode,1)* &
+               EXP(ABS(AIMAG(l2*w)))
+          F1d = Rz*dhank1(l2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + dbessj(l2*w,azim_mode,1)* &
+               EXP(ABS(AIMAG(l2*w)))
+
+!!$              F1n = hank1(l2*w,azim_mode,0) + Rz*bessj(l2*w,azim_mode,0)
+!!$              F1d = dhank1(l2*w,azim_mode,0) + Rz*dbessj(l2*w,azim_mode,0)
+          
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+
+       else
+
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*CMPLX(0._dpk,1._dpk,kind=dpk)
+
+       end if
+
+       if (ABS(l3*w) < asymplim .AND. ABS(AIMAG(l3*w)) < asymplim1) then
+       
+          F2n = hank1(l3*w,azim_mode,1)
+          F2d = dhank1(l3*w,azim_mode,1)
+
+!!$              F2n = hank1(l3*w,azim_mode,0)
+!!$              F2d = dhank1(l3*w,azim_mode,0)
+
+          F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
+
+       else
+
+          F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*(8._dpk*l3*w + &
+            4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
+            CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*w - &
+            4._dpk*azim_mode*azim_mode - 3._dpk)
+
+       end if
+      
+       fun = w*(F1 - F2)
+       
+    CASE (-1)
+       
+!!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the poles)
+
+       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
+       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
+
+       if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
+            (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
+            (ABS(l1*w*h) < asymplim .AND. ABS(AIMAG(l1*w*h)) < asymplim1)) then
+       
+          Rdz = (lz*bessj(l1*w*h,azim_mode,1)*dhank1(l2*w*h,azim_mode,1) - hank1(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1))* &
+               EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+          Rnz = (bessj(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1) - lz*bessj(l1*w*h,azim_mode,1)*dbessj(l2*w*h,azim_mode,1))* &
+               EXP(ABS(AIMAG(l2*w*h)))
+       
+          !    Rnz = lz*bessj(l1*w*h,azim_mode,0)*dhank1(l2*w*h,azim_mode,0) - hank1(l2*w*h,azim_mode,0)*dbessj(l1*w*h,azim_mode,0)
+          !    Rdz = bessj(l2*w*h,azim_mode,0)*dbessj(l1*w*h,azim_mode,0) - lz*bessj(l1*w*h,azim_mode,0)*dbessj(l2*w*h,azim_mode,0)
+       
+          Rz = Rnz/Rdz
+       
+          F1n = Rz*hank1(l2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + bessj(l2*w,azim_mode,1)* &
+               EXP(ABS(AIMAG(l2*w)))
+          F1d = Rz*dhank1(l2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + dbessj(l2*w,azim_mode,1)* &
+               EXP(ABS(AIMAG(l2*w)))
+       
+          !    F1n = hank1(l2*w,azim_mode,0) + Rz*bessj(l2*w,azim_mode,0)
+          !    F1d = dhank1(l2*w,azim_mode,0) + Rz*dbessj(l2*w,azim_mode,0)
+       
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+
+       else
+
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*CMPLX(0._dpk,1._dpk,kind=dpk)
+
+       end if
+
+       if (ABS(l3*w) < asymplim .AND. ABS(AIMAG(l3*w)) < asymplim1) then
+       
+          F2n = hank1(l3*w,azim_mode,1)
+          F2d = dhank1(l3*w,azim_mode,1)
+       
+          !    F2n = hank1(l3*w,azim_mode,0)
+          !    F2d = dhank1(l3*w,azim_mode,0)
+       
+          F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
+
+       else
+
+          F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*(8._dpk*l3*w + &
+               4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
+               CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*w - &
+               4._dpk*azim_mode*azim_mode - 3._dpk)
+
+       end if
+       
+       fun = w*(F1 - F2)
+       fun = 1._dpk/fun
+       
+    CASE (2)
+
+!!$ Gabard & Astley, JFM, 2006 (compute the zeros)
+
+       F1n = dhank1(l1*w*h,azim_mode,1)*bessj(l1*w,azim_mode,1)*EXP(ABS(AIMAG(l1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,azim_mode,1)*hank1(l1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
+       F1d = dhank1(l1*w*h,azim_mode,1)*dbessj(l1*w,azim_mode,1)*EXP(ABS(AIMAG(l1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,azim_mode,1)*dhank1(l1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
+       F1s = F1n/F1d
+
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       
+       F2n = hank1(l2*w,azim_mode,1)
+       F2d = dhank1(l2*w,azim_mode,1)
+       F2s = F2n/F2d
+
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       
+       fun = F1 - F2
+
+    CASE (-2)
+
+!!$ Gabard & Astley, JFM, 2006 (compute the poles)
+
+       F1n = dhank1(l1*w*h,azim_mode,1)*bessj(l1*w,azim_mode,1)*EXP(ABS(AIMAG(l1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,azim_mode,1)*hank1(l1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
+       F1d = dhank1(l1*w*h,azim_mode,1)*dbessj(l1*w,azim_mode,1)*EXP(ABS(AIMAG(l1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,azim_mode,1)*dhank1(l1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
+       F1s = F1n/F1d
+
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       
+       F2n = hank1(l2*w,azim_mode,1)
+       F2d = dhank1(l2*w,azim_mode,1)
+       F2s = F2n/F2d
+
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       
+       fun = F1 - F2
+       fun = 1._dpk/fun
+
+    CASE (3)
+
+!! Taylor et al, JSV, 1993 (zeros)
+
+       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
+       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
+       
+       Rnz = (lz*bessj(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1) - bessj(l1*w*h,azim_mode,1)*dbessj(l2*w*h,azim_mode,1))* &
+            EXP(ABS(AIMAG(l2*w*h)))
+       Rdz = (bessj(l1*w*h,azim_mode,1)*dhank2(l2*w*h,azim_mode,1) - lz*dbessj(l1*w*h,azim_mode,1)*hank2(l2*w*h,azim_mode,1))* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+
+       Rz = Rnz/Rdz
+       
+       F1n = bessj(l2*w,azim_mode,1)*EXP(ABS(AIMAG(l2*w))) + Rz*hank2(l2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
+       F1d = dbessj(l2*w,azim_mode,1)*EXP(ABS(AIMAG(l2*w))) + Rz*dhank2(l2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
+
+       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+       
+       F2n = hank2(l3*w,azim_mode,1)
+       F2d = dhank2(l3*w,azim_mode,1)
+       F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
+       
+       fun = w*(F1 - F2)
+
+    CASE (-3)
+
+!! Taylor et al, JSV, 1993 (poles)
+
+       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
+       l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
+       
+       Rnz = (lz*bessj(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1) - bessj(l1*w*h,azim_mode,1)*dbessj(l2*w*h,azim_mode,1))* &
+            EXP(ABS(AIMAG(l2*w*h)))
+       Rdz = (bessj(l1*w*h,azim_mode,1)*dhank2(l2*w*h,azim_mode,1) - lz*dbessj(l1*w*h,azim_mode,1)*hank2(l2*w*h,azim_mode,1))* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+
+       Rz = Rnz/Rdz
+       
+       F1n = bessj(l2*w,azim_mode,1)*EXP(ABS(AIMAG(l2*w))) + Rz*hank2(l2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
+       F1d = dbessj(l2*w,azim_mode,1)*EXP(ABS(AIMAG(l2*w))) + Rz*dhank2(l2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
+
+       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+       
+       F2n = hank2(l3*w,azim_mode,1)
+       F2d = dhank2(l3*w,azim_mode,1)
+       F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
+       
+       fun = w*(F1 - F2)
+       fun = 1._dpk/fun
+
+    CASE (4)
+
+!!$ Samanta & Freund, JFM, 2008 (4.10) (zeros)
+
+       F1n = bessj(l1*w*h,azim_mode,1)
+       F1d = dbessj(l1*w*h,azim_mode,1)
+       F1s = F1n/F1d
+
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
+
+       F2n = dhank1(l2*w,azim_mode,1)*bessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*hank1(l2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       F2d = dhank1(l2*w,azim_mode,1)*dbessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*dhank1(l2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       F2s = F2n/F2d
+       
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/l2*F2s
+       
+       fun = w*(F1 - F2)
+
+    CASE (-4)
+
+!!$ Samanta & Freund, JFM, 2008 (4.10) (poles)
+
+       F1n = bessj(l1*w*h,azim_mode,1)
+       F1d = dbessj(l1*w*h,azim_mode,1)
+       F1s = F1n/F1d
+
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
+
+       F2n = dhank1(l2*w,azim_mode,1)*bessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*hank1(l2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       F2d = dhank1(l2*w,azim_mode,1)*dbessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*dhank1(l2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       F2s = F2n/F2d
+       
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/l2*F2s
+       
+       fun = w*(F1 - F2)
+       fun = 1._dpk/fun
+
+    CASE (11)
+
+!!$ Munt's Duct (zeros)
+
+       F1n = bessj(l1*w,azim_mode,1)
+       F1d = dbessj(l1*w,azim_mode,1)
+       F1s = F1n/F1d
+       
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       
+       F2n = hank1(l2*w,azim_mode,1)
+       F2d = dhank1(l2*w,azim_mode,1)
+       F2s = F2n/F2d
+       
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       
+       fun = F1 - F2
+
+    CASE (-11)
+
+!!$ Munt's Duct (poles)
+
+       F1n = bessj(l1*w,azim_mode,1)
+       F1d = dbessj(l1*w,azim_mode,1)
+       F1s = F1n/F1d
+       
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       
+       F2n = hank1(l2*w,azim_mode,1)
+       F2d = dhank1(l2*w,azim_mode,1)
+       F2s = F2n/F2d
+       
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       
+       fun = F1 - F2
+       fun = 1._dpk/fun
+
+
+    CASE (101)
+
+!! Test functions: Supersonic kernel (2nd part)  ! No density ratio
+
+       F1s = dbessj(l1*w*h,azim_mode,1)*EXP(ABS(AIMAG(l1*w*h)))
+       F2s = bessj(l1*w*h,azim_mode,1)*EXP(ABS(AIMAG(l1*w*h)))
+
+       F1n = (dhank1(l2*w,azim_mode,1)*bessj(l2*w,azim_mode,1) - &
+            dbessj(l2*w,azim_mode,1)*hank1(l2*w,azim_mode,1))*EXP(ABS(AIMAG(l2*w)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)  ! this term has no zeros; do not include
+
+       F1 = F1s
+
+       F1d = lz*F2s*(dhank1(l2*w,azim_mode,1)*dbessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*dhank1(l2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       
+       F2d = F1s*(dhank1(l2*w,azim_mode,1)*bessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*hank1(l2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+
+       F2 = F1d - F2d
+       
+       fun = F1/F2
+       
+    CASE (-101)
+
+!! Test functions: Supersonic kernel (2nd part)  ! No density ratio
+
+       F1s = dbessj(l1*w*h,azim_mode,1)*EXP(ABS(AIMAG(l1*w*h)))
+       F2s = bessj(l1*w*h,azim_mode,1)*EXP(ABS(AIMAG(l1*w*h)))
+
+       F1n = (dhank1(l2*w,azim_mode,1)*bessj(l2*w,azim_mode,1) - &
+            dbessj(l2*w,azim_mode,1)*hank1(l2*w,azim_mode,1))*EXP(ABS(AIMAG(l2*w)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)  ! this term has no zeros; do not include
+
+       F1 = F1s
+
+       F1d = lz*F2s*(dhank1(l2*w,azim_mode,1)*dbessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*dhank1(l2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+
+       F2d = F1s*(dhank1(l2*w,azim_mode,1)*bessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*hank1(l2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       
+       F2 = F1d - F2d
+       
+       fun = F1/F2
+       fun = 1._dpk/fun
+
+    CASE DEFAULT 
+
+       STOP 'Not a valid function to find roots!! Program Terminated.'
+       
+    END SELECT
+
+
+  END FUNCTION fun
+!
+!
+  FUNCTION dfun(z,w,h,err,Nt)
+
+!***! Computes the numerical derivative using the Ridders' method (Adv. Eng. Software.,
+!***! Vol. 4, No. 2, 1982; also see Numerical Recipes, Section 5.7).
+
+    complex(dpk)                          :: z, dfun, w
+    real(dpk)                             :: err, fac, Nt, h, hh
+    integer, parameter                    :: NTAB = 20 !! Tableau size
+    complex(dpk), dimension(NTAB,NTAB)    :: a
+    real(dpk), dimension(NTAB-1)          :: errt
+    real(dpk), parameter                  :: DIV = 1.5_dpk, BIG = HUGE(ABS(z)), SAFE = 2._dpk
+    integer, dimension(1)                 :: imin
+    integer                               :: ierrmin, i, j
+
+
+    hh = h
+    a(1,1) = (fun(z+hh,w) - fun(z-hh,w))/(2._dpk*hh)
+    err = BIG
+    
+    do i = 2, NTAB
+
+       hh = hh/DIV !! Higher extrapolation orders are also of reduced step size
+       a(1,i) = (fun(z+hh,w) - fun(z-hh,w))/(2._dpk*hh)
+       fac = DIV*DIV
+
+       do j = 2, i
+          a(j,i) = (a(j-1,i)*fac - a(j-1,i-1))/(fac - 1._dpk)
+          fac = DIV*DIV*fac
+       end do
+
+       errt(1:i-1) = MAX(ABS(a(2:i,i) - a(1:i-1,i)), ABS(a(2:i,i) - a(1:i-1,i-1)))
+       imin = MINLOC(errt(1:i-1))
+       ierrmin = imin(1)
+
+       if (errt(ierrmin) <= err) then !! Error checking
+          err = errt(ierrmin)
+          dfun = a(ierrmin+1,i)
+       end if
+
+       if (ABS(a(i,i) - a(i-1,i-1)) >= SAFE*err) then !! When the higher order becomes worse,
+          Nt = i/NTAB                                 !! quit early
+          RETURN
+       end if
+
+    end do
+
+    Nt = 1._dpk
+
+
+  END FUNCTION dfun
+
+
+  SUBROUTINE mesh
+
+!***! The computation grid.
+
+    real(dpk)    :: dx, dy, dx1
+    integer      :: i, j
+
+    if (func_case .EQ. 200) then
+       if ( M1 < 1) then
+          dx = (Xmax - Xmin)/(Nx - 1)
+          dy = (Ymax - Ymin)/(Ny - 1)
+    
+          allocate(X(Nx))
+          allocate(Y(Ny))
+    
+          X(1) = Xmin
+          X(Nx) = Xmax
+          Y(1) = Ymin
+          Y(Ny) = Ymax
+    
+          do i = 1, Nx-2
+             X(i+1) = X(i) + dx
+          end do
+          do i = 1, Ny-2
+             Y(i+1) = Y(i) + dy
+          end do
+       else
+          dx = (Xmax - Xm2)/(Nx/2 - 1)
+          dx1 = (Xm1 - Xmin)/(Nx/2 - 1)
+          dy = (Ymax - Ymin)/(Ny - 1)
+    
+          allocate(X(Nx))
+          allocate(Y(Ny))
+    
+          X(1) = Xmin
+          X(Nx/2) = Xm1
+          X(Nx/2+1) = Xm2
+          X(Nx) = Xmax
+          Y(1) = Ymin
+          Y(Ny) = Ymax
+    
+          do i = 1, Nx/2-2
+             X(i+1) = X(i) + dx1
+          end do
+          do i = Nx/2+1, Nx-2
+             X(i+1) = X(i) + dx
+          end do
+          do i = 1, Ny-2
+             Y(i+1) = Y(i) + dy
+          end do
+       end if
+
+    else
+
+       dx = (Xmax - Xmin)/(Nx - 1)
+       dy = (Ymax - Ymin)/(Ny - 1)
+    
+       allocate(X(Nx))
+       allocate(Y(Ny))
+    
+       X(1) = Xmin
+       X(Nx) = Xmax
+       Y(1) = Ymin
+       Y(Ny) = Ymax
+    
+       do i = 1, Nx-2
+          X(i+1) = X(i) + dx
+       end do
+       do i = 1, Ny-2
+          Y(i+1) = Y(i) + dy
+       end do
+
+    end if
+
+    open(20,file='mesh.x')
+    do i = 1, Nx
+       write(20,'(I10,2X,F20.10)') i, X(i)
+    end do
+    close(20)
+    
+    open(20,file='mesh.y')
+    do i = 1, Ny
+       write(20,'(I10,2X,F20.10)') i, Y(i)
+    end do
+    
+  END SUBROUTINE mesh
+
+!
+  FUNCTION newt(gz,w,flg,grid_count,total_grid_points,file_ID)
+
+!***! The Newton-Raphson routine for complex functions using derivatives. The
+!***! algorithm removes zeros from the function as soon as it is found, thereby
+!***! preventing duplication and speeding up the process. This also enables
+!***! to find multiple zeros, if any.
+
+    complex(dpk)       :: newt, gz, w
+    complex(dpk)       :: f, df, dz, zp, zq, zw
+    real(dpk)          :: newtr, newti
+    real(dpk)          :: err1, err2
+    character(10)      :: flg
+    integer            :: i, j, k, grid_count, total_grid_points, file_ID
+
+
+    newt = gz
+    flg = 'red' !! 'Green' flag means zero found
+    do i = 1, MAX_ITE
+       f = fun(newt,w)
+       df = dfun(newt,w,delta,err1,err2) !! Numerical derivative
+
+       dz = f/df
+       newt = newt - dz
+
+       newtr = REAL(newt)
+       newti = AIMAG(newt)
+
+       if(newtr > Xmax+ZERO_ACC/10 .OR. newtr < Xmin-ZERO_ACC/10 .OR. &
+            newti > Ymax+ZERO_ACC/10 .OR. newti < Ymin-ZERO_ACC/10) then
+           
+             write(file_ID,*) grid_count, "/", total_grid_points, " Jumped out of bounds"
+           RETURN
+       end if
+
+       if (ABS(REAL(dz)) < ZERO_ACC .AND. ABS(AIMAG(dz)) < ZERO_ACC) then 
+          flg = 'green'
+          RETURN
+       end if
+
+    end do
+             
+    write(file_ID,*) grid_count, "/", total_grid_points, " WARNING: Max Iterations Exceeded!"
+
+
+  END FUNCTION newt
+
 !
 
 END PROGRAM root_finder
