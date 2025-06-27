@@ -4,10 +4,7 @@
 0.0                 M3
 1                   h
 0.0                 del
-0.0                 azim_mode
-0.5                 omega_start
-2.5                 omega_end
-10                  num_of_frequencies
+1.0                 azim_mode
 1.0                 kap_T
 1.0                 kap_rho
 500                 Nx
@@ -24,3 +21,7 @@
 0                   step
 1.0E-5              delta
 0                   limit
+1                   St_flag
+0.3537              omega_start
+0.7074              omega_end
+2                   num_of_frequencies

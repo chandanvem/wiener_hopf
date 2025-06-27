@@ -57,7 +57,7 @@ PROGRAM root_finder
   real(dpk)                                 :: kap_T  !! sqrt(T1/T0)
   real(dpk)                                 :: kap_rho  !! rho1/rho0
   real(dpk)                                 :: PI
-  integer                                   :: step, limit,func_case,num_of_frequencies
+  integer                                   :: step, limit,func_case,St_flag,num_of_frequencies
   real(dpk), parameter                      :: asymplim = 3.27E4
   real(dpk), parameter                      :: asymplim1 = 100
   character(len=200)                        :: dummy, file_name, data_file_name, omega_real, omega_imag
@@ -92,18 +92,33 @@ PROGRAM root_finder
    
         omega = omega_start + d_omega*( freq_idx - 1 )
         omega = ABS(omega)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
-        write(omega_real, '(F10.3)') REAL(omega)
-        write(omega_imag, '(F10.3)') AIMAG(omega)
 
+        if (St_flag == 1) then
+            write(omega_real, '(F10.3)') REAL(omega/(PI*M1))
+            write(omega_imag, '(F10.3)') AIMAG(omega/(PI*M1))
+        else 
+            write(omega_real, '(F10.3)') REAL(omega)
+            write(omega_imag, '(F10.3)') AIMAG(omega)
+        end if
 
         write(file_name, '("./log/log_", I0, ".out")') freq_idx
 
-        if (func_case > 0 ) then 
-           write(data_file_name, '("DataDump/zeroslist_", A, "_i", A, ".dat")') &
+        if (func_case > 0 ) then
+           if (AIMAG(omega) == 0) then 
+                write(data_file_name, '("DataDump/zeroslist_", A,  ".dat")') &
+                                            trim(adjustl(omega_real))
+           else 
+                write(data_file_name, '("DataDump/zeroslist_", A, "_i", A, ".dat")') &
                                             trim(adjustl(omega_real)), trim(adjustl(omega_imag))
+           end if
         else 
-           write(data_file_name, '("DataDump/poleslist_", A, "_i", A, ".dat")') & 
+          if (AIMAG(omega) == 0 ) then
+               write(data_file_name, '("DataDump/poleslist_", A, ".dat")') & 
+                                            trim(adjustl(omega_real))
+          else            
+              write(data_file_name, '("DataDump/poleslist_", A, "_i", A, ".dat")') & 
                                             trim(adjustl(omega_real)), trim(adjustl(omega_imag))
+          end if
         end if 
 
         
@@ -155,21 +170,6 @@ CONTAINS
       print '(A, F8.4, ", ", F8.4, ", ", F8.4,A)', &
                    ' (h,del, azim_mode) = (', h, del, azim_mode, ')'
 
-      read(10,*) omega_start,dummy
-      read(10,*) omega_end,dummy
-      read(10,*) num_of_frequencies,dummy
-      print '(A, I5,A)', &
-                   ' (number of frequencies) = (', num_of_frequencies, ')'
-
-      if (num_of_frequencies == 1) then
-         d_omega = 0.0
-      else
-         d_omega = (omega_end - omega_start)/(num_of_frequencies - 1)
-      end if
-  
-      print '(A, F8.4, ", ", F8.4, ", ", F12.4,A)', &
-                   ' (omega_start, omega_end, d_omega) = (', omega_start, omega_end, d_omega, ')'
-
       read(10,*) kap_T, dummy           
       read(10,*) kap_rho, dummy           
 
@@ -218,6 +218,34 @@ CONTAINS
       print '(A, I5, ", ", I5, ", ", E12.4, ", ", I5,A)', &
                    ' (prec, step, delta, limit) = (', prec, step, delta, limit, ')'
 
+      read(10,*) St_flag,dummy
+      read(10,*) omega_start,dummy
+      read(10,*) omega_end,dummy
+
+      if (St_flag == 1 ) then
+          omega_start = PI*M1*omega_start
+          omega_end   = PI*M1*omega_end
+      end if
+
+      print '(A, I5,A)', &
+                   ' (number of frequencies) = (', num_of_frequencies, ')'
+
+      read(10,*) num_of_frequencies,dummy
+      if (num_of_frequencies == 1) then
+         d_omega = 0.0
+      else
+         d_omega = (omega_end - omega_start)/(num_of_frequencies - 1)
+      end if
+      
+      if (St_flag == 1) then
+            print '(A, F8.4, ", ", F8.4, ", ", F12.4,A)', &
+                    ' (omega_start in St, omega_end in St, d_omega in St) = (',&
+                              omega_start/(PI*M1), omega_end/(PI*M1), d_omega/(PI*M1), ')'
+      else
+            print '(A, F8.4, ", ", F8.4, ", ", F12.4,A)', &
+                  '(omega_start (helm. no) , omega_end (helm. no) , d_omega (helm. no) ) = (',&
+                                                        omega_start, omega_end, d_omega, ')'
+      end if
 
      close(10)
 
@@ -1037,7 +1065,7 @@ CONTAINS
        
        F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
        
-       fun = F1 - F2
+       fun = w*(F1 - F2)
 
     CASE (-11)
 
