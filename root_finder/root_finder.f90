@@ -68,7 +68,6 @@ PROGRAM root_finder
   call cpu_time(start_time)
 
   call readdata                          !! Reads the input file
-
   call create_directory('./log')
   call create_directory('./DataDump')
    
@@ -122,8 +121,8 @@ PROGRAM root_finder
         end if 
 
         
-        file_ID = 1000 + freq_idx
-        data_file_ID = 2000 + freq_idx
+        file_ID =  freq_idx + 1 
+        data_file_ID = 2*num_of_frequencies + freq_idx
 
         open(file_ID,file=file_name,form='FORMATTED',status='UNKNOWN') 
         open(data_file_ID,file=data_file_name,form='FORMATTED',status='UNKNOWN') 
@@ -227,10 +226,12 @@ CONTAINS
           omega_end   = PI*M1*omega_end
       end if
 
+      read(10,*) num_of_frequencies,dummy
+
       print '(A, I5,A)', &
                    ' (number of frequencies) = (', num_of_frequencies, ')'
 
-      read(10,*) num_of_frequencies,dummy
+
       if (num_of_frequencies == 1) then
          d_omega = 0.0
       else
@@ -726,12 +727,12 @@ CONTAINS
     !***! This subroutine specifies the function.
 
     complex(dpk)              :: z, fun, w
-    complex(dpk)              :: l1, l2, l3, lz, F1n, F1d, F2n, F2d, F1s, F2s, F1, F2
+    complex(dpk)              :: lambda1, lambda2, l3, lz, F1n, F1d, F2n, F2d, F1s, F2s, F1, F2
     complex(dpk)              :: Rnz, Rdz, Rz, R1nz, R1dz, R1z, R2nz, R2dz, R2z
 
 
-    l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
-    l2 = sqrt(1._dpk*kap_T - z*(kap_T*M2+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M2-1._dpk))
+    lambda1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
+    lambda2 = sqrt(1._dpk*kap_T - z*(kap_T*M2+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M2-1._dpk))
 
     SELECT CASE (func_case)
 
@@ -739,20 +740,20 @@ CONTAINS
 
 !!$!! Samanta & Freund, JFM, 2008 (Acoustic Incident Waves)
 
-       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
+       lambda1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+       lambda2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
 
-       F1n = dbessj(h*l2,azim_mode,1)*dhank1(l2,azim_mode,1)*EXP(ABS(AIMAG(h*l2)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,azim_mode,1)*dbessj(l2,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+       F1n = dbessj(h*lambda2,azim_mode,1)*dhank1(lambda2,azim_mode,1)*EXP(ABS(AIMAG(h*lambda2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2) - dhank1(h*lambda2,azim_mode,1)*dbessj(lambda2,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*lambda2)
 
-       F1 = l2*(1._dpk - z*M1)**2*bessj(h*l1,azim_mode,1)*EXP(ABS(AIMAG(h*l1)))*F1n
+       F1 = lambda2*(1._dpk - z*M1)**2*bessj(h*lambda1,azim_mode,1)*EXP(ABS(AIMAG(h*lambda1)))*F1n
 
-       F2n = bessj(h*l2,azim_mode,1)*dhank1(l2,azim_mode,1)*EXP(ABS(AIMAG(h*l2)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - hank1(h*l2,azim_mode,1)*dbessj(l2,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+       F2n = bessj(h*lambda2,azim_mode,1)*dhank1(lambda2,azim_mode,1)*EXP(ABS(AIMAG(h*lambda2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2) - hank1(h*lambda2,azim_mode,1)*dbessj(lambda2,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*lambda2)
 
-       F2 = l1*(1._dpk - z*M2)**2*dbessj(h*l1,azim_mode,1)*EXP(ABS(AIMAG(h*l1)))*F2n
+       F2 = lambda1*(1._dpk - z*M2)**2*dbessj(h*lambda1,azim_mode,1)*EXP(ABS(AIMAG(h*lambda1)))*F2n
 
        fun = F1 - F2
 
@@ -760,20 +761,20 @@ CONTAINS
 
 !!$!! Samanta & Freund, JFM, 2008 (Acoustic Reflected Waves)
 
-       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
+       lambda1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+       lambda2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
 
-       F1n = dbessj(h*l2,azim_mode,1)*dhank1(l2,azim_mode,1)*EXP(ABS(AIMAG(h*l2)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,azim_mode,1)*dbessj(l2,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+       F1n = dbessj(h*lambda2,azim_mode,1)*dhank1(lambda2,azim_mode,1)*EXP(ABS(AIMAG(h*lambda2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2) - dhank1(h*lambda2,azim_mode,1)*dbessj(lambda2,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*lambda2)
 
-       F1 = l2*(1._dpk - z*M1)**2*bessj(h*l1,azim_mode,1)*EXP(ABS(AIMAG(h*l1)))*F1n
+       F1 = lambda2*(1._dpk - z*M1)**2*bessj(h*lambda1,azim_mode,1)*EXP(ABS(AIMAG(h*lambda1)))*F1n
 
-       F2n = bessj(h*l2,azim_mode,1)*dhank1(l2,azim_mode,1)*EXP(ABS(AIMAG(h*l2)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - hank1(h*l2,azim_mode,1)*dbessj(l2,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+       F2n = bessj(h*lambda2,azim_mode,1)*dhank1(lambda2,azim_mode,1)*EXP(ABS(AIMAG(h*lambda2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2) - hank1(h*lambda2,azim_mode,1)*dbessj(lambda2,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*lambda2)
 
-       F2 = l1*(1._dpk - z*M2)**2*dbessj(h*l1,azim_mode,1)*EXP(ABS(AIMAG(h*l1)))*F2n
+       F2 = lambda1*(1._dpk - z*M2)**2*dbessj(h*lambda1,azim_mode,1)*EXP(ABS(AIMAG(h*lambda1)))*F2n
 
        fun = F1 - F2
 
@@ -781,9 +782,9 @@ CONTAINS
 
 !!$!! Hollow duct incident waves
 
-       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+       lambda1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
 
-       F1n = dbessj(l1,azim_mode,1)*EXP(ABS(AIMAG(l1)))
+       F1n = dbessj(lambda1,azim_mode,1)*EXP(ABS(AIMAG(lambda1)))
 
        fun = F1n
 
@@ -791,36 +792,38 @@ CONTAINS
 
 !!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the zeros)
 
-       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
+       lz = kap_rho*lambda2/lambda1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
        l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
 
-       if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
-            (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
-            (ABS(l1*w*h) < asymplim .AND. ABS(AIMAG(l1*w*h)) < asymplim1)) then
+       if ((ABS(lambda2*w) < asymplim .AND. ABS(AIMAG(lambda2*w)) < asymplim1) .AND. &
+            (ABS(lambda2*w*h) < asymplim .AND. ABS(AIMAG(lambda2*w*h)) < asymplim1) .AND. &
+            (ABS(lambda1*w*h) < asymplim .AND. ABS(AIMAG(lambda1*w*h)) < asymplim1)) then
       
-          Rdz = (lz*bessj(l1*w*h,azim_mode,1)*dhank1(l2*w*h,azim_mode,1) - hank1(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1))* &
-               EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-          Rnz = (bessj(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1) - lz*bessj(l1*w*h,azim_mode,1)*dbessj(l2*w*h,azim_mode,1))* &
-               EXP(ABS(AIMAG(l2*w*h)))
+          Rdz = (lz*bessj(lambda1*w*h,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1) -&
+                       hank1(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1))* &
+                       EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
+          Rnz = (bessj(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1) - &
+                      lz*bessj(lambda1*w*h,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1))* &
+                         EXP(ABS(AIMAG(lambda2*w*h)))
 
-!!$              Rnz = lz*bessj(l1*w*h,azim_mode,0)*dhank1(l2*w*h,azim_mode,0) - hank1(l2*w*h,azim_mode,0)*dbessj(l1*w*h,azim_mode,0)
-!!$              Rdz = bessj(l2*w*h,azim_mode,0)*dbessj(l1*w*h,azim_mode,0) - lz*bessj(l1*w*h,azim_mode,0)*dbessj(l2*w*h,azim_mode,0)
+!!$              Rnz = lz*bessj(lambda1*w*h,azim_mode,0)*dhank1(lambda2*w*h,azim_mode,0) - hank1(lambda2*w*h,azim_mode,0)*dbessj(lambda1*w*h,azim_mode,0)
+!!$              Rdz = bessj(lambda2*w*h,azim_mode,0)*dbessj(lambda1*w*h,azim_mode,0) - lz*bessj(lambda1*w*h,azim_mode,0)*dbessj(lambda2*w*h,azim_mode,0)
 
           Rz = Rnz/Rdz
           
-          F1n = Rz*hank1(l2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + bessj(l2*w,azim_mode,1)* &
-               EXP(ABS(AIMAG(l2*w)))
-          F1d = Rz*dhank1(l2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + dbessj(l2*w,azim_mode,1)* &
-               EXP(ABS(AIMAG(l2*w)))
+          F1n = Rz*hank1(lambda2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) + bessj(lambda2*w,azim_mode,1)* &
+               EXP(ABS(AIMAG(lambda2*w)))
+          F1d = Rz*dhank1(lambda2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) + dbessj(lambda2*w,azim_mode,1)* &
+               EXP(ABS(AIMAG(lambda2*w)))
 
-!!$              F1n = hank1(l2*w,azim_mode,0) + Rz*bessj(l2*w,azim_mode,0)
-!!$              F1d = dhank1(l2*w,azim_mode,0) + Rz*dbessj(l2*w,azim_mode,0)
+!!$              F1n = hank1(lambda2*w,azim_mode,0) + Rz*bessj(lambda2*w,azim_mode,0)
+!!$              F1d = dhank1(lambda2*w,azim_mode,0) + Rz*dbessj(lambda2*w,azim_mode,0)
           
-          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*F1n/F1d
 
        else
 
-          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*CMPLX(0._dpk,1._dpk,kind=dpk)
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*CMPLX(0._dpk,1._dpk,kind=dpk)
 
        end if
 
@@ -849,36 +852,40 @@ CONTAINS
        
 !!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the poles)
 
-       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
+       lz = kap_rho*lambda2/lambda1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
        l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
 
-       if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
-            (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
-            (ABS(l1*w*h) < asymplim .AND. ABS(AIMAG(l1*w*h)) < asymplim1)) then
+       if ((ABS(lambda2*w) < asymplim .AND. ABS(AIMAG(lambda2*w)) < asymplim1) .AND. &
+            (ABS(lambda2*w*h) < asymplim .AND. ABS(AIMAG(lambda2*w*h)) < asymplim1) .AND. &
+            (ABS(lambda1*w*h) < asymplim .AND. ABS(AIMAG(lambda1*w*h)) < asymplim1)) then
        
-          Rdz = (lz*bessj(l1*w*h,azim_mode,1)*dhank1(l2*w*h,azim_mode,1) - hank1(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1))* &
-               EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-          Rnz = (bessj(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1) - lz*bessj(l1*w*h,azim_mode,1)*dbessj(l2*w*h,azim_mode,1))* &
-               EXP(ABS(AIMAG(l2*w*h)))
+          Rdz = (lz*bessj(lambda1*w*h,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1) - &
+                             hank1(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1))* &
+                             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
+          Rnz = (bessj(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1) -&
+                             lz*bessj(lambda1*w*h,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1))* &
+                              EXP(ABS(AIMAG(lambda2*w*h)))
        
-          !    Rnz = lz*bessj(l1*w*h,azim_mode,0)*dhank1(l2*w*h,azim_mode,0) - hank1(l2*w*h,azim_mode,0)*dbessj(l1*w*h,azim_mode,0)
-          !    Rdz = bessj(l2*w*h,azim_mode,0)*dbessj(l1*w*h,azim_mode,0) - lz*bessj(l1*w*h,azim_mode,0)*dbessj(l2*w*h,azim_mode,0)
+          !    Rnz = lz*bessj(lambda1*w*h,azim_mode,0)*dhank1(lambda2*w*h,azim_mode,0) - hank1(lambda2*w*h,azim_mode,0)*dbessj(lambda1*w*h,azim_mode,0)
+          !    Rdz = bessj(lambda2*w*h,azim_mode,0)*dbessj(lambda1*w*h,azim_mode,0) - lz*bessj(lambda1*w*h,azim_mode,0)*dbessj(lambda2*w*h,azim_mode,0)
        
           Rz = Rnz/Rdz
        
-          F1n = Rz*hank1(l2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + bessj(l2*w,azim_mode,1)* &
-               EXP(ABS(AIMAG(l2*w)))
-          F1d = Rz*dhank1(l2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + dbessj(l2*w,azim_mode,1)* &
-               EXP(ABS(AIMAG(l2*w)))
+          F1n = Rz*hank1(lambda2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) + &
+                                                                    bessj(lambda2*w,azim_mode,1)* &
+                                                                    EXP(ABS(AIMAG(lambda2*w)))
+          F1d = Rz*dhank1(lambda2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) + &
+                                                                 dbessj(lambda2*w,azim_mode,1)* &
+                                                                     EXP(ABS(AIMAG(lambda2*w)))
        
-          !    F1n = hank1(l2*w,azim_mode,0) + Rz*bessj(l2*w,azim_mode,0)
-          !    F1d = dhank1(l2*w,azim_mode,0) + Rz*dbessj(l2*w,azim_mode,0)
+          !    F1n = hank1(lambda2*w,azim_mode,0) + Rz*bessj(lambda2*w,azim_mode,0)
+          !    F1d = dhank1(lambda2*w,azim_mode,0) + Rz*dbessj(lambda2*w,azim_mode,0)
        
-          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*F1n/F1d
 
        else
 
-          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*CMPLX(0._dpk,1._dpk,kind=dpk)
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*CMPLX(0._dpk,1._dpk,kind=dpk)
 
        end if
 
@@ -908,21 +915,21 @@ CONTAINS
 
 !!$ Gabard & Astley, JFM, 2006 (compute the zeros)
 
-       F1n = dhank1(l1*w*h,azim_mode,1)*bessj(l1*w,azim_mode,1)*EXP(ABS(AIMAG(l1*w))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,azim_mode,1)*hank1(l1*w,azim_mode,1)* &
-            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
-       F1d = dhank1(l1*w*h,azim_mode,1)*dbessj(l1*w,azim_mode,1)*EXP(ABS(AIMAG(l1*w))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,azim_mode,1)*dhank1(l1*w,azim_mode,1)* &
-            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
+       F1n = dhank1(lambda1*w*h,azim_mode,1)*bessj(lambda1*w,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w*h) - dbessj(lambda1*w*h,azim_mode,1)*hank1(lambda1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w)
+       F1d = dhank1(lambda1*w*h,azim_mode,1)*dbessj(lambda1*w,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w*h) - dbessj(lambda1*w*h,azim_mode,1)*dhank1(lambda1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w)
        F1s = F1n/F1d
 
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*lambda2*F1s
        
-       F2n = hank1(l2*w,azim_mode,1)
-       F2d = dhank1(l2*w,azim_mode,1)
+       F2n = hank1(lambda2*w,azim_mode,1)
+       F2d = dhank1(lambda2*w,azim_mode,1)
        F2s = F2n/F2d
 
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*lambda1*F2s
        
        fun = F1 - F2
 
@@ -930,21 +937,21 @@ CONTAINS
 
 !!$ Gabard & Astley, JFM, 2006 (compute the poles)
 
-       F1n = dhank1(l1*w*h,azim_mode,1)*bessj(l1*w,azim_mode,1)*EXP(ABS(AIMAG(l1*w))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,azim_mode,1)*hank1(l1*w,azim_mode,1)* &
-            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
-       F1d = dhank1(l1*w*h,azim_mode,1)*dbessj(l1*w,azim_mode,1)*EXP(ABS(AIMAG(l1*w))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,azim_mode,1)*dhank1(l1*w,azim_mode,1)* &
-            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
+       F1n = dhank1(lambda1*w*h,azim_mode,1)*bessj(lambda1*w,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w*h) - dbessj(lambda1*w*h,azim_mode,1)*hank1(lambda1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w)
+       F1d = dhank1(lambda1*w*h,azim_mode,1)*dbessj(lambda1*w,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w*h) - dbessj(lambda1*w*h,azim_mode,1)*dhank1(lambda1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w)
        F1s = F1n/F1d
 
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*lambda2*F1s
        
-       F2n = hank1(l2*w,azim_mode,1)
-       F2d = dhank1(l2*w,azim_mode,1)
+       F2n = hank1(lambda2*w,azim_mode,1)
+       F2d = dhank1(lambda2*w,azim_mode,1)
        F2s = F2n/F2d
 
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*lambda1*F2s
        
        fun = F1 - F2
        fun = 1._dpk/fun
@@ -953,22 +960,24 @@ CONTAINS
 
 !! Taylor et al, JSV, 1993 (zeros)
 
-       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
+       lz = kap_rho*lambda1/lambda2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
        l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
        
-       Rnz = (lz*bessj(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1) - bessj(l1*w*h,azim_mode,1)*dbessj(l2*w*h,azim_mode,1))* &
-            EXP(ABS(AIMAG(l2*w*h)))
-       Rdz = (bessj(l1*w*h,azim_mode,1)*dhank2(l2*w*h,azim_mode,1) - lz*dbessj(l1*w*h,azim_mode,1)*hank2(l2*w*h,azim_mode,1))* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       Rnz = (lz*bessj(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1) - &
+                                      bessj(lambda1*w*h,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1))* &
+                                      EXP(ABS(AIMAG(lambda2*w*h)))
+       Rdz = (bessj(lambda1*w*h,azim_mode,1)*dhank2(lambda2*w*h,azim_mode,1) - &
+                lz*dbessj(lambda1*w*h,azim_mode,1)*hank2(lambda2*w*h,azim_mode,1))* &
+                 EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
 
        Rz = Rnz/Rdz
        
-       F1n = bessj(l2*w,azim_mode,1)*EXP(ABS(AIMAG(l2*w))) + Rz*hank2(l2*w,azim_mode,1)* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
-       F1d = dbessj(l2*w,azim_mode,1)*EXP(ABS(AIMAG(l2*w))) + Rz*dhank2(l2*w,azim_mode,1)* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
+       F1n = bessj(lambda2*w,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w))) + Rz*hank2(lambda2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)
+       F1d = dbessj(lambda2*w,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w))) + Rz*dhank2(lambda2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)
 
-       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*F1n/F1d
        
        F2n = hank2(l3*w,azim_mode,1)
        F2d = dhank2(l3*w,azim_mode,1)
@@ -980,22 +989,24 @@ CONTAINS
 
 !! Taylor et al, JSV, 1993 (poles)
 
-       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
+       lz = kap_rho*lambda1/lambda2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
        l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
        
-       Rnz = (lz*bessj(l2*w*h,azim_mode,1)*dbessj(l1*w*h,azim_mode,1) - bessj(l1*w*h,azim_mode,1)*dbessj(l2*w*h,azim_mode,1))* &
-            EXP(ABS(AIMAG(l2*w*h)))
-       Rdz = (bessj(l1*w*h,azim_mode,1)*dhank2(l2*w*h,azim_mode,1) - lz*dbessj(l1*w*h,azim_mode,1)*hank2(l2*w*h,azim_mode,1))* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       Rnz = (lz*bessj(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1) - &
+                                 bessj(lambda1*w*h,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1))* &
+                                 EXP(ABS(AIMAG(lambda2*w*h)))
+       Rdz = (bessj(lambda1*w*h,azim_mode,1)*dhank2(lambda2*w*h,azim_mode,1) - &
+                              lz*dbessj(lambda1*w*h,azim_mode,1)*hank2(lambda2*w*h,azim_mode,1))* &
+                               EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
 
        Rz = Rnz/Rdz
        
-       F1n = bessj(l2*w,azim_mode,1)*EXP(ABS(AIMAG(l2*w))) + Rz*hank2(l2*w,azim_mode,1)* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
-       F1d = dbessj(l2*w,azim_mode,1)*EXP(ABS(AIMAG(l2*w))) + Rz*dhank2(l2*w,azim_mode,1)* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
+       F1n = bessj(lambda2*w,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w))) + Rz*hank2(lambda2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)
+       F1d = dbessj(lambda2*w,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w))) + Rz*dhank2(lambda2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)
 
-       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*F1n/F1d
        
        F2n = hank2(l3*w,azim_mode,1)
        F2d = dhank2(l3*w,azim_mode,1)
@@ -1008,21 +1019,21 @@ CONTAINS
 
 !!$ Samanta & Freund, JFM, 2008 (4.10) (zeros)
 
-       F1n = bessj(l1*w*h,azim_mode,1)
-       F1d = dbessj(l1*w*h,azim_mode,1)
+       F1n = bessj(lambda1*w*h,azim_mode,1)
+       F1d = dbessj(lambda1*w*h,azim_mode,1)
        F1s = F1n/F1d
 
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/lambda1*F1s
 
-       F2n = dhank1(l2*w,azim_mode,1)*bessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*hank1(l2*w*h,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-       F2d = dhank1(l2*w,azim_mode,1)*dbessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*dhank1(l2*w*h,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       F2n = dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
+       F2d = dhank1(lambda2*w,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
        F2s = F2n/F2d
        
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/l2*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/lambda2*F2s
        
        fun = w*(F1 - F2)
 
@@ -1030,58 +1041,58 @@ CONTAINS
 
 !!$ Samanta & Freund, JFM, 2008 (4.10) (poles)
 
-       F1n = bessj(l1*w*h,azim_mode,1)
-       F1d = dbessj(l1*w*h,azim_mode,1)
+       F1n = bessj(lambda1*w*h,azim_mode,1)
+       F1d = dbessj(lambda1*w*h,azim_mode,1)
        F1s = F1n/F1d
 
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/lambda1*F1s
 
-       F2n = dhank1(l2*w,azim_mode,1)*bessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*hank1(l2*w*h,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-       F2d = dhank1(l2*w,azim_mode,1)*dbessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*dhank1(l2*w*h,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       F2n = dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
+       F2d = dhank1(lambda2*w,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
        F2s = F2n/F2d
        
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/l2*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/lambda2*F2s
        
-       fun = w*(F1 - F2)
+       fun = (F1 - F2)
        fun = 1._dpk/fun
 
     CASE (11)
 
 !!$ Munt's Duct (zeros)
 
-       F1n = bessj(l1*w,azim_mode,1)
-       F1d = dbessj(l1*w,azim_mode,1)
+       F1n = bessj(lambda1*w,azim_mode,1)
+       F1d = dbessj(lambda1*w,azim_mode,1)
        F1s = F1n/F1d
        
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*F1s/lambda1
        
-       F2n = hank1(l2*w,azim_mode,1)
-       F2d = dhank1(l2*w,azim_mode,1)
+       F2n = hank1(lambda2*w,azim_mode,1)
+       F2d = dhank1(lambda2*w,azim_mode,1)
        F2s = F2n/F2d
        
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*F2s/lambda2
        
-       fun = w*(F1 - F2)
+       fun = (F1 - F2)
 
     CASE (-11)
 
 !!$ Munt's Duct (poles)
 
-       F1n = bessj(l1*w,azim_mode,1)
-       F1d = dbessj(l1*w,azim_mode,1)
+       F1n = bessj(lambda1*w,azim_mode,1)
+       F1d = dbessj(lambda1*w,azim_mode,1)
        F1s = F1n/F1d
        
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*lambda2*F1s
        
-       F2n = hank1(l2*w,azim_mode,1)
-       F2d = dhank1(l2*w,azim_mode,1)
+       F2n = hank1(lambda2*w,azim_mode,1)
+       F2d = dhank1(lambda2*w,azim_mode,1)
        F2s = F2n/F2d
        
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*lambda1*F2s
        
        fun = F1 - F2
        fun = 1._dpk/fun
@@ -1091,22 +1102,22 @@ CONTAINS
 
 !! Test functions: Supersonic kernel (2nd part)  ! No density ratio
 
-       F1s = dbessj(l1*w*h,azim_mode,1)*EXP(ABS(AIMAG(l1*w*h)))
-       F2s = bessj(l1*w*h,azim_mode,1)*EXP(ABS(AIMAG(l1*w*h)))
+       F1s = dbessj(lambda1*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w*h)))
+       F2s = bessj(lambda1*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w*h)))
 
-       F1n = (dhank1(l2*w,azim_mode,1)*bessj(l2*w,azim_mode,1) - &
-            dbessj(l2*w,azim_mode,1)*hank1(l2*w,azim_mode,1))*EXP(ABS(AIMAG(l2*w)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)  ! this term has no zeros; do not include
+       F1n = (dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w,azim_mode,1) - &
+            dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w,azim_mode,1))*EXP(ABS(AIMAG(lambda2*w)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)  ! this term has no zeros; do not include
 
        F1 = F1s
 
-       F1d = lz*F2s*(dhank1(l2*w,azim_mode,1)*dbessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*dhank1(l2*w*h,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       F1d = lz*F2s*(dhank1(lambda2*w,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h))
        
-       F2d = F1s*(dhank1(l2*w,azim_mode,1)*bessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*hank1(l2*w*h,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       F2d = F1s*(dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h))
 
        F2 = F1d - F2d
        
@@ -1116,22 +1127,22 @@ CONTAINS
 
 !! Test functions: Supersonic kernel (2nd part)  ! No density ratio
 
-       F1s = dbessj(l1*w*h,azim_mode,1)*EXP(ABS(AIMAG(l1*w*h)))
-       F2s = bessj(l1*w*h,azim_mode,1)*EXP(ABS(AIMAG(l1*w*h)))
+       F1s = dbessj(lambda1*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w*h)))
+       F2s = bessj(lambda1*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w*h)))
 
-       F1n = (dhank1(l2*w,azim_mode,1)*bessj(l2*w,azim_mode,1) - &
-            dbessj(l2*w,azim_mode,1)*hank1(l2*w,azim_mode,1))*EXP(ABS(AIMAG(l2*w)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)  ! this term has no zeros; do not include
+       F1n = (dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w,azim_mode,1) - &
+            dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w,azim_mode,1))*EXP(ABS(AIMAG(lambda2*w)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)  ! this term has no zeros; do not include
 
        F1 = F1s
 
-       F1d = lz*F2s*(dhank1(l2*w,azim_mode,1)*dbessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*dhank1(l2*w*h,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       F1d = lz*F2s*(dhank1(lambda2*w,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h))
 
-       F2d = F1s*(dhank1(l2*w,azim_mode,1)*bessj(l2*w*h,azim_mode,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,azim_mode,1)*hank1(l2*w*h,azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       F2d = F1s*(dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h))
        
        F2 = F1d - F2d
        

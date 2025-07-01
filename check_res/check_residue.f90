@@ -35,17 +35,30 @@ PROGRAM check_residue
   real(dpk)                                 :: M1, M2, M3, h, kap_T, kap_rho
   real(dpk)                                 :: St_flag
   real(dpk)                                 :: omega_abs
-  complex(dpk)                              :: omega
+  complex(dpk)                              :: omega,z
   real(dpk)                                 :: azim_mode
   real(dpk)                                 :: del  !! phase angle in degrees
   real(dpk)                                 :: PI
   real(dpk), parameter                      :: asymplim = 3.27E4
   real(dpk), parameter                      :: asymplim1 = 100
   character(len=200)                        :: dummy
+  complex(dpk)                              :: lambda2, lambda2_ref, lambda1
 
   call readdata                          !! Reads the input file
-  call compute_residues
 
+  z = input_list(1)
+    
+  lambda1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
+  lambda2 = sqrt(1._dpk - z*(M2+1._dpk))*sqrt(1._dpk - z*(M2-1._dpk))
+  
+!  print*, lambda1*omega
+!  print*, lambda2*omega
+!  print*, bessj(lambda1*omega,azim_mode,1)
+!  print*, dbessj(lambda1*omega,azim_mode,1)
+!  print*, hank1(lambda2*omega,azim_mode-1,1)
+!  print*, dhank1(lambda2*omega,azim_mode,1)
+
+  call compute_residues
 
 CONTAINS
 
@@ -138,6 +151,7 @@ CONTAINS
     lambda1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
     lambda2 = sqrt(1._dpk*kap_T - z*(kap_T*M2+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M2-1._dpk))
 
+    
     SELECT CASE (func_case)
 
     CASE (0)
@@ -166,18 +180,36 @@ CONTAINS
 !!$ Munt's Duct (zeros)
 
        F1n = bessj(lambda1*w,azim_mode,1)
+       F1d = dbessj(lambda1*w,azim_mode,1)*lambda1
 
-       F1d = dbessj(lambda1*w,azim_mode,1)
+!       print*, 'lambda1',lambda1
+!       print*, 'lambda1*omega',lambda1*w
+!       print*, 'lambda2',lambda2
+!       print*, 'lambda2*omega',lambda2*w
+!
+!       print*,'F1n =', F1n
+!       print*,'F1d =', F1d
+
        F1s = F1n/F1d
-       
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*F1s/lambda1
+     
+!       print*,'F1s =', F1s
+  
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*F1s
+
+!       print*,'F1 =', F1
        
        F2n = hank1(lambda2*w,azim_mode,1)
        F2d = dhank1(lambda2*w,azim_mode,1)
+
+!       print*,'F2n =', F2n
+!       print*,'F2d =', F2d
+
        F2s = F2n/F2d
        
        F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*F2s/lambda2
-       
+    
+!       print*,'F2 =', F2
+  
        fun = (F1 - F2)
 
     CASE (-11)
