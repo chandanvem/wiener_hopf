@@ -28,11 +28,11 @@ if strcmp(pole_zero_string,'zero_mode')
 
 elseif strcmp(pole_zero_string,'pole_mode')
 
-    term_1 = lambda_1;
+    term_1 = 1;
     j_prime = 0.5*(besselj(m-1,lambda_1*omega,scale)-besselj(m+1,lambda_1*omega,scale));
     term_1 = term_1*j_prime;
 
-    term_2 = lambda_2;
+    term_2 = 1;
     h_prime = 0.5*(besselh(m-1,1,lambda_2*omega,scale)-besselh(m+1,1,lambda_2*omega,scale));
     term_2 = term_2*h_prime;
 
