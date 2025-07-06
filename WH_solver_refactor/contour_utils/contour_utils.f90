@@ -4,7 +4,7 @@ Module contour_utils
   
   IMPLICIT NONE
   
-  PRIVATE
+  PRIVATE :: check_location_wrt_contour, check_location_of_zeros_poles
   PUBLIC  :: compute_contour_params, get_y_alg_int_contour 
 
 
@@ -85,6 +85,9 @@ Module contour_utils
 
             contour_data%tot_IFT_pts = 2*(input_data%num_IFT_pts_loop) + 3  !! total number of IFT contor pts
 
+
+            call check_location_of_zeros_poles(input_data,contour_data)
+
         !! print the contour points:
 
             write(*,'(/A26)') 'initialize: The Integration Contours:'
@@ -107,6 +110,116 @@ Module contour_utils
 
 
      END SUBROUTINE compute_contour_params
+
+
+     SUBROUTINE check_location_of_zeros_poles(input_data,contour_data)
+
+             type(input_params_t)      :: input_data
+             type(contour_params_t)    :: contour_data 
+             integer                   :: i1, i2, i3
+
+!! here both the instability zeros and the pole need to lie outside (under) the contour,
+!! since we use the residue theorem to compute them anyway:
+
+             call check_location_wrt_contour(input_data%KH_zero_1,i1,contour_data) 
+             call check_location_wrt_contour(input_data%KH_zero_2,i2,contour_data)
+             call check_location_wrt_contour(input_data%KH_pole_1,i3,contour_data)
+
+!! if any of them lie inside ask to redefine the contour:
+
+    if (input_data%vortswitch .EQ. 0) then
+
+       if(i1==0 .OR. i2==0 .OR. i3==0) then
+          print*,''
+          print*,'initialize: Redefine the contour: One of instability zero/pole is INSIDE!'
+          print*,''
+          if (i1==0) print*, 'initialize: Zero1 is inside'
+          if (i2==0) print*, 'initialize: Zero2 is inside'
+          if (i3==0) print*, 'initialize: Pole1 is inside'
+          print*,''
+          STOP
+       end if
+
+    else
+
+       if(i1==1 .OR. i2==0 .OR. i3==1) then
+          print*,''
+          print*,'initialize: Redefine the contour:'
+          print*,''
+          if (i1==1) print*, 'initialize: Zero1 is outside'
+          if (i2==0) print*, 'initialize: Zero2 is inside'
+          if (i3==1) print*, 'initialize: Pole1 is outside'
+          print*,''
+          STOP
+       end if
+
+    end if
+
+    do i1 = 1, input_data%num_sup_zeros
+       call check_location_wrt_contour(input_data%sup_zeros_list(i1),i2,contour_data)
+       if (input_data%vortswitch .EQ. 0) then
+          if(i2 == 0) then
+             print*,''
+             print*,'initialize: Redefine the contour: The following supersonic zero is inside:'
+             print*,input_data%sup_zeros_list(i1)
+          end if
+       else
+          if(i2 == 1) then
+             print*,''
+             print*,'initialize: Redefine the contour: The following supersonic zero is outside:'
+             print*,input_data%sup_zeros_list(i1)
+          end if
+       end if
+    end do
+
+    do i1 = 1, input_data%num_sup_poles
+       call check_location_wrt_contour(input_data%sup_poles_list(i1),i2,contour_data)
+       if (input_data%vortswitch .EQ. 0) then
+          if(i2 == 0) then
+             print*,''
+             print*,'initialize: Redefine the contour: The following supersonic pole is inside:'
+             print*,input_data%sup_poles_list(i1)
+          end if
+       else
+          if(i2 == 1) then
+            print*,''
+            print*,'initialize: Redefine the contour: The following supersonic pole is outside:'
+            print*,input_data%sup_poles_list(i1)
+          end if
+       end if
+    end do
+
+
+     END SUBROUTINE check_location_of_zeros_poles 
+
+     SUBROUTINE check_location_wrt_contour(z,switch,contour_data)
+
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+!! 1. Subroutine to check the location of the instability zeros and pole wrt to
+!the contours
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+
+      complex(dpk)    :: z
+      real(dpk)       :: zx, zy, zfy
+      integer         :: switch
+      type(contour_params_t) :: contour_data
+
+      zx = REAL(z)
+      zy = AIMAG(z)
+
+      call get_y_alg_int_contour(zx,zfy,REAL(contour_data%def_pts_IFT_cntr(3)), &
+           REAL(contour_data%def_pts_IFT_cntr(4)-contour_data%def_pts_IFT_cntr(3)), &
+           AIMAG(contour_data%def_pts_IFT_cntr(4)-contour_data%def_pts_IFT_cntr(3)))
+!!$    zfy = AIMAG(c1)
+
+    if(zy > zfy) then
+       switch = 0  !! inside
+    else
+       switch = 1  !! outside
+    end if
+
+
+  END SUBROUTINE check_location_wrt_contour
 
 
   SUBROUTINE get_y_alg_int_contour(x,y,p,a,b)

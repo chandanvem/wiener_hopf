@@ -5,7 +5,7 @@ Module io_utils
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC  :: create_directory, define_input_params
+  PUBLIC  :: create_req_dirs, define_input_params
 
 
   CONTAINS 
@@ -32,6 +32,13 @@ Module io_utils
 
      END SUBROUTINE create_directory
 
+     SUBROUTINE create_req_dirs
+
+       call create_directory('./DataDump/Ift')
+       call create_directory('./DataDump/Kernel')
+       call create_directory('./DataDump/compute_fplus_log')
+
+     END SUBROUTINE create_req_dirs
 
      SUBROUTINE define_input_params(input_data)
 
