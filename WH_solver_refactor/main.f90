@@ -2,7 +2,8 @@ PROGRAM main
 
   USE bessel_utils  
   USE io_utils
-  USE contour_utils
+  USE contour_generate_utils
+  USE contour_init_utils
   USE omp_lib
   USE input_params
 
@@ -14,6 +15,7 @@ PROGRAM main
   call create_req_dirs
   call define_input_params(input_data)
   call compute_contour_params(input_data,contour_data)
- 
+  call compute_contours(input_data,contour_data)
+  
 
 END PROGRAM main   

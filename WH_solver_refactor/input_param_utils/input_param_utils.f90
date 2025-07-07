@@ -13,7 +13,7 @@ module input_params
           integer                                    :: num_zeros_s1_s2, num_poles_s1_s2  !! num  zeros & poles in between s_1- s_2
           integer                                    :: num_sup_zeros, num_sup_poles  !! number of supersonic zeros & poles
           integer                                    :: Nphi  !! polar mesh resolution for directivity computation
-         complex(dpk), allocatable, dimension(:)    :: zeros_list_bw_s1_s2, poles_list_bw_s1_s2, sup_zeros_list, sup_poles_list
+          complex(dpk), allocatable, dimension(:)    :: zeros_list_bw_s1_s2, poles_list_bw_s1_s2, sup_zeros_list, sup_poles_list
           real(dpk)                                  :: M1, M2, M3
           real(dpk)                                  :: h
           real(dpk)                                  :: kapT  !! sqrt(T1/T0)
@@ -44,6 +44,10 @@ module input_params
           complex(dpk), allocatable, dimension(:)    :: def_pts_ker_cntr  !! the points defining the Kernel contour
           real(dpk)                                  :: cont_cross_over_pt 
           integer                                    :: total_ker_points,tot_IFT_pts 
+          complex(dpk), allocatable, dimension(:)    :: ker_int_points  !!location of the starting pts
+          complex(dpk), allocatable, dimension(:)    :: iftpoints  
+
+
      end type contour_params_t
 
 end module input_params
