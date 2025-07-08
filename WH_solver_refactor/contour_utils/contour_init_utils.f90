@@ -114,20 +114,20 @@ Module contour_init_utils
 
      SUBROUTINE check_location_of_zeros_poles(input_data,contour_data)
 
-             type(input_params_t)      :: input_data
-             type(contour_params_t)    :: contour_data 
-             integer                   :: i1, i2, i3
+      type(input_params_t)      :: input_data
+      type(contour_params_t)    :: contour_data 
+      integer                   :: i1, i2, i3
 
 !! here both the instability zeros and the pole need to lie outside (under) the contour,
 !! since we use the residue theorem to compute them anyway:
 
-             call check_location_wrt_contour(input_data%KH_zero_1,i1,contour_data) 
-             call check_location_wrt_contour(input_data%KH_zero_2,i2,contour_data)
-             call check_location_wrt_contour(input_data%KH_pole_1,i3,contour_data)
+      call check_location_wrt_contour(input_data%KH_zero_1,i1,contour_data) 
+      call check_location_wrt_contour(input_data%KH_zero_2,i2,contour_data)
+      call check_location_wrt_contour(input_data%KH_pole_1,i3,contour_data)
 
 !! if any of them lie inside ask to redefine the contour:
 
-    if (input_data%vortswitch .EQ. 0) then
+     if (input_data%vortswitch .EQ. 0) then
 
        if(i1==0 .OR. i2==0 .OR. i3==0) then
           print*,''
