@@ -6,10 +6,12 @@ Module user_defined_functions
 
   IMPLICIT NONE
 
-  PRIVATE ::
+  PRIVATE :: bc
   PUBLIC  :: compute_U_s_factor, compute_kernel
 
-  FUNCTION compute_U_s_factor(ss,s_target) result(u_s)
+  CONTAINS 
+
+  FUNCTION compute_U_s_factor(ss,s_target,input_data) result(u_s)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The factor U(s)
@@ -17,26 +19,27 @@ Module user_defined_functions
 
     complex(dpk)  :: s_target, u_s
     integer       :: j, jj, ss
+    type(input_params_t) :: input_data
 
     if (ss == 1) then
-       u_s = (s_target-KH_pole_1)
+       u_s = (s_target-input_data%KH_pole_1)
     else
-       if (vortswitch .EQ. 0) then
-          u_s = (s_target-KH_zero_1)*(s_target-KH_zero_2)/(s_target-KH_pole_1)
+       if (input_data%vortswitch .EQ. 0) then
+          u_s = (s_target-input_data%KH_zero_1)*(s_target-input_data%KH_zero_2)/(s_target-input_data%KH_pole_1)
        else
-          u_s = (s_target-KH_zero_2)
+          u_s = (s_target-input_data%KH_zero_2)
        end if
     end if
 
     if (ss == 1) then
-       do j = 1, num_sup_poles
-          u_s = u_s*(s_target - sup_poles_list(j))
+       do j = 1, input_data%num_sup_poles
+          u_s = u_s*(s_target - input_data%sup_poles_list(j))
        end do
     else
-       if (vortswitch .EQ. 0) then
-          do j = 1, num_sup_zeros
-             do jj = 1, num_sup_poles
-                u_s = u_s*(s_target - sup_zeros_list(j))/(s_target - sup_poles_list(jj))
+       if (input_data%vortswitch .EQ. 0) then
+          do j = 1,input_data%num_sup_zeros
+             do jj = 1,input_data%num_sup_poles
+                u_s = u_s*(s_target - input_data%sup_zeros_list(j))/(s_target - input_data%sup_poles_list(jj))
              end do
           end do
        end if
@@ -44,7 +47,7 @@ Module user_defined_functions
 
   END FUNCTION compute_U_s_factor
 
-  FUNCTION compute_kernel(ss,zeta)  result(kernel)
+  FUNCTION compute_kernel(ss,zeta,input_data)  result(kernel)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the kernel function (3.22) or (4.10)
@@ -54,17 +57,22 @@ Module user_defined_functions
     complex(dpk)    :: lambda_1, lambda_2, lambda_3, lambda_z
     complex(dpk)    :: F1n, F1d, F1, F1f, F2n, F2d, F2, F2f, Rn, Rd, Rz
     integer         :: ss
+    type(input_params_t) :: input_data
+
+
 
     if (ss == 1) then  !! compute (4.10): the inc vort upstream kernel
 
-       lambda_1 = sqrt(1._dpk - zeta*(M1+1._dpk))*sqrt(1._dpk - zeta*(M1-1._dpk))
-       lambda_2 = sqrt(kapT - zeta*(kapT*M2+1._dpk))*sqrt(kapT - zeta*(kapT*M2-1._dpk))
+       lambda_1 = sqrt(1._dpk - zeta*(input_data%M1+1._dpk))*sqrt(1._dpk - zeta*(input_data%M1-1._dpk))
+       lambda_2 = sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M2+1._dpk))* &
+                   sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M2-1._dpk))
 
 
-       if ((ABS(lambda_1*omega_r*h) < asymplim .AND. ABS(AIMAG(lambda_1*omega_r*h)) < asymplim1)) then
+       if ((ABS(lambda_1*input_data%omega_r*input_data%h) < input_data%asymplim .AND.&
+                         ABS(AIMAG(lambda_1*input_data%omega_r*input_data%h)) < input_data%asymplim1)) then
 
-          F1n = bessj(lambda_1*omega_r*h,azim_mode,1)
-          F1d = dbessj(lambda_1*omega_r*h,azim_mode,1)
+          F1n = bessj(lambda_1*input_data%omega_r*input_data%h,input_data%azim_mode,1)
+          F1d = dbessj(lambda_1*input_data%omega_r*input_data%h,input_data%azim_mode,1)
           F1f = F1n/F1d
 
        else
@@ -78,22 +86,28 @@ Module user_defined_functions
 !!$    print*,'F1f:',F1f
 !!$    print*,'lambda_z:',lambda_z
 
-       F1 = kap_rho*(1._dpk - zeta*M1)**2/lambda_1*F1f
+       F1 = input_data%kap_rho*(1._dpk - zeta*input_data%M1)**2/lambda_1*F1f
 
-       if ((ABS(lambda_2*omega_r) < asymplim .AND. ABS(AIMAG(lambda_2*omega_r)) < asymplim1) .AND. &
-            (ABS(lambda_2*omega_r*h) < asymplim .AND. ABS(AIMAG(lambda_2*omega_r*h)) < asymplim1)) then
+       if ((ABS(lambda_2*input_data%omega_r) < input_data%asymplim .AND.&
+             ABS(AIMAG(lambda_2*input_data%omega_r)) < input_data%asymplim1) .AND. &
+            (ABS(lambda_2*input_data%omega_r*input_data%h) < input_data%asymplim &
+                      .AND. ABS(AIMAG(lambda_2*input_data%omega_r*input_data%h)) < input_data%asymplim1)) then
 
-          F2n = dhank1(lambda_2*omega_r,azim_mode,1)*bessj(lambda_2*omega_r*h,azim_mode,1)* &
-                EXP(ABS(AIMAG(lambda_2*omega_r*h))+ &
-                CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r) - &
-                dbessj(lambda_2*omega_r,azim_mode,1)*hank1(lambda_2*omega_r*h,azim_mode,1)* & 
-                EXP(ABS(AIMAG(lambda_2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r*h)
+          F2n = dhank1(lambda_2*input_data%omega_r,input_data%azim_mode,1)*&
+               bessj(lambda_2*input_data%omega_r*input_data%h,input_data%azim_mode,1)* &
+                EXP(ABS(AIMAG(lambda_2*input_data%omega_r*input_data%h))+ &
+                CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*input_data%omega_r) - &
+                dbessj(lambda_2*input_data%omega_r,input_data%azim_mode,1)* &
+                 hank1(lambda_2*input_data%omega_r*input_data%h,input_data%azim_mode,1)* & 
+                EXP(ABS(AIMAG(lambda_2*input_data%omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*input_data%omega_r*input_data%h)
 
-          F2d = dhank1(lambda_2*omega_r,azim_mode,1)*dbessj(lambda_2*omega_r*h,azim_mode,1)*&
-                EXP(ABS(AIMAG(lambda_2*omega_r*h))+ &
-                CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r) -&
-                dbessj(lambda_2*omega_r,azim_mode,1)*dhank1(lambda_2*omega_r*h,azim_mode,1)* &
-                EXP(ABS(AIMAG(lambda_2*omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r*h)
+          F2d = dhank1(lambda_2*input_data%omega_r,input_data%azim_mode,1)* &
+                dbessj(lambda_2*input_data%omega_r*input_data%h,input_data%azim_mode,1)*&
+                EXP(ABS(AIMAG(lambda_2*input_data%omega_r*input_data%h))+ &
+                CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*input_data%omega_r)- &
+                dbessj(lambda_2*input_data%omega_r,input_data%azim_mode,1)*&
+                dhank1(lambda_2*input_data%omega_r*input_data%h,input_data%azim_mode,1)* &
+                EXP(ABS(AIMAG(lambda_2*input_data%omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*input_data%omega_r*input_data%h)
           F2f = F2n/F2d
 
        else
@@ -102,38 +116,54 @@ Module user_defined_functions
 
        end if
 
-       F2 = (1._dpk - zeta*M2)**2/lambda_2*F2f
+       F2 = (1._dpk - zeta*input_data%M2)**2/lambda_2*F2f
 
-       kernel = omega_r*(F1 - F2)
+       kernel = input_data%omega_r*(F1 - F2)
 
     else  !! compute (3.22): the kernel
 
-       lambda_1 = sqrt(1._dpk - zeta*(M1+1._dpk))*sqrt(1._dpk - zeta*(M1-1._dpk))
-       lambda_2 = sqrt(kapT - zeta*(kapT*M2+1._dpk))*sqrt(kapT - zeta*(kapT*M2-1._dpk))
-       lambda_3 = sqrt(kapT - zeta*(kapT*M3+1._dpk))*sqrt(kapT - zeta*(kapT*M3-1._dpk))
+       lambda_1 = sqrt(1._dpk - zeta*(input_data%M1+1._dpk))*sqrt(1._dpk - zeta*(input_data%M1-1._dpk))
 
-       lambda_z = kap_rho*lambda_2/lambda_1*(1._dpk - zeta*M1)**2/(1._dpk - zeta*M2)**2
+       lambda_2 = sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M2+1._dpk))* &
+                  sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M2-1._dpk))
+
+       lambda_3 = sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M3+1._dpk))* &
+                  sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M3-1._dpk))
+
+       lambda_z = input_data%kap_rho*lambda_2/lambda_1*(1._dpk - zeta*input_data%M1)**2/&
+                  (1._dpk - zeta*input_data%M2)**2
 
 
-       if ((ABS(lambda_2*omega_r) < asymplim .AND. ABS(AIMAG(lambda_2*omega_r)) < asymplim1) .AND. &
-            (ABS(lambda_2*omega_r*h) < asymplim .AND. ABS(AIMAG(lambda_2*omega_r*h)) < asymplim1) .AND. &
-            (ABS(lambda_1*omega_r*h) < asymplim .AND. ABS(AIMAG(lambda_1*omega_r*h)) < asymplim1)) then
+       if ((ABS(lambda_2*input_data%omega_r) < input_data%asymplim .AND.&
+              ABS(AIMAG(lambda_2*input_data%omega_r)) < input_data%asymplim1) .AND. &
+            (ABS(lambda_2*input_data%omega_r*input_data%h) < input_data%asymplim .AND.&
+                ABS(AIMAG(lambda_2*input_data%omega_r*input_data%h)) < input_data%asymplim1) .AND. &
+            (ABS(lambda_1*input_data%omega_r*input_data%h) < input_data%asymplim .AND. &
+                ABS(AIMAG(lambda_1*input_data%omega_r*input_data%h)) < input_data%asymplim1)) then
 
-          Rd = (lambda_z*bessj(lambda_1*omega_r*h,azim_mode,1)*dhank1(lambda_2*omega_r*h,azim_mode,1)- &
-               hank1(lambda_2*omega_r*h,azim_mode,1)*dbessj(lambda_1*omega_r*h,azim_mode,1))* &
-               EXP(ABS(AIMAG(lambda_1*omega_r*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r*h)
+          Rd = (lambda_z*bessj(lambda_1*input_data%omega_r*input_data%h,input_data%azim_mode,1)* &
+                 dhank1(lambda_2*input_data%omega_r*input_data%h,input_data%azim_mode,1)- &
+               hank1(lambda_2*input_data%omega_r*input_data%h,input_data%azim_mode,1)* &
+               dbessj(lambda_1*input_data%omega_r*input_data%h,input_data%azim_mode,1))* &
+               EXP(ABS(AIMAG(lambda_1*input_data%omega_r*input_data%h)) &
+                +CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*input_data%omega_r*input_data%h)
 
-          Rn = (bessj(lambda_2*omega_r*h,azim_mode,1)*dbessj(lambda_1*omega_r*h,azim_mode,1)- &
-               lambda_z*bessj(lambda_1*omega_r*h,azim_mode,1)*dbessj(lambda_2*omega_r*h,azim_mode,1))* &
-               EXP(ABS(AIMAG(lambda_1*omega_r*h))+ABS(AIMAG(lambda_2*omega_r*h)))
+          Rn = (bessj(lambda_2*input_data%omega_r*input_data%h,input_data%azim_mode,1)*&
+                dbessj(lambda_1*input_data%omega_r*input_data%h,input_data%azim_mode,1)- &
+               lambda_z*bessj(lambda_1*input_data%omega_r*input_data%h,input_data%azim_mode,1)*&
+                dbessj(lambda_2*input_data%omega_r*input_data%h,input_data%azim_mode,1))* &
+               EXP(ABS(AIMAG(lambda_1*input_data%omega_r*input_data%h))+ABS(AIMAG(lambda_2*input_data%omega_r*input_data%h)))
 
           Rz = Rn/Rd
 
 
-          F1n = Rz*hank1(lambda_2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r)+ &
-               bessj(lambda_2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(lambda_2*omega_r)))
-          F1d = Rz*dhank1(lambda_2*omega_r,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*omega_r)+ &
-               dbessj(lambda_2*omega_r,azim_mode,1)*EXP(ABS(AIMAG(lambda_2*omega_r)))
+          F1n = Rz*hank1(lambda_2*input_data%omega_r,input_data%azim_mode,1)*&
+              EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*input_data%omega_r)+ &
+               bessj(lambda_2*input_data%omega_r,input_data%azim_mode,1)*EXP(ABS(AIMAG(lambda_2*input_data%omega_r)))
+
+          F1d = Rz*dhank1(lambda_2*input_data%omega_r,input_data%azim_mode,1)* &
+                  EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*input_data%omega_r)+ &
+               dbessj(lambda_2*input_data%omega_r,input_data%azim_mode,1)*EXP(ABS(AIMAG(lambda_2*input_data%omega_r)))
           F1f = F1n/F1d
 
        else
@@ -147,19 +177,21 @@ Module user_defined_functions
 !!$    print*,'F1f:',F1f
 !!$    print*,'lambda_z:',lambda_z
 
-       F1 = (1._dpk - zeta*M2)**2/lambda_2*F1f
+       F1 = (1._dpk - zeta*input_data%M2)**2/lambda_2*F1f
 
-       if (ABS(lambda_3*omega_r) < asymplim .AND. ABS(AIMAG(lambda_3*omega_r)) < asymplim1) then
+       if (ABS(lambda_3*input_data%omega_r) < input_data%asymplim .AND. &
+            ABS(AIMAG(lambda_3*input_data%omega_r)) < input_data%asymplim1) then
           
-          F2n = hank1(lambda_3*omega_r,azim_mode,1)
-          F2d = dhank1(lambda_3*omega_r,azim_mode,1)
+          F2n = hank1(lambda_3*input_data%omega_r,input_data%azim_mode,1)
+          F2d = dhank1(lambda_3*input_data%omega_r,input_data%azim_mode,1)
           F2f = F2n/F2d
           
        else
 
-          F2f = (8._dpk*lambda_3*omega_r + 4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
-               CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_3*omega_r - &
-               4._dpk*azim_mode*azim_mode - 3._dpk)
+          F2f = (8._dpk*lambda_3*input_data%omega_r +&
+                4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%azim_mode*input_data%azim_mode - &
+               CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_3*input_data%omega_r - &
+               4._dpk*input_data%azim_mode*input_data%azim_mode - 3._dpk)
 
        end if
 
@@ -167,15 +199,15 @@ Module user_defined_functions
 !!$    print*,'F2d:',F2d
 !!$    print*,'F2f:',F2f
 
-       F2 = (1._dpk - zeta*M3)**2/lambda_3*F2f
+       F2 = (1._dpk - zeta*input_data%M3)**2/lambda_3*F2f
 
-       if (num_zeros_s1_s2 == 0 .AND. num_poles_s1_s2 == 0) then
+       if (input_data%num_zeros_s1_s2 == 0 .AND. input_data%num_poles_s1_s2 == 0) then
           
-          kernel = omega_r*(F1 - F2)
+          kernel = input_data%omega_r*(F1 - F2)
  
        else
 
-          kernel = omega_r*(F1 - F2)*bc(zeta)
+          kernel = input_data%omega_r*(F1 - F2)*bc(zeta,input_data)
 
        end if
 
@@ -183,6 +215,33 @@ Module user_defined_functions
 
 
   END FUNCTION compute_kernel
+
+  FUNCTION bc(z,input_data)
+
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+!! 1. Compute the term to be factored out from the kernel function (3.22)
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+
+    complex(dpk)  :: z, bc
+    integer       :: i
+    type(input_params_t) :: input_data
+
+    bc = 1._dpk
+
+    do i = 1, input_data%num_zeros_s1_s2
+
+       bc = bc/(z - input_data%zeros_list_bw_s1_s2(i))
+
+    end do
+
+    do i = 1, input_data%num_poles_s1_s2
+
+       bc = bc*(z - input_data%poles_list_bw_s1_s2(i))
+
+    end do
+
+
+  END FUNCTION bc
 
 
 !  FUNCTION integrandiftpr(ri,zi,i,ss)

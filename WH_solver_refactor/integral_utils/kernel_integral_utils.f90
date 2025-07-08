@@ -3,12 +3,15 @@ Module kernel_integral_utils
   USE input_params
   USE contour_generate_utils
   USE contour_init_utils
-
+  USE user_defined_functions
 
   IMPLICIT NONE
 
   PRIVATE :: kernel_trapz_int 
-  PUBLIC  :: compute_eqn_A1_integral,sum_panel_contributions_kernel
+  PUBLIC  :: compute_eqn_A1_integral,sum_panel_contributions_kernel, &
+             kernelplot,kernelcheck
+
+  CONTAINS 
 
   SUBROUTINE compute_eqn_A1_integral(s_target,integral_value,kswitch,ch,KU_K_switch, &
                                                               input_data,contour_data)
@@ -29,12 +32,12 @@ Module kernel_integral_utils
     type(contour_params_t) :: contour_data
 
     allocate(intpanel(contour_data%total_ker_points-1))
-    allocate(Npanel(contour%total_ker_points-1))
+    allocate(Npanel(contour_data%total_ker_points-1))
 
     call adaptive(s_target,kswitch,ch,KU_K_switch,intpanel,Npanel,input_data,contour_data)
 
     call sum_panel_contributions_kernel(integral_value,num_of_quad_points,s_target, &
-                                                                     intpanel,Npanel)
+                                                      intpanel,Npanel,input_data,contour_data)
 
     deallocate(intpanel)
     deallocate(Npanel)
@@ -43,16 +46,18 @@ Module kernel_integral_utils
   END SUBROUTINE compute_eqn_A1_integral
 
 
-  SUBROUTINE adaptive(si,ksw,check,sw,intpanel,Npanel)
+  SUBROUTINE adaptive(si,ksw,check,sw,intpanel,Npanel,input_data,contour_data)
     
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The kernel integration is computed using an adaptive routine; which not feasible
 !!    for the IFT integral
 !! 2. This is integrated with the trapezoidal rule used for quadrature
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+    type(input_params_t)                       :: input_data
+    type(contour_params_t)                     :: contour_data
 
-    complex(dpk)  ::  intpanel(total_ker_points-1)
-    integer(dpk)  ::  Npanel(total_ker_points-1)
+    complex(dpk)  ::  intpanel(contour_data%total_ker_points-1)
+    integer(dpk)  ::   Npanel(contour_data%total_ker_points-1)
     complex(dpk), allocatable, dimension(:)    :: zp, T_temp
     complex(dpk), allocatable, dimension(:)    :: knl, zall, zall_temp
     real(dpk), allocatable, dimension(:)       :: xp, yp
@@ -61,7 +66,6 @@ Module kernel_integral_utils
     integer                                    :: Np, Nq, Nr, panel_no, Nloopindex, check, sw, ksw
     integer                                    :: i, j, ii
 
-
     do j = 1, contour_data%total_ker_points-1  !! the integration points already specified
 
        len = contour_data%ker_int_points(j+1) - contour_data%ker_int_points(j)  !! the length of a mini panel
@@ -69,21 +73,21 @@ Module kernel_integral_utils
 !! compute "scale" needed to ensure the tolerance check:
 
        if (j >= 1 .AND. j < input_data%num_ker_pts_loop+2 ) then
-          scale = len/(input_data%def_pts_ker_cntr(3) - input_data%def_pts_ker_cntr(1))
+          scale = len/(contour_data%def_pts_ker_cntr(3) - contour_data%def_pts_ker_cntr(1))
 
        else
-          scale = len/(input_data%def_pts_ker_cntr(5) - input_data%def_pts_ker_cntr(3))
+          scale = len/(contour_data%def_pts_ker_cntr(5) - contour_data%def_pts_ker_cntr(3))
 
        end if
 
-       call kernel_trapz_int(si,contour_data%ker_int_points(j),contour_data%ker_int_points(j+1),ksw,sw,T)  !! the basis for comparison
+       call kernel_trapz_int(si,contour_data%ker_int_points(j),contour_data%ker_int_points(j+1),&
+                                          ksw,sw,T,input_data)  !! the basis for comparison
 
        Np = 1
 
 !! the adaptive loop starts here:
 
        do
-          
           panel_no = 2**Np  !! min no of panels = 2
           ds = len/panel_no
           
@@ -103,13 +107,15 @@ Module kernel_integral_utils
              if (j >= 1 .AND. j < input_data%num_ker_pts_loop+2) then
                 xp(i+1) = xp(i) + ds
                 call get_y_alg_int_contour(xp(i+1),yp(i+1), & 
-                           REAL(input_data%def_pts_ker_cntr(3)),REAL(input_data%def_pts_ker_cntr(2)-input_data%def_pts_ker_cntr(3)), &
-                           AIMAG(input_data%def_pts_ker_cntr(2)-input_data%def_pts_ker_cntr(3)))
+                           REAL(contour_data%def_pts_ker_cntr(3)),&
+                           REAL(contour_data%def_pts_ker_cntr(2)-contour_data%def_pts_ker_cntr(3)), &
+                           AIMAG(contour_data%def_pts_ker_cntr(2)-contour_data%def_pts_ker_cntr(3)))
              else
                 xp(i+1) = xp(i) + ds
                 call get_y_alg_int_contour(xp(i+1),yp(i+1), & 
-                           REAL(input_data%def_pts_ker_cntr(3)),REAL(input_data%def_pts_ker_cntr(4)-input_data%def_pts_ker_cntr(3)), &
-                           AIMAG(input_data%def_pts_ker_cntr(4)-input_data%def_pts_ker_cntr(3)))
+                           REAL(contour_data%def_pts_ker_cntr(3)),&
+                           REAL(contour_data%def_pts_ker_cntr(4)-contour_data%def_pts_ker_cntr(3)), &
+                           AIMAG(contour_data%def_pts_ker_cntr(4)-contour_data%def_pts_ker_cntr(3)))
                   
              end if
 
@@ -121,7 +127,7 @@ Module kernel_integral_utils
           allocate(T_temp(panel_no))
           
           do i = 1,panel_no
-             call kernel_trapz_int(si,zp(i),zp(i+1),ksw,sw,T_temp(i))
+             call kernel_trapz_int(si,zp(i),zp(i+1),ksw,sw,T_temp(i),input_data)
           end do
           
           intpanel(j) = (0._dpk,0._dpk)
@@ -183,14 +189,14 @@ Module kernel_integral_utils
 
     if (check == 1) then
        allocate(knl(Nr))
-       call kernelcheck(Nr,ksw,zall,knl)
-       call kernelplot(Nr,zall,knl)
+       call kernelcheck(Nr,ksw,zall,knl,input_data)
+       call kernelplot(Nr,zall,knl,input_data)
     end if
 
   END SUBROUTINE adaptive
 
 
-  SUBROUTINE kernel_trapz_int(s,z1,z2,ksw,sw,int_value)
+  SUBROUTINE kernel_trapz_int(s,z1,z2,ksw,sw,int_value,input_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The trapezoidal rule for the kernel contour
@@ -200,8 +206,10 @@ Module kernel_integral_utils
     complex(dpk)                :: f1, f2
     integer                     :: sw, ksw
 
-    f1 = kernel_integrand(ksw,sw,s,z1)
-    f2 = kernel_integrand(ksw,sw,s,z2)
+    type(input_params_t)        :: input_data
+
+    f1 = kernel_integrand(ksw,sw,s,z1,input_data)
+    f2 = kernel_integrand(ksw,sw,s,z2,input_data)
 
     dz = (z2-z1)
 
@@ -211,22 +219,24 @@ Module kernel_integral_utils
   END SUBROUTINE kernel_trapz_int
 
 
-  SUBROUTINE sum_panel_contributions_kernel(Int,totpoints,z,intpanel,Npanel)
+  SUBROUTINE sum_panel_contributions_kernel(Int,totpoints,z,intpanel,Npanel,input_data,contour_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Sum up the individual trapezoids for the kernel contour
 !! 2. Dump data
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-    
-    complex(dpk)  ::  intpanel(total_ker_points-1)
-    integer(dpk)  ::   Npanel(total_ker_points-1)
+    type(input_params_t)             :: input_data
+    type(contour_params_t)           :: contour_data
+
+    complex(dpk)    ::  intpanel(input_data%total_ker_points-1)
+    integer(dpk)    ::  Npanel(input_data%total_ker_points-1)
     complex(dpk)    :: Int, z
     integer         :: totpoints
     integer         :: i
     character(60)   :: arg
 
     Int = (0._dpk,0._dpk)
-    do i = 1,total_ker_points-1
+    do i = 1,contour_data%total_ker_points-1
        Int = Int + intpanel(i)  !! summing up the individual panels
     end do
 
@@ -243,7 +253,7 @@ Module kernel_integral_utils
   !  write(*,'(/A22,2X,2F20.10/)') 'Integral value:->', Int
 
     totpoints = 1
-    do i = 1,total_ker_points-1
+    do i = 1,contour_data%total_ker_points-1
        totpoints = totpoints + Npanel(i)  !! total quadrature points
     end do
 
@@ -253,7 +263,7 @@ Module kernel_integral_utils
   END SUBROUTINE sum_panel_contributions_kernel
 
 
-  FUNCTION kernel_integrand(kswitch,switch,si,zi) result(integrand)
+  FUNCTION kernel_integrand(kswitch,switch,si,zi,input_data) result(integrand)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the kernel integrand
@@ -263,10 +273,12 @@ Module kernel_integral_utils
     complex(dpk)    :: In, Id
     integer         :: switch, kswitch
 
+    type(input_params_t)  :: input_data
+
     if (switch == 1)  then !! K/U
-       In = LOG(compute_kernel(kswitch,zi)/compute_U_s_factor(kswitch,zi))
+       In = LOG(compute_kernel(kswitch,zi,input_data)/compute_U_s_factor(kswitch,zi,input_data))
     else
-       In = LOG(compute_kernel(kswitch,zi))
+       In = LOG(compute_kernel(kswitch,zi,input_data))
     end if
     Id = zi-si
     integrand = In/Id
@@ -279,7 +291,7 @@ Module kernel_integral_utils
 !!$       print*,'Id:',Id
 !!$    end if
 
-    if (compute_kernel(kswitch,zi) == 0.) then 
+    if (compute_kernel(kswitch,zi,input_data) == 0.) then 
        print*,''
        print*,'FATAL ERROR: The kernel has encountered a zero (at zi)!!'
        print*,'si:-->',si
@@ -290,19 +302,19 @@ Module kernel_integral_utils
 
   END FUNCTION kernel_integrand
 
-
-  SUBROUTINE kernelcheck(N,ss,z,I)
+  SUBROUTINE kernelcheck(N,ss,z,I,input_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Check so that the kernel does not cross the negative real axis on C
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+    type(input_params_t)             :: input_data
 
     complex(dpk), dimension(N) :: z, I
     real(dpk)                  :: x1, x2, y1, y2, intercept
     integer                    :: j, N, ss
 
     do j = 1, N
-       I(j) = compute_kernel(ss,z(j))/compute_U_s_factor(ss,z(j))
+       I(j) = compute_kernel(ss,z(j),input_data)/compute_U_s_factor(ss,z(j),input_data)
     end do
 
     do j = 1, N-1
@@ -344,17 +356,18 @@ Module kernel_integral_utils
   END SUBROUTINE kernelcheck
 
 
-  SUBROUTINE kernelplot(N,z,K)
+  SUBROUTINE kernelplot(N,z,K,input_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Plot the kernel if requested
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+    type(input_params_t)             :: input_data
 
     integer                        :: N, i
     complex(dpk), dimension(N)     :: z, K
     character(40)                  :: arg
 
-    write(arg,"('w=',E12.5,'Np=',I7.7)") REAL(omega_r), N
+    write(arg,"('w=',E12.5,'Np=',I7.7)") REAL(input_data%omega_r), N
 
     open(10,file='DataDump/Kernel_Trace/kernel.'//arg,form='FORMATTED')
     do i = 1, N
@@ -366,81 +379,4 @@ Module kernel_integral_utils
   END SUBROUTINE kernelplot
 
 
-
-
-  SUBROUTINE kernelcheck(N,ss,z,I)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Check so that the kernel does not cross the negative real axis on C
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    complex(dpk), dimension(N) :: z, I
-    real(dpk)                  :: x1, x2, y1, y2, intercept
-    integer                    :: j, N, ss
-
-    do j = 1, N
-       I(j) = compute_kernel(ss,z(j))/compute_U_s_factor(ss,z(j))
-    end do
-
-    do j = 1, N-1
-
-       x1 = REAL(I(j))
-       x2 = REAL(I(j+1))
-       y1 = AIMAG(I(j))
-       y2 = AIMAG(I(j+1))
-
-       intercept = (x1*y2 - x2*y1)/(y2 - y1)
-
-!! check the validity of the split integral:
-
-       if((y1 < 0. .AND. y2 > 0.) .OR. (y1 > 0. .AND. y2 < 0.)) then
-
-          ! if y1, y2 are of the same sign real axis is not crossed
-
-          if (intercept < 0.) then 
-
-             ! kernel function crosses the branch cut of the log function
-
-             print*,''
-             print*,'FATAL ERROR: The kernel split functions are invalid!!'
-             print*,'FATAL ERROR: The kernel has crossed the negative Re axis between:'
-             print*,'C(z1):z1-->',z(j)
-             print*,'and'
-             print*,'C(z2):z2-->',z(j+1)
-             print*,'where:'
-             print*,'K(z1)-->', I(j)
-             print*,'K(z2)-->', I(j+1)
-!!$             STOP
-
-          end if
-
-       end if
-
-    end do
-
-  END SUBROUTINE kernelcheck
-
-
-  SUBROUTINE kernelplot(N,z,K)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Plot the kernel if requested
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    integer                        :: N, i
-    complex(dpk), dimension(N)     :: z, K
-    character(40)                  :: arg
-
-    write(arg,"('w=',E12.5,'Np=',I7.7)") REAL(omega_r), N
-
-    open(10,file='DataDump/Kernel_Trace/kernel.'//arg,form='FORMATTED')
-    do i = 1, N
-       write(10,'(I8,2F20.10,2F30.10)') i,z(i),K(i)
-    end do
-    close(10)
-
-
-  END SUBROUTINE kernelplot
-
-
-END SUBROUTINE kernel_integral_units
+END MODULE kernel_integral_utils
