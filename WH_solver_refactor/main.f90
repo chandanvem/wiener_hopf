@@ -17,5 +17,28 @@ PROGRAM main
   call compute_contour_params(input_data,contour_data)
   call compute_contours(input_data,contour_data)
   
+  call precompute(input_data,contour_data)
+
+  if ((farswitch == 1) .OR. (farswitch == 2)) then
+
+    print*,''
+    print*,'solve: Near-field computation only:'
+    print*,'' 
+
+  else
+
+    call meshgrid
+
+    print*,'solve: Now computing F+. This takes a while:'
+    call compute_fplus(restart,0)
+
+    print*,''
+    print*,'solve: Now starting the IFT:'
+    print*,''
+
+    call computeift
+
+  end if
+
 
 END PROGRAM main   
