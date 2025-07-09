@@ -1,0 +1,73 @@
+MODULE fplus_utils
+
+  USE input_params
+  USE omp_lib
+  USE user_defined_fplus
+ 
+  IMPLICIT NONE
+
+  PUBLIC  :: compute_fplus
+
+  CONTAINS
+
+  SUBROUTINE compute_fplus(input_data,contour_data)
+
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+!! 1. Evaluate (3.30)
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+    
+    integer :: i
+    integer :: thread_id, num_threads, chunk
+    integer :: start_idx, end_idx, file_ID
+    character(len=200) :: filename
+    real :: start_time, end_time, elapsed_time
+
+    type(input_params_t) :: input_data
+    type(contour_params_t) :: contour_data
+
+    allocate(input_data%fplusz(contour_data%tot_IFT_pts))  !! fplus is same as \xi^{+}(s) of (3.30)
+    input_data%fplusz = (0._dpk,0._dpk)
+
+    !$omp parallel private(i,thread_id,num_threads,chunk,start_idx,end_idx,filename,file_ID,start_time,end_time,elapsed_time)
+     block 
+        thread_id = omp_get_thread_num()
+        num_threads = omp_get_num_threads()
+        chunk = contour_data%tot_IFT_pts / num_threads
+        start_idx = thread_id * chunk + 1
+        end_idx = (thread_id + 1) * chunk
+        
+        if (thread_id == num_threads - 1) end_idx = contour_data%tot_IFT_pts
+
+        write(filename, '("./DataDump/compute_fplus_log/log_", I0, ".out")') thread_id + 1
+        file_ID = 10 + thread_id
+
+        call cpu_time(start_time)
+        do i = start_idx, end_idx
+          input_data%fplusz(i) = get_fplus_value(contour_data%iftpoints(i),input_data,contour_data)
+          if (i == start_idx) then
+              open(file_ID,file=filename,form='FORMATTED',status='UNKNOWN')
+          else
+              open(file_ID,file=filename,form='FORMATTED',position='APPEND')
+          end if
+          write(file_ID,'(I5,4E20.10)') i,contour_data%iftpoints(i),input_data%fplusz(i)
+        end do
+        call cpu_time(end_time)
+        elapsed_time = end_time - start_time
+        write(file_ID, *) 'Elapsed CPU time (seconds):', elapsed_time
+        close(file_ID)
+
+     end block
+    !$omp end parallel
+    
+    open(10,file='fplus.out',form='FORMATTED')
+    do i = 1, contour_data%tot_IFT_pts
+       write(10,'(I5,4E20.10)') i,contour_data%iftpoints(i),input_data%fplusz(i)
+     end do
+    close(10)
+
+
+  END SUBROUTINE compute_fplus
+
+
+END MODULE fplus_utils
+

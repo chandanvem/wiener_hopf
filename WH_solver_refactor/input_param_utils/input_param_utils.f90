@@ -37,6 +37,7 @@ module input_params
           complex(dpk)                               :: omega_r
           complex(dpk)                               :: k_minus_at_mu_plus, k_plus_sz1,k_plus_sz2, kpsp1
           real(dpk), allocatable, dimension(:)       :: phi  
+          complex(dpk), allocatable, dimension(:)   :: fplusz
 
           character(len=40) :: solution_mode
 

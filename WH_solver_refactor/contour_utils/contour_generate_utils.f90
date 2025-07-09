@@ -7,7 +7,7 @@ Module contour_generate_utils
   
   PRIVATE :: compute_kernel_contour, compute_IFT_contour,&
              initialize_contour,initsubdiv,combine,create_stretched_grid
-  PUBLIC  :: compute_contours 
+  PUBLIC  :: compute_contours, meshgrid 
 
 
   CONTAINS 
@@ -253,6 +253,68 @@ Module contour_generate_utils
 
   END SUBROUTINE create_stretched_grid
 
+  SUBROUTINE meshgrid(input_data)
+
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+!! 1. Define the physical mesh
+!! 2. Write the mesh in PLOT3D format
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+
+    real(dpk)     :: dsz, dsr
+    integer       :: i, j
+    
+    type(input_params_t) :: input_data
+
+    dsr = (input_data%Rmax - input_data%Rmin)/(input_data%Nmeshr - 1)
+    dsz = (input_data%Zmax - input_data%Zmin)/(input_data%Nmeshz - 1)
+
+    allocate(input_data%R(input_data%Nmeshr))
+    allocate(input_data%Z(input_data%Nmeshz))
+
+    input_data%R(1) = input_data%Rmin
+    input_data%R(input_data%Nmeshr) = input_data%Rmax
+    input_data%Z(1) = input_data%Zmin
+    input_data%Z(input_data%Nmeshz) = input_data%Zmax
+
+    do i = 1, input_data%Nmeshr-2
+       input_data%R(i+1) = input_data%R(i) + dsr
+    end do
+    do i = 1, input_data%Nmeshz-2
+       input_data%Z(i+1) = input_data%Z(i) + dsz
+    end do
+
+    print*,'meshgrid: Writing mesh grids to file mesh.out'
+    open(1,file='mesh.out',form='UNFORMATTED')
+    write(1) input_data%Nmeshz,input_data%Nmeshr
+    write(1) ((input_data%Z(i),i=1,input_data%Nmeshz),j=1,input_data%Nmeshr),((input_data%R(j),&
+         i=1,input_data%Nmeshz),j=1,input_data%Nmeshr)
+    close(1)
+
+   print*,'meshgrid: Writing mesh grids to file mesh.r'
+    open(20,file='mesh.r')
+    do i = 1, input_data%Nmeshr
+       write(20,'(I10,2X,F20.10)')  i, input_data%R(i)
+    end do
+    close(20)
+
+
+    print*,'meshgrid: Writing mesh grids to file mesh.z'
+    open(20,file='mesh.z')
+    do i = 1, input_data%Nmeshz
+       write(20,'(I10,2X,F20.10)') i, input_data%Z(i)
+    end do
+    close(20)
+
+    if (input_data%farswitch == 2) then
+       open(1,file='mesh_polar.out',form='UNFORMATTED')
+       write(1) input_data%Nphi,input_data%Nmeshr
+       write(1) ((input_data%phi(i),i=1,input_data%Nphi),j=1,input_data%Nmeshr),((input_data%R(j),&
+            i=1,input_data%Nphi),j=1,input_data%Nmeshr)
+       close(1)
+    end if
+
+
+  END SUBROUTINE meshgrid
 
 end module contour_generate_utils
 
