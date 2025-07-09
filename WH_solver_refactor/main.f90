@@ -6,6 +6,11 @@ PROGRAM main
   USE contour_init_utils
   USE omp_lib
   USE input_params
+  USE kernel_integral_utils
+  USE fplus_utils
+  USE user_defined_precompute
+  USE user_defined_functions  
+  USE user_defined_fplus
 
   IMPLICIT none
 
@@ -19,7 +24,7 @@ PROGRAM main
   
   call precompute(input_data,contour_data)
 
-  if ((farswitch == 1) .OR. (farswitch == 2)) then
+  if ((input_data%farswitch == 1) .OR. (input_data%farswitch == 2)) then
 
     print*,''
     print*,'solve: Near-field computation only:'
@@ -27,16 +32,11 @@ PROGRAM main
 
   else
 
-    call meshgrid
+    call meshgrid(input_data)
 
     print*,'solve: Now computing F+. This takes a while:'
-    call compute_fplus(restart,0)
-
-    print*,''
-    print*,'solve: Now starting the IFT:'
-    print*,''
-
-    call computeift
+    
+    call compute_fplus(input_data,contour_data)
 
   end if
 
