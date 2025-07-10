@@ -21,7 +21,6 @@ Module user_defined_precompute
 
     complex(dpk)          :: intgrl_A1_at_mu_plus, intgrl_A1_at_KH_zero_1, intgrl_A1_at_KH_zero_2, intgrl_at_sup_zero
     complex(dpk)         :: k_plus_at_mu_plus, f1, f2, f3
-    complex(dpk)          :: alpha1, alpha2
     integer               :: f, i1
     real(dpk)             :: PI
 
@@ -49,29 +48,29 @@ Module user_defined_precompute
           STOP
       end if
 
-       alpha1 = input_data%omega_r*SQRT((1._dpk - input_data%mu_plus*input_data%M1)**2 - (input_data%mu_plus)**2)
+      input_data%alpha1 = input_data%omega_r*SQRT((1._dpk - input_data%mu_plus*input_data%M1)**2 - (input_data%mu_plus)**2)
 
-       alpha2 = input_data%omega_r*SQRT(input_data%kapT**2*(1._dpk -&
+      input_data%alpha2 = input_data%omega_r*SQRT(input_data%kapT**2*(1._dpk -&
                                    ((input_data%mu_plus)*(input_data%M2)) )**2 - (input_data%mu_plus)**2)
 
        print*,'precompute: The radial wave numbers:'
-       write(*,'(/A12,2X,2F15.10)') ' alpha1:->', alpha1
-       write(*,'(A12,2X,2F15.10/)') ' alpha2:->', alpha2
+       write(*,'(/A12,2X,2F15.10)') ' alpha1:->', input_data%alpha1
+       write(*,'(A12,2X,2F15.10/)') ' alpha2:->', input_data%alpha2
 
 !! the factor \Psi_{mn}(1) of (3.30) [see the JFM]:
 
        f1 = ((1._dpk -input_data%mu_plus*input_data%M1)/(1._dpk - input_data%mu_plus*input_data%M2))
-       f1 = f1*bessj(alpha1*input_data%h,input_data%azim_mode,1)
-       f1 = f1*EXP(ABS(AIMAG(alpha1*input_data%h)))
+       f1 = f1*bessj(input_data%alpha1*input_data%h,input_data%azim_mode,1)
+       f1 = f1*EXP(ABS(AIMAG(input_data%alpha1*input_data%h)))
       
-       f2 = (bessj(alpha2,input_data%azim_mode,1)*dhank1(alpha2,input_data%azim_mode,1)- & 
-         hank1(alpha2,input_data%azim_mode,1)*dbessj(alpha2,input_data%azim_mode,1))* &
-         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2 + ABS(AIMAG(alpha2)))
+       f2 = (bessj(input_data%alpha2,input_data%azim_mode,1)*dhank1(input_data%alpha2,input_data%azim_mode,1)- & 
+         hank1(input_data%alpha2,input_data%azim_mode,1)*dbessj(input_data%alpha2,input_data%azim_mode,1))* &
+         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%alpha2 + ABS(AIMAG(input_data%alpha2)))
        
-       f3 = bessj(alpha2*input_data%h,input_data%azim_mode,1)*dhank1(alpha2,input_data%azim_mode,1)* &
-         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2 + ABS(AIMAG(alpha2*input_data%h)))- & 
-         hank1(alpha2*input_data%h,input_data%azim_mode,1)*dbessj(alpha2,input_data%azim_mode,1)* &
-         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*alpha2*input_data%h + ABS(AIMAG(alpha2)))
+       f3 = bessj(input_data%alpha2*input_data%h,input_data%azim_mode,1)*dhank1(input_data%alpha2,input_data%azim_mode,1)* &
+         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%alpha2 + ABS(AIMAG(input_data%alpha2*input_data%h)))- & 
+         hank1(input_data%alpha2*input_data%h,input_data%azim_mode,1)*dbessj(input_data%alpha2,input_data%azim_mode,1)* &
+         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%alpha2*input_data%h + ABS(AIMAG(input_data%alpha2)))
 
        input_data%psi = input_data%kap_rho*f1*f2/f3
        print*, 'precompute: Evaluated psi for the incident wave'

@@ -8,6 +8,7 @@ PROGRAM main
   USE input_params
   USE kernel_integral_utils
   USE fplus_utils
+  USE IFT_integral_utils
   USE user_defined_precompute
   USE user_defined_functions  
   USE user_defined_fplus
@@ -37,6 +38,13 @@ PROGRAM main
     print*,'solve: Now computing F+. This takes a while:'
     
     call compute_fplus(input_data,contour_data)
+
+    print*,''
+    print*,'solve: Now starting the IFT:'
+    print*,''
+
+    call computeift(input_data,contour_data)
+
 
   end if
 
