@@ -60,9 +60,9 @@ Module user_defined_precompute
 
 !! the factor \Psi_{mn}(1) of (3.30) [see the JFM]:
 
-       f1 = (1._dpk -( ( input_data%mu_plus)*(input_data%M1) ) /(1._dpk - (input_data%mu_plus)*(input_data%M2) )* &
-                                                          bessj(alpha1*(input_data%h),input_data%azim_mode,1) &
-                                                                                  *EXP(ABS(AIMAG(alpha1* input_data%h))))
+       f1 = ((1._dpk -input_data%mu_plus*input_data%M1)/(1._dpk - input_data%mu_plus*input_data%M2))
+       f1 = f1*bessj(alpha1*input_data%h,input_data%azim_mode,1)
+       f1 = f1*EXP(ABS(AIMAG(alpha1*input_data%h)))
       
        f2 = (bessj(alpha2,input_data%azim_mode,1)*dhank1(alpha2,input_data%azim_mode,1)- & 
          hank1(alpha2,input_data%azim_mode,1)*dbessj(alpha2,input_data%azim_mode,1))* &
