@@ -23,7 +23,7 @@ Module user_defined_functions
     integer       :: j, jj, ss
     type(input_params_t) :: input_data
 
-    u_s = (s_target-input_data%KH_pole_1)
+    u_s = (s_target-input_data%KH_zero_1)
 
   END FUNCTION compute_U_s_factor
 
@@ -102,14 +102,14 @@ Module user_defined_functions
 
   END FUNCTION bc
 
-  FUNCTION integrand_IFT_pot(ri,zi,i,ss,input_data,contour_data) result(integrandiftpot)
+  FUNCTION integrand_IFT_pot(ri,zi,i,stream_flag,input_data,contour_data) result(integrandiftpot)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the IFT integrand when computing for potential
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
     real(dpk)       :: ri, zi
-    integer         :: i, ss
+    integer         :: i, stream_flag
     complex(dpk)    :: u
     complex(dpk)    :: integrandiftpot
 
@@ -118,19 +118,19 @@ Module user_defined_functions
 
     u = contour_data%iftpoints(i)
 
-    if (ss==1) then
+    if (stream_flag==1) then
 
 !! potential:
 
-       integrandiftpot = ((1._dpk - u*input_data%M1)**2)
+       integrandiftpot = ((1._dpk - u*input_data%M1))
        integrandiftpot = integrandiftpot *compute_Trs(ri,u,1,input_data)*input_data%fplusz(i)* & 
                            EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
 
-    else if (ss==2) then
+    else if (stream_flag==2) then
 
 !! potential:
        
-       integrandiftpot = ((1._dpk - u*input_data%M2)**2)
+       integrandiftpot = ((1._dpk - u*input_data%M2))
        integrandiftpot = integrandiftpot*compute_Trs(ri,u,2,input_data)*input_data%fplusz(i)* &
                          EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
 
@@ -140,14 +140,14 @@ Module user_defined_functions
   END FUNCTION integrand_IFT_pot
 
 
-  FUNCTION integrand_IFT_pr(ri,zi,i,ss,input_data,contour_data) result(integrandiftpr)
+  FUNCTION integrand_IFT_pr(ri,zi,i,stream_flag,input_data,contour_data) result(integrandiftpr)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Compute the IFT integrand when computing for pressure
+!! 1. Compute the IFT integrand when computing for prestream_flagure
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
     real(dpk)       :: ri, zi
-    integer         :: i, ss
+    integer         :: i, stream_flag
     complex(dpk)    :: u
     complex(dpk)    :: integrandiftpr
 
@@ -156,16 +156,13 @@ Module user_defined_functions
 
     u = contour_data%iftpoints(i)
 
-    if (ss==1) then
-
-!! pressure:
+    if (stream_flag==1) then
 
        integrandiftpr = (1._dpk - u*input_data%M2)**2
        integrandiftpr = integrandiftpr*compute_Trs(ri,u,1,input_data)*input_data%fplusz(i)* & 
                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
-    else if (ss==2) then
 
-!! pressure:
+    else if (stream_flag==2) then
        
        integrandiftpr = (1._dpk - u*input_data%M2)**2
        integrandiftpr = integrandiftpr*compute_Trs(ri,u,2,input_data)*input_data%fplusz(i)* &
@@ -176,7 +173,7 @@ Module user_defined_functions
   END FUNCTION integrand_IFT_pr
 
 !
-  FUNCTION compute_Trs(ri,si,ss,input_data) result(Trs)
+  FUNCTION compute_Trs(ri,si,stream_flag,input_data) result(Trs)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute Trs of (3.33)
@@ -185,28 +182,55 @@ Module user_defined_functions
     real(dpk)     :: ri
     complex(dpk)  :: sri, Trs
     complex(dpk)  :: si
-    complex(dpk)  :: l1, l2
-    complex(dpk)  :: Fn, Fd, F, Rn, Rd, Rz
-    integer       :: ss
+    complex(dpk)  :: lambda1, lambda2
+    complex(dpk)  :: F1n, F1d, F2n, F2d, F1f, F2f
+    integer       :: stream_flag
   
     type(input_params_t)  :: input_data
 
-    l1 = sqrt(1._dpk - si*(input_data%M1+1._dpk))*sqrt(1._dpk - si*(input_data%M1-1._dpk))
+    lambda1 = sqrt(1._dpk - si*(input_data%M1+1._dpk))*sqrt(1._dpk - si*(input_data%M1-1._dpk))
 
-    l2 = sqrt(input_data%kapT - si*(input_data%kapT*input_data%M2+1._dpk))* &
-         sqrt(input_data%kapT - si*(input_data%kapT*input_data%M2-1._dpk))
+    lambda2 = sqrt(input_data%kapT - si*(input_data%kapT*input_data%M2+1._dpk))* &
+              sqrt(input_data%kapT - si*(input_data%kapT*input_data%M2-1._dpk))
 
-
-    if (ss==1) then
+    if (stream_flag==1) then
        
-       Trs = F/l2
+       if ((ABS(lambda_1*input_data%omega_r) < input_data%asymplim .AND.&
+           ABS(AIMAG(lambda_1*input_data%omega_r)) < input_data%asymplim1)) then
 
-    else if (ss==2) then
+          F1n =  bessj(lambda_1*input_data%omega_r,input_data%azim_mode,1)
+          F1d = dbessj(lambda_1*input_data%omega_r,input_data%azim_mode,1)
+          F1f = F1n/F1d
 
-      Trs = F/l2
+       else   ! asymtotic limit  ~ i
 
-    end if
+          F1f = CMPLX(0._dpk,1._dpk,kind=dpk)
+          
+       end if
 
+       Trs = F1f/lambda1
+
+   else if (stream_flag==2) then
+
+       if (ABS(lambda_2*input_data%omega_r) < input_data%asymplim .AND. &
+          ABS(AIMAG(lambda_2*input_data%omega_r)) < input_data%asymplim1) then
+      
+         F2n = hank1(lambda_2*input_data%omega_r,input_data%azim_mode,1)
+         F2d = dhank1(lambda_2*input_data%omega_r,input_data%azim_mode,1)
+         F2f = F2n/F2d
+       
+       else   ! asymtotic limit   
+
+         F2f = (8._dpk*lambda_2*input_data%omega_r +&
+               4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%azim_mode*input_data%azim_mode - &
+              CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*lambda_2*input_data%omega_r - &
+              4._dpk*input_data%azim_mode*input_data%azim_mode - 3._dpk)
+        
+       end if
+      
+       Trs = F2f/lambda2
+
+   end if
 
 
   END FUNCTION compute_Trs
@@ -224,96 +248,37 @@ Module user_defined_functions
    
     type(input_params_t) :: input_data
 
-    if (ss == 1) then
 
-      res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M2)/((input_data%mu_plus - input_data%KH_zero_1)* & 
-             input_data%k_minus_at_mu_plus*input_data%k_plus_sz1*(input_data%KH_zero_1 - input_data%KH_zero_2))
+    if (input_data%vs_param_gamma .EQ. 0) then
 
-       if (input_data%vortswitch .EQ. 0) then
-          do ii = 1, input_data%num_sup_zeros
-             res = res/(input_data%KH_zero_1 - input_data%sup_zeros_list(ii))
-          end do
-          do jj = 1, input_data%num_sup_poles
-             res = res*(input_data%KH_zero_1 - input_data%sup_poles_list(jj))
-          end do
-       end if
+       residuepot = 0.
+    
 
-       if (r <= input_data%h) then
-          fn = (1._dpk - input_data%KH_zero_1*input_data%M2)**2/(1._dpk - input_data%KH_zero_1*input_data%M1)*&
-                                                                        compute_Trs(r,input_data%KH_zero_1,1,input_data)
+    else 
 
-       else if (r <= 1. .AND. r > input_data%h) then
-          fn = (1._dpk - input_data%KH_zero_1*input_data%M2)*compute_Trs(r,input_data%KH_zero_1,2,input_data)
-       
-       else
-          fn = (1._dpk - input_data%KH_zero_1*input_data%M3)*compute_Trs(r,input_data%KH_zero_1,3,input_data)
-       end if
-       
-       residuepot = input_data%omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_1*z)*res*fn
-          
-          
-    elseif (ss == 2) then
+        res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)/((input_data%mu_plus - input_data%KH_zero_1)* & 
+                                                                 input_data%k_minus_at_mu_plus*input_data%k_plus_sz1)
 
-       res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M2)/((input_data%mu_plus - input_data%KH_zero_2)* &
-                            input_data%k_minus_at_mu_plus*input_data%k_plus_sz2*(input_data%KH_zero_2 - input_data%KH_zero_1))
+        if (input_data%vortswitch .EQ. 0) then
+         
+           if (r <= 1) then
+              fn = (1._dpk - (input_data%KH_zero_1*input_data%M1))*compute_Trs(r,input_data%KH_zero_1,1,input_data)
+           else
+              fn = (1._dpk - (input_data%KH_zero_1*input_data%M2))*compute_Trs(r,input_data%KH_zero_1,2,input_data)
 
-       if (input_data%vortswitch .EQ. 0) then
-          do ii = 1, input_data%num_sup_zeros
-             res = res/(input_data%KH_zero_1 - input_data%sup_zeros_list(ii))
-          end do
-          do jj = 1, input_data%num_sup_poles
-             res = res*(input_data%KH_zero_1 - input_data%sup_poles_list(jj))
-          end do
-       end if
-          
-       if (r <= input_data%h) then
-          fn = (1._dpk - input_data%KH_zero_2*input_data%M2)**2/ &
-               (1._dpk - input_data%KH_zero_2*input_data%M1)*compute_Trs(r,input_data%KH_zero_2,1,input_data)
-
-       else if (r <= 1. .AND. r > input_data%h) then
-          fn = (1._dpk - input_data%KH_zero_2*input_data%M2)*compute_Trs(r,input_data%KH_zero_2,2,input_data)
-       else
-          fn = (1._dpk - input_data%KH_zero_2*input_data%M3)*compute_Trs(r,input_data%KH_zero_2,3,input_data)
-       end if
-
-       residuepot = input_data%omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_2*z)*res*fn
-
-    else
-
-       res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M2)/((input_data%mu_plus - input_data%sup_zeros_list(ss-2))* &
-            input_data%k_minus_at_mu_plus*input_data%kzsp(ss-2)*(input_data%sup_zeros_list(ss-2) - input_data%KH_zero_1)* &
-               (input_data%sup_zeros_list(ss-2) - input_data%KH_zero_2))
-       do ii = 1, input_data%num_sup_zeros
-          if (ii .NE. (ss-2)) then
-             res = res/(input_data%sup_zeros_list(ss-2) - input_data%sup_zeros_list(ii))
-          end if
-       end do
-       do jj = 1, input_data%num_sup_poles
-          res = res*(input_data%sup_zeros_list(ss-2) - input_data%sup_poles_list(jj))
-       end do
-          
-       if (r <= input_data%h) then
-          fn = ((1._dpk - input_data%sup_zeros_list(ss-2)*input_data%M2)**2)/ &
-                                        (1._dpk - input_data%sup_zeros_list(ss-2)*input_data%M1)* &
-                                                    compute_Trs(r,input_data%sup_zeros_list(ss-2),1,input_data)
-       else if (r <= 1. .AND. r > input_data%h) then
-          fn = (1._dpk - input_data%sup_zeros_list(ss-2)*input_data%M2)*compute_Trs(r,input_data%sup_zeros_list(ss-2),2,input_data)
-       else
-          fn = (1._dpk - input_data%sup_zeros_list(ss-2)*input_data%M3)*compute_Trs(r,input_data%sup_zeros_list(ss-2),3,input_data)
-       end if
-
-       residuepot = input_data%omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%sup_zeros_list(ss-2)*z)*res*fn
-
-    end if
-
+        end if
+         
+        residuepot = input_data%omega_r*res*fn*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_1*z)
+        
+    end if      
     
   END FUNCTION residuepot
 
  
- FUNCTION residuepr(r,z,ss,input_data)
+  FUNCTION residuepr(r,z,ss,input_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Compute the residue pressure term of (3.38)
+!! 1. Same as above but for computing velocity potential
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
     real(dpk)            :: r, z
@@ -322,96 +287,31 @@ Module user_defined_functions
    
     type(input_params_t) :: input_data
 
-    if (ss == 1) then
 
-       res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M2)/((input_data%mu_plus-input_data%KH_zero_1)* &
-                             input_data%k_minus_at_mu_plus*input_data%k_plus_sz1*(input_data%KH_zero_1 - input_data%KH_zero_2))
+    if (input_data%vs_param_gamma .EQ. 0) then
 
+       residuepr = 0.
+    
 
-      if (input_data%vortswitch .EQ. 0) then
-          do ii = 1, input_data%num_sup_zeros
-             res = res/(input_data%KH_zero_1 - input_data%sup_zeros_list(ii))
-          end do
-          do jj = 1, input_data%num_sup_poles
-             res = res*(input_data%KH_zero_1 - input_data%sup_poles_list(jj))
-          end do
-       end if
+    else 
 
-       if (r <= input_data%h) then
-          fn = (1._dpk - input_data%KH_zero_1*input_data%M2)**2*compute_Trs(r,input_data%KH_zero_1,1,input_data)
-       else if (r <= 1. .AND. r > input_data%h) then
-          fn = (1._dpk - input_data%KH_zero_1*input_data%M2)**2*compute_Trs(r,input_data%KH_zero_1,2,input_data)
-       else
-          fn = (1._dpk - input_data%KH_zero_1*input_data%M3)**2*compute_Trs(r,input_data%KH_zero_1,3,input_data)
-       end if
-       
-       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-            input_data%omega_r*input_data%KH_zero_1*z)*res*fn
-          
+        res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)/((input_data%mu_plus - input_data%KH_zero_1)* & 
+                                                                 input_data%k_minus_at_mu_plus*input_data%k_plus_sz1)
+
+        if (input_data%vortswitch .EQ. 0) then
          
-    elseif (ss == 2) then
+           if (r <= 1) then
+              fn = (1._dpk -(input_data%KH_zero_1*input_data%M1))*compute_Trs(r,input_data%KH_zero_1,1,input_data)
+           else
+              fn = (1._dpk -(input_data%KH_zero_1*input_data%M2))*compute_Trs(r,input_data%KH_zero_1,2,input_data)
 
-
-      res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M2)/((input_data%mu_plus - input_data%KH_zero_2)* &
-                    input_data%k_minus_at_mu_plus*input_data%k_plus_sz2*(input_data%KH_zero_2 - input_data%KH_zero_1))
-
-       if (input_data%vortswitch .EQ. 0) then
-
-          do ii = 1, input_data%num_sup_zeros
-             res = res/(input_data%KH_zero_2 - input_data%sup_zeros_list(ii))
-          end do
-          do jj = 1, input_data%num_sup_poles
-             res = res*(input_data%KH_zero_2 - input_data%sup_poles_list(jj))
-          end do
-       end if
-          
-       if (r <= input_data%h) then
-          fn = (1._dpk - input_data%KH_zero_2*input_data%M2)**2*compute_Trs(r,input_data%KH_zero_2,1,input_data)
-       else if (r <= 1. .AND. r > input_data%h) then
-          fn = (1._dpk - input_data%KH_zero_2*input_data%M2)**2*compute_Trs(r,input_data%KH_zero_2,2,input_data)
-       else
-          fn = (1._dpk - input_data%KH_zero_2*input_data%M3)**2*compute_Trs(r,input_data%KH_zero_2,3,input_data)
-       end if
-
-       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-            input_data%omega_r*input_data%KH_zero_2*z)*res*fn
-
-    else
-
-      res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M2)/((input_data%mu_plus - input_data%sup_zeros_list(ss-2))* &
-            input_data%k_minus_at_mu_plus*input_data%kzsp(ss-2)*(input_data%sup_zeros_list(ss-2) -input_data%KH_zero_1)* &
-              (input_data%sup_zeros_list(ss-2) - input_data%KH_zero_2)) 
-
-
-      do ii = 1, input_data%num_sup_zeros
-          if (ii .NE. (ss-2)) then
-             res = res/(input_data%sup_zeros_list(ss-2) - input_data%sup_zeros_list(ii))
-          end if
-       end do
-
-       do jj = 1, input_data%num_sup_poles
-          res = res*(input_data%sup_zeros_list(ss-2) - input_data%sup_poles_list(jj))
-       end do
-          
-       if (r <= input_data%h) then
-          fn =( (1._dpk - input_data%sup_zeros_list(ss-2)*input_data%M2)**2) * &
-                             compute_Trs(r,input_data%sup_zeros_list(ss-2),1,input_data)
-       else if (r <= 1. .AND. r > input_data%h) then
-          fn = ((1._dpk - input_data%sup_zeros_list(ss-2)*input_data%M2)**2) * &
-                          compute_Trs(r,input_data%sup_zeros_list(ss-2),2,input_data)
-       else
-          fn = ((1._dpk - input_data%sup_zeros_list(ss-2)*input_data%M3)**2)* &
-                         compute_Trs(r,input_data%sup_zeros_list(ss-2),3,input_data)
-       end if
-
-       residuepr = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%omega_r*EXP(CMPLX(0.,1._dpk,kind=dpk)* &
-            input_data%omega_r*input_data%sup_zeros_list(ss-2)*z)*res*fn
-
-   end if
-
+        end if
+         
+        residuepr = input_data%omega_r*res*fn*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_1*z)
+        
+    end if      
     
   END FUNCTION residuepr
-
 
  FUNCTION compute_psi_incident(r,z,ss,input_data) result(psi0)
 
