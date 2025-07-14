@@ -53,21 +53,32 @@ Module io_utils
         PRINT '(A, I1, A)', &
                       ' vortswitch = (', input_data%vortswitch, ')'
 
+        read(10,*) input_data%num_of_streams  !!
+
         read(10,*) input_data%M1  !! core jet Mach number
         read(10,*) input_data%M2  !! coflow Mach number
-        read(10,*) input_data%M3  !! ambient flow Mach number
 
-        PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2, A)', &
+        if (input_data%num_of_streams .EQ. 3) then
+             read(10,*) input_data%M3  !! ambient flow Mach number
+             PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2, A)', &
                        ' (M1, M2, M3) = (',input_data%M1, input_data%M2, input_data%M3, ')'
-
-
-        read(10,*) input_data%h   !! the width of the core jet, h = Ri/Ro
+        else
+            PRINT '(A, F8.2, ", ", F8.2, A)', &
+                       ' (M1, M2) = (',input_data%M1, input_data%M2, ')'
+        end if
+   
 
         if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
            read(10,*) input_data%Zo  !! starting point of inc instability (-ve)
         end if
 
-        read(10,*) input_data%w0  !! the Helmholtz number
+        read(10,*) input_data%St_flag
+        read(10,*) input_data%omega_st
+
+        if (input_data%St_flag == 1 ) then
+            input_data%w0 = PI*input_data%M1*input_data%omega_st  ! Helmholtz number 
+        end if
+
         read(10,*) input_data%kapT  !! sqrt(temp ratio)
         read(10,*) input_data%kap_rho  !! density ratio
         read(10,*) input_data%azim_mode  !! the circumferential mode no
@@ -79,15 +90,17 @@ Module io_utils
 
         read(10,*) input_data%KH_zero_1
         print*, 'initialize:  KH_zero_1 (First instability zero) =', input_data%KH_zero_1
+ 
+        if (input_data%num_of_streams .EQ. 3) then
+
+          read(10,*) input_data%KH_zero_2
+          print*, 'initialize:  KH_zero_2 (Second instability zero) =', input_data%KH_zero_2
 
 
-        read(10,*) input_data%KH_zero_2
-        print*, 'initialize:  KH_zero_2 (Second instability zero) =', input_data%KH_zero_2
-
-
-        read(10,*) input_data%KH_pole_1
-        print*, 'initialize:  KH_pole_1 (Instability pole) =', input_data%KH_pole_1
-
+          read(10,*) input_data%KH_pole_1
+          print*, 'initialize:  KH_pole_1 (Instability pole) =', input_data%KH_pole_1
+         
+        end if
 
         if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
                    read(10,*)input_data%mu0  !! upstream inc acoustic mode
@@ -180,10 +193,10 @@ Module io_utils
         print*,'=============================='
 
         read(10,*) input_data%asymplim
-        print*,'initialize:  Asymptotic limit of ??? = ',input_data%asymplim
+        print*,'initialize:  Asymptotic limit of bess/dbess = ',input_data%asymplim
 
         read(10,*) input_data%asymplim1
-        print*,'initialize:  Asymptotic limit of ??? = ',input_data%asymplim1
+        print*,'initialize:  Asymptotic limit of hank/dhank = ',input_data%asymplim1
 
         read(10,*) input_data%vs_param_gamma  !! Default = 1.0 (0,1)
         print*,'initialize:  Vortex shedding parameter gamma = ',input_data%vs_param_gamma 

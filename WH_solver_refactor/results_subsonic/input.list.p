@@ -1,25 +1,21 @@
 0                                        vortswitch
-2.5                                      M1
-0.2                                      M2
-0.1                                      M3
-0.75                                     h
-8.0                                      w0
+2                                        num_of_streams
+0.9                                      M1
+1E-10                                    M2
+1.0                                      h
+1                                        St_flag
+1.7                                      omega_st
 1.0                                      kapT
 1.0                                      kap_rho
 0.0                                      azim_mode
 (0.6269202054,-0.1925527802)             KH_zero_1
-(5.9843175176,-1.9897087395)             KH_zero_2
-(0.4403812559,-0.1073787548)             KH_pole_1
 (0.2481691030,0.)                        mu_plus
 1.0e-3                                   offset
 1.0e-4                                   tol
 0                                        num_zeros_s1_s2
 0                                        num_poles_s1_s2
-2                                        num_sup_zeros
-1                                        num_sup_poles
-(0.7078811961,-0.0376876241)             
-(0.8639042425,-0.0238236257)             
-(0.8450817607,-0.0845733677)            
+0                                        num_sup_zeros
+0                                        num_sup_poles
 300                                      num_ker_pts_loop
 6.0                                      theta
 1000                                     num_IFT_pts_loop

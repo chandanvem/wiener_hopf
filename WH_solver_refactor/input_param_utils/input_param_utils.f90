@@ -15,11 +15,13 @@ module input_params
           integer                                    :: Nphi  !! polar mesh resolution for directivity computation
           complex(dpk), allocatable, dimension(:)    :: zeros_list_bw_s1_s2, poles_list_bw_s1_s2, sup_zeros_list, sup_poles_list
           complex(dpk), allocatable, dimension(:)    :: kzsp
+          integer                                    :: num_of_streams, St_flag
           real(dpk)                                  :: M1, M2, M3
           real(dpk)                                  :: h
           real(dpk)                                  :: kapT  !! sqrt(T1/T0)
           real(dpk)                                  :: kap_rho  !! rho1/rho0
-          real(dpk)                                  :: theta,  w0, offset
+          real(dpk)                                  :: theta,  offset
+          real(dpk)                                  :: omega_st, w0
           real(dpk)                                  :: Rmax, Rmin, Zmin, Zmax !! dimensions of the physical domain
           real(dpk), allocatable, dimension(:)       :: R, Z
           integer                                    :: Nmeshr, Nmeshz !! 400X400 -> Seg Fault!!
@@ -53,7 +55,6 @@ module input_params
           integer                                    :: total_ker_points,tot_IFT_pts 
           complex(dpk), allocatable, dimension(:)    :: ker_int_points  !!location of the starting pts
           complex(dpk), allocatable, dimension(:)    :: iftpoints  
-
 
      end type contour_params_t
 
