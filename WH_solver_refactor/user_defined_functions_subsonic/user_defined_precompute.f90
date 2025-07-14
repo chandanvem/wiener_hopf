@@ -53,7 +53,7 @@ Module user_defined_precompute
 !! the factor \Psi_{mn}(1) of (3.30) [see the JFM]:
 
        f1 = bessj(input_data%alpha1,input_data%azim_mode,1)
-       f1 = f1*EXP(ABS(AIMAG(input_data%alpha1*input_data%h)))
+       f1 = f1*EXP(ABS(AIMAG(input_data%alpha1)))
       
        input_data%psi = f1
        print*, 'precompute: Evaluated psi for the incident wave'
@@ -98,17 +98,7 @@ Module user_defined_precompute
    !    write(*,'(/A22,2X,2F20.10/)') 'Integral at KH zero 1:->', intgrl_A1_at_KH_zero_1
 
     end if
-!!  the factor K^{+}(s_{z2}):
-
-    print*, 'precompute: Evaluating Kt^{+}(s_{z2}) at KH_zero_2'
-    call compute_eqn_A1_integral(input_data%KH_zero_2,intgrl_A1_at_KH_zero_2,0,0,1,input_data,contour_data)
-
-    input_data%k_plus_sz2 = EXP(-intgrl_A1_at_KH_zero_2/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! same for KH_zero_2
-
-  !  write(*,'(/A22,2X,2F20.10/)') 'Integral at KH zero 2:->', intgrl_A1_at_KH_zero_2
-
-
-
+  
   END SUBROUTINE precompute
 
 END MODULE user_defined_precompute 
