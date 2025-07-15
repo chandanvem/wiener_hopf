@@ -72,6 +72,8 @@ Module io_utils
            read(10,*) input_data%Zo  !! starting point of inc instability (-ve)
         end if
 
+        read(10,*) input_data%h
+        
         read(10,*) input_data%St_flag
         read(10,*) input_data%omega_st
 

@@ -122,75 +122,56 @@ Module contour_init_utils
 !! since we use the residue theorem to compute them anyway:
 
       call check_location_wrt_contour(input_data%KH_zero_1,i1,contour_data) 
-      call check_location_wrt_contour(input_data%KH_zero_2,i2,contour_data)
-      call check_location_wrt_contour(input_data%KH_pole_1,i3,contour_data)
+      if (i1==0) print*, 'initialize: Zero1 is inside'
 
-!! if any of them lie inside ask to redefine the contour:
+      if (input_data%num_of_streams .EQ. 3) then
+        call check_location_wrt_contour(input_data%KH_zero_2,i2,contour_data)
+        if (i2==0) print*, 'initialize: Zero2 is inside'
 
-     if (input_data%vortswitch .EQ. 0) then
+        call check_location_wrt_contour(input_data%KH_pole_1,i3,contour_data)
+        if (i3==0) print*, 'initialize: Pole1 is inside'
 
-       if(i1==0 .OR. i2==0 .OR. i3==0) then
-          print*,''
-          print*,'initialize: Redefine the contour: One of instability zero/pole is INSIDE!'
-          print*,''
-          if (i1==0) print*, 'initialize: Zero1 is inside'
-          if (i2==0) print*, 'initialize: Zero2 is inside'
-          if (i3==0) print*, 'initialize: Pole1 is inside'
-          print*,''
-          STOP
-       end if
+      end if
 
-    else
+      if (input_data%num_sup_zeros .GT. 1) then
+        do i1 = 1, input_data%num_sup_zeros
+           call check_location_wrt_contour(input_data%sup_zeros_list(i1),i2,contour_data)
+           if (input_data%vortswitch .EQ. 0) then
+              if(i2 == 0) then
+                 print*,''
+                 print*,'initialize: Redefine the contour: The following supersonic zero is inside:'
+                 print*,input_data%sup_zeros_list(i1)
+              end if
+           else
+              if(i2 == 1) then
+                 print*,''
+                 print*,'initialize: Redefine the contour: The following supersonic zero is outside:'
+                 print*,input_data%sup_zeros_list(i1)
+              end if
+           end if
+        end do
+     end if
 
-       if(i1==1 .OR. i2==0 .OR. i3==1) then
-          print*,''
-          print*,'initialize: Redefine the contour:'
-          print*,''
-          if (i1==1) print*, 'initialize: Zero1 is outside'
-          if (i2==0) print*, 'initialize: Zero2 is inside'
-          if (i3==1) print*, 'initialize: Pole1 is outside'
-          print*,''
-          STOP
-       end if
-
+    if (input_data%num_sup_poles .GT. 1) then
+      do i1 = 1, input_data%num_sup_poles
+         call check_location_wrt_contour(input_data%sup_poles_list(i1),i2,contour_data)
+         if (input_data%vortswitch .EQ. 0) then
+            if(i2 == 0) then
+               print*,''
+               print*,'initialize: Redefine the contour: The following supersonic pole is inside:'
+               print*,input_data%sup_poles_list(i1)
+            end if
+         else
+            if(i2 == 1) then
+              print*,''
+              print*,'initialize: Redefine the contour: The following supersonic pole is outside:'
+              print*,input_data%sup_poles_list(i1)
+            end if
+         end if
+      end do
     end if
 
-    do i1 = 1, input_data%num_sup_zeros
-       call check_location_wrt_contour(input_data%sup_zeros_list(i1),i2,contour_data)
-       if (input_data%vortswitch .EQ. 0) then
-          if(i2 == 0) then
-             print*,''
-             print*,'initialize: Redefine the contour: The following supersonic zero is inside:'
-             print*,input_data%sup_zeros_list(i1)
-          end if
-       else
-          if(i2 == 1) then
-             print*,''
-             print*,'initialize: Redefine the contour: The following supersonic zero is outside:'
-             print*,input_data%sup_zeros_list(i1)
-          end if
-       end if
-    end do
-
-    do i1 = 1, input_data%num_sup_poles
-       call check_location_wrt_contour(input_data%sup_poles_list(i1),i2,contour_data)
-       if (input_data%vortswitch .EQ. 0) then
-          if(i2 == 0) then
-             print*,''
-             print*,'initialize: Redefine the contour: The following supersonic pole is inside:'
-             print*,input_data%sup_poles_list(i1)
-          end if
-       else
-          if(i2 == 1) then
-            print*,''
-            print*,'initialize: Redefine the contour: The following supersonic pole is outside:'
-            print*,input_data%sup_poles_list(i1)
-          end if
-       end if
-    end do
-
-
-     END SUBROUTINE check_location_of_zeros_poles 
+    END SUBROUTINE check_location_of_zeros_poles 
 
      SUBROUTINE check_location_wrt_contour(z,switch,contour_data)
 

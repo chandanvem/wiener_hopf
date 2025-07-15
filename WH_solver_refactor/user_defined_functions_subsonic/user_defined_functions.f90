@@ -341,10 +341,7 @@ Module user_defined_functions
         
           print*,'Incident wave has to be an pipe mode of the nozzle  '
           STOP
-      end if
-
     
-
     else
 
        if (stream_idx == 1) then
@@ -353,8 +350,8 @@ Module user_defined_functions
          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*(1._dpk - input_data%M1*input_data%mu_plus)* &
               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%mu_plus*z)
 
-
        else
+
           psi0 = 0.
 
        end if
