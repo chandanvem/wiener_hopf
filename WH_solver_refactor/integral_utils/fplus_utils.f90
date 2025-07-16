@@ -6,7 +6,7 @@ MODULE fplus_utils
  
   IMPLICIT NONE
 
-  PUBLIC  :: compute_fplus
+  PUBLIC  :: compute_fplus, read_fplus
 
   CONTAINS
 
@@ -67,6 +67,42 @@ MODULE fplus_utils
 
 
   END SUBROUTINE compute_fplus
+
+
+  SUBROUTINE read_fplus(input_data,contour_data)
+
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+!! 1. Use the computed F^{+} in case running a restart job
+!! 2. Note that restarting is only possible during the "computing F+" portion
+!! 3. If a job exits during (R,Z) computation, a "restart" just starts the job
+!back at (R=0,Z=0)
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+
+    integer          :: i, j, dummy1
+    real(dpk)        :: dummy2, dummy3, fplus_real,fplus_imag
+  
+    type(input_params_t) :: input_data
+    type(contour_params_t) :: contour_data
+
+
+    allocate(input_data%fplusz(contour_data%tot_IFT_pts))  !! fplus is same as \xi^{+}(s) of (3.30)
+    input_data%fplusz = (0._dpk,0._dpk)
+
+    open(10,file='fplus.out',form='FORMATTED')
+    do i = 1, contour_data%tot_IFT_pts
+       read(10,'(I5,4E20.10)') dummy1,dummy2,dummy3,fplus_real,fplus_imag
+       input_data%fplusz(i) = fplus_real + CMPLX(0._dpk,1._dpk,kind=dpk)*fplus_imag
+    end do
+    close(10)
+
+    do i = 1, contour_data%tot_IFT_pts
+       print*, 'F+ at:', contour_data%iftpoints(i)
+       write(*,'(A22,2X,2F20.10/)') 'F+:->',input_data%fplusz(i)
+    end do
+
+    close(10)
+
+  END SUBROUTINE read_fplus
 
 
 END MODULE fplus_utils

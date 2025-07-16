@@ -2,7 +2,7 @@ Module user_defined_functions
 
   USE input_params
   USE bessel_utils
-  
+  USE io_utils  
 
   IMPLICIT NONE
 
@@ -111,7 +111,7 @@ Module user_defined_functions
 
 
 
-  FUNCTION integrand_IFT_pot(ri,zi,ift_contour_idx,stream_idx,input_data,contour_data) result(integrandiftpot)
+  FUNCTION integrand_IFT_pot(ri,zi,ift_contour_idx,input_data,contour_data) result(integrandiftpot)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the IFT integrand when computing for potential
@@ -124,6 +124,13 @@ Module user_defined_functions
 
     type(input_params_t)   :: input_data
     type(contour_params_t) :: contour_data
+
+
+    if (ri .LE. 1) then 
+       stream_idx = 1
+    else
+       stream_idx = 2
+    end if
 
     u = contour_data%iftpoints(ift_contour_idx)
 
@@ -152,7 +159,7 @@ Module user_defined_functions
 
 
 
-  FUNCTION integrand_IFT_pr(ri,zi,ift_contour_idx,stream_idx,input_data,contour_data) result(integrandiftpr)
+  FUNCTION integrand_IFT_pr(ri,zi,ift_contour_idx,input_data,contour_data) result(integrandiftpr)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the IFT integrand when computing for prestream_idxure
@@ -167,6 +174,12 @@ Module user_defined_functions
     type(contour_params_t) :: contour_data
 
     u = contour_data%iftpoints(ift_contour_idx)
+
+    if (ri .LE. 1) then 
+       stream_idx = 1
+    else
+       stream_idx = 2
+    end if
 
     if (stream_idx==1) then
 
@@ -198,9 +211,12 @@ Module user_defined_functions
     complex(dpk)  :: lambda1, lambda2
     complex(dpk)  :: F1n, F1d, F2n, F2d, F1f, F2f
     integer       :: stream_idx
-  
+    logical       :: NAN_flag 
+
     type(input_params_t)  :: input_data
 
+    NAN_flag = .false.
+ 
     lambda1 = sqrt(1._dpk - si*(input_data%M1+1._dpk))*sqrt(1._dpk - si*(input_data%M1-1._dpk))
 
     lambda2 = sqrt(input_data%kapT - si*(input_data%kapT*input_data%M2+1._dpk))* &
@@ -208,8 +224,7 @@ Module user_defined_functions
 
     if (stream_idx==1) then
        
-       if ((ABS(lambda1*input_data%omega_r) < input_data%asymplim .AND.&
-           ABS(AIMAG(lambda1*input_data%omega_r)) < input_data%asymplim1)) then
+       if (ABS(lambda1*input_data%omega_r) < input_data%asymplim) then
 
           F1n =  bessj(lambda1*input_data%omega_r,input_data%azim_mode,1)
           F1d = dbessj(lambda1*input_data%omega_r,input_data%azim_mode,1)
@@ -225,8 +240,7 @@ Module user_defined_functions
 
    else if (stream_idx==2) then
 
-       if (ABS(lambda2*input_data%omega_r) < input_data%asymplim .AND. &
-          ABS(AIMAG(lambda2*input_data%omega_r)) < input_data%asymplim1) then
+       if ( ABS(AIMAG(lambda2*input_data%omega_r)) < input_data%asymplim1) then
       
          F2n = hank1(lambda2*input_data%omega_r,input_data%azim_mode,1)
          F2d = dhank1(lambda2*input_data%omega_r,input_data%azim_mode,1)
@@ -243,6 +257,13 @@ Module user_defined_functions
       
        Trs = F2f/lambda2
 
+   end if
+
+   call check_NAN(Trs,NAN_flag)
+
+   if(NAN_flag) then
+      print*,'compute_Trs_lambda: NAN found at s = ', si
+      STOP
    end if
 
 
@@ -324,7 +345,7 @@ Module user_defined_functions
     
   END FUNCTION residuepr
 
- FUNCTION compute_psi_incident(r,z,stream_idx,input_data) result(psi0)
+ FUNCTION compute_psi_incident(r,z,input_data) result(psi0)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the \Psi_{mn}(r) of (2.14) or (4.11)
@@ -336,6 +357,12 @@ Module user_defined_functions
     integer             :: stream_idx
 
     type(input_params_t) :: input_data
+
+    if (r .LE. 1) then 
+       stream_idx = 1
+    else
+       stream_idx = 2
+    end if
 
     if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
         
@@ -361,59 +388,6 @@ Module user_defined_functions
 
   END FUNCTION compute_psi_incident
 
-
-  FUNCTION compute_Trs_lambda_instab(ri,si,ss,input_data)  result(Trsin)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Compute Trs of (4.8)
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    real(dpk)     :: ri
-    complex(dpk)  :: sri, Trsin
-    complex(dpk)  :: si
-    complex(dpk)  :: l1, l2
-    complex(dpk)  :: Fn, Fd, F
-    integer       :: ss
-
-    type(input_params_t) :: input_data
-
-
-    l1 = sqrt(1._dpk - si*(input_data%M1+1._dpk))*sqrt(1._dpk - si*(input_data%M1-1._dpk))
-    l2 = sqrt(1._dpk - si*(input_data%M2+1._dpk))*sqrt(1._dpk - si*(input_data%M2-1._dpk))
-
-
-    if (ss==1) then
-       
-       Fn = bessj(l1*input_data%omega_r*ri,input_data%azim_mode,1)*EXP(ABS(AIMAG(l1*input_data%omega_r*ri)))
-       Fd = dbessj(l1*input_data%omega_r*input_data%h,input_data%azim_mode,1)*EXP(ABS(AIMAG(l1*input_data%omega_r*input_data%h)))
-       
-       F = Fn/Fd
-
-       Trsin = F/l1
-
-    else
-
-       Fn = dhank1(l2*input_data%omega_r,input_data%azim_mode,1)*bessj(l2*input_data%omega_r*ri,input_data%azim_mode,1)* &
-                                                                              EXP(ABS(AIMAG(l2*input_data%omega_r*ri))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*input_data%omega_r) - dbessj(l2*input_data%omega_r,input_data%azim_mode,1)* &
-                                                  hank1(l2*input_data%omega_r*ri,input_data%azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*input_data%omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*input_data%omega_r*ri)
-
-       Fd = dhank1(l2*input_data%omega_r,input_data%azim_mode,1)* &
-                                   dbessj(l2*input_data%omega_r*input_data%h,input_data%azim_mode,1)* &
-                                              EXP(ABS(AIMAG(l2*input_data%omega_r*input_data%h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*input_data%omega_r) - dbessj(l2*input_data%omega_r,input_data%azim_mode,1)* &
-                                                   dhank1(l2*input_data%omega_r*input_data%h,input_data%azim_mode,1)* &
-            EXP(ABS(AIMAG(l2*input_data%omega_r))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*input_data%omega_r*input_data%h)
-       
-       F = Fn/Fd
-
-       Trsin = F/l2
-
-    end if
-       
-
-  END FUNCTION compute_Trs_lambda_instab
 
 end module user_defined_functions
 

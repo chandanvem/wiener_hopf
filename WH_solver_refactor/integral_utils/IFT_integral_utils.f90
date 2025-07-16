@@ -27,7 +27,7 @@ Module IFT_integral_utils
       complex(dpk), allocatable, dimension(:,:)     ::  acoupressure,totpressure, &
                                                        inspressure1,inspressure2,initpressure
 
-      integer                                       :: i,j,k,f
+      integer                                       :: i,j,k,f, IFT_pt_idx
       integer                                       :: switch
       character(60)                                 :: pos, supind
 
@@ -43,7 +43,11 @@ Module IFT_integral_utils
       allocate(pressure(input_data%Nmeshr,input_data%Nmeshz))
       allocate(acoupressure(input_data%Nmeshr,input_data%Nmeshz))
       allocate(inspressure1(input_data%Nmeshr,input_data%Nmeshz))
-      allocate(inspressure2(input_data%Nmeshr,input_data%Nmeshz))
+
+      if (input_data%num_of_streams == 3) then
+         allocate(inspressure2(input_data%Nmeshr,input_data%Nmeshz))
+      end if
+
       allocate(totpressure(input_data%Nmeshr,input_data%Nmeshz))
       allocate(initpressure(input_data%Nmeshr,input_data%Nmeshz))
 
@@ -60,15 +64,11 @@ Module IFT_integral_utils
 
   !! different parts of the physical domain has separate formulae, so check:
 
-            if (input_data%R(i) <= input_data%h) switch = 1
-            if ((input_data%R(i) > input_data%h) .AND. (input_data%R(i) <= 1.)) switch = 2
-            if (input_data%R(i) > 1.) switch = 3
-
             write(pos,"('R=',F10.5,'Z=',F10.5)") input_data%R(i),input_data%Z(j)
 
-            do k = 1, contour_data%tot_IFT_pts-1
+            do IFT_pt_idx = 1, contour_data%tot_IFT_pts-1
 
-               call IFT_trapz_int(input_data%R(i),input_data%Z(j),k,switch,pr(k), &
+               call IFT_trapz_int(input_data%R(i),input_data%Z(j),IFT_pt_idx,pr(IFT_pt_idx), &
                                                              input_data,contour_data)
                
             end do
@@ -91,21 +91,26 @@ Module IFT_integral_utils
                   inspressure1(i,j) = residuepot(input_data%R(i),input_data%Z(j),1,input_data)  !! inner instability wave 
                end if
 
-               inspressure2(i,j) = residuepot(input_data%R(i),input_data%Z(j),2,input_data)  !! outer instability wave
+               if (input_data%num_of_streams .EQ. 3) then
+                   inspressure2(i,j) = residuepot(input_data%R(i),input_data%Z(j),2,input_data)  !! outer instability wave
+               end if
 
-               if (input_data%vortswitch .EQ. 0) then
+               if (input_data%vortswitch .EQ. 0  .AND. input_data%num_sup_zeros .GE. 1) then
                   do k = 1, input_data%num_sup_zeros
                      supinspressure(k,i,j) = residuepot(input_data%R(i),input_data%Z(j),k+2,input_data)
                   end do
                end if
                
                if (input_data%vortswitch .EQ. 0) then
-                  totpressure(i,j) = acoupressure(i,j) + inspressure1(i,j) + inspressure2(i,j)  !! total part 
+                  totpressure(i,j) = acoupressure(i,j) + inspressure1(i,j)  !! total part 
+                  if (input_data%num_of_streams .EQ. 3) then
+                    totpressure(i,j) =  totpressure(i,j)  + inspressure2(i,j) 
+                  end if
                else
                   totpressure(i,j) = acoupressure(i,j) + inspressure2(i,j)
                end if
 
-               if (input_data%vortswitch .EQ. 0) then
+               if (input_data%vortswitch .EQ. 0 .AND. input_data%num_sup_zeros .GE. 1) then
                   do k = 1, input_data%num_sup_zeros
                      totpressure(i,j) = totpressure(i,j) + supinspressure(k,i,j)
                   end do
@@ -122,7 +127,7 @@ Module IFT_integral_utils
                else
 
                   pressure(i,j) = input_data%omega_r*input_data%omega_r/(2._dpk*PI)*prsum(i,j) + &
-                                   compute_psi_incident(input_data%R(i),input_data%Z(j),switch,input_data) 
+                                   compute_psi_incident(input_data%R(i),input_data%Z(j),input_data) 
                                                   !! the incident wave added
 
                end if
@@ -133,21 +138,26 @@ Module IFT_integral_utils
                   inspressure1(i,j) = residuepr(input_data%R(i),input_data%Z(j),1,input_data)  !! inner instability wave
                end if
 
-               inspressure2(i,j) = residuepr(input_data%R(i),input_data%Z(j),2,input_data)  !! outer instability wave
+               if (input_data%num_of_streams .EQ. 3) then
+                    inspressure2(i,j) = residuepr(input_data%R(i),input_data%Z(j),2,input_data)  !! outer instability wave
+               end if
 
-               if (input_data%vortswitch .EQ. 0) then
+               if (input_data%vortswitch .EQ. 0 .AND. input_data%num_sup_zeros .GE. 1) then
                   do k = 1, input_data%num_sup_zeros
                      supinspressure(k,i,j) = residuepr(input_data%R(i),input_data%Z(j),k+2,input_data)
                   end do
                end if
-
+   
                if (input_data%vortswitch .EQ. 0) then
-                  totpressure(i,j) = acoupressure(i,j) + inspressure1(i,j) + inspressure2(i,j)  !! total part
+                  totpressure(i,j) = acoupressure(i,j) + inspressure1(i,j)  !! total part 
+                  if (input_data%num_of_streams .EQ. 3) then
+                    totpressure(i,j) =  totpressure(i,j)  + inspressure2(i,j) 
+                  end if
                else
                   totpressure(i,j) = acoupressure(i,j) + inspressure2(i,j)
                end if
 
-               if (input_data%vortswitch .EQ. 0) then
+               if (input_data%vortswitch .EQ. 0 .AND. input_data%num_sup_zeros .GE. 1) then
                   do k = 1, input_data%num_sup_zeros
                      totpressure(i,j) = totpressure(i,j) + supinspressure(k,i,j)
                   end do
@@ -157,7 +167,7 @@ Module IFT_integral_utils
 
             end if
 
-            initpressure(i,j) = compute_psi_incident(input_data%R(i),input_data%Z(j),switch,input_data)  !! the incident wave
+            initpressure(i,j) = compute_psi_incident(input_data%R(i),input_data%Z(j),input_data)  !! the incident wave
             
             print*,''
             
@@ -187,13 +197,16 @@ Module IFT_integral_utils
          write(1) ((REAL(inspressure1(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
          close(1)   
       end if
-      
-      open(1,file='instabilitypr2.out',form='UNFORMATTED')
-      write(1) input_data%Nmeshz,input_data%Nmeshr,1
-      write(1) ((REAL(inspressure2(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
-      close(1)  
+   
 
-      if (input_data%vortswitch .EQ. 0) then
+      if (input_data%num_of_streams .EQ. 0) then
+          open(1,file='instabilitypr2.out',form='UNFORMATTED')
+          write(1) input_data%Nmeshz,input_data%Nmeshr,1
+          write(1) ((REAL(inspressure2(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+          close(1)  
+      end if
+
+      if (input_data%vortswitch .EQ. 0 .AND. input_data%num_sup_zeros .GE. 1) then
          do k = 1, input_data%num_sup_zeros
             write(supind,"(I1)") k
             open(1,file='supinstabilitypr.out.'//supind,form='UNFORMATTED')
@@ -214,36 +227,35 @@ Module IFT_integral_utils
       
     END SUBROUTINE computeift
 
-SUBROUTINE IFT_trapz_int(r,z,i,ss,Int,input_data,contour_data)
-
+SUBROUTINE IFT_trapz_int(r,z,IFT_pt_idx,integral,input_data,contour_data)
+             
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The trapezoidal rule for the IFT contour
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
     real(dpk)                   :: r, z
-    complex(dpk)                :: ds, Int
+    complex(dpk)                :: ds, integral
     complex(dpk)                :: f1, f2
-    integer                     :: i, ss
+    integer                     :: IFT_pt_idx, ss
 
     type(input_params_t)        :: input_data
     type(contour_params_t)     :: contour_data
 
     if (input_data%prswitch == 0) then
 
-       f1 = integrand_IFT_pot(r,z,i,ss,input_data,contour_data)
-       f2 = integrand_IFT_pot(r,z,i+1,ss,input_data,contour_data)
+       f1 = integrand_IFT_pot(r,z,IFT_pt_idx,input_data,contour_data)
+       f2 = integrand_IFT_pot(r,z,IFT_pt_idx+1,input_data,contour_data)
 
     else
 
-       f1 = integrand_IFT_pr(r,z,i,ss,input_data,contour_data)
-       f2 = integrand_IFT_pr(r,z,i+1,ss,input_data,contour_data)
+       f1 = integrand_IFT_pr(r,z,IFT_pt_idx,input_data,contour_data)
+       f2 = integrand_IFT_pr(r,z,IFT_pt_idx+1,input_data,contour_data)
 
     end if
 
-    ds = contour_data%iftpoints(i+1) - contour_data%iftpoints(i)
+    ds = contour_data%iftpoints(IFT_pt_idx+1) - contour_data%iftpoints(IFT_pt_idx)
 
-    Int = ds/2._dpk*(f1+f2)
-
+    integral = ds/2._dpk*(f1+f2)
 
   END SUBROUTINE IFT_trapz_int
 

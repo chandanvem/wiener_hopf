@@ -1,11 +1,13 @@
 Module io_utils
   
   USE input_params 
-  
+  USE, intrinsic :: ieee_arithmetic 
+
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC  :: create_req_dirs, define_input_params
+  PUBLIC  :: create_req_dirs, define_input_params, &
+             check_NAN 
 
 
   CONTAINS 
@@ -269,6 +271,20 @@ Module io_utils
    END SUBROUTINE define_input_params 
 
 
+   SUBROUTINE check_NAN(input,is_nan_flag)
+
+     complex(dpk)  :: input
+     logical       :: is_nan_flag
+     real(dpk)     :: input_real,input_imag
+
+     input_real = REAL(input)
+     input_imag = AIMAG(input)
+
+     if(ieee_is_nan(input_real) .OR. ieee_is_nan(input_imag)) then
+          is_nan_flag = .true.
+     end if 
+
+   END SUBROUTINE check_NAN
 
 end module io_utils
 
