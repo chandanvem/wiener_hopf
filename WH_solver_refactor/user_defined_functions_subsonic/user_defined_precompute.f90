@@ -56,8 +56,9 @@ Module user_defined_precompute
        f1 = f1*EXP(ABS(AIMAG(input_data%alpha1)))
       
        input_data%psi = f1
+       write(*,'(/A12,2X,2F15.10)') ' psi:->', input_data%psi
        print*, 'precompute: Evaluated psi for the incident wave'
-   
+  
     end if
     
 !!  the factor Kt^{-}(\mu_{mn}^{+}):
@@ -80,7 +81,7 @@ Module user_defined_precompute
     k_plus_at_mu_plus = EXP(-intgrl_A1_at_mu_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
                         LOG(compute_kernel(0,input_data%mu_plus,input_data)/compute_U_s_factor(0,input_data%mu_plus,input_data)))
 
-  !  write(*,'(/A12,2X,2F15.10)') ' integral at mu_plus:->', intgrl_A1_at_mu_plus
+    write(*,'(/A12,2X,2F15.10)') ' integral at mu_plus:->', intgrl_A1_at_mu_plus
  
     input_data%k_minus_at_mu_plus =  compute_kernel(0,input_data%mu_plus,input_data)/ &
                           (k_plus_at_mu_plus*compute_U_s_factor(0,input_data%mu_plus,input_data)) 
@@ -95,7 +96,7 @@ Module user_defined_precompute
        input_data%k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
        !! NOTE: zero KH_zero_1 has to lie below  !! the contour
 
-   !    write(*,'(/A22,2X,2F20.10/)') 'Integral at KH zero 1:->', intgrl_A1_at_KH_zero_1
+       write(*,'(/A22,2X,2F20.10/)') 'Integral at KH zero 1:->', intgrl_A1_at_KH_zero_1
 
     end if
   

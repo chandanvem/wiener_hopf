@@ -4,12 +4,12 @@
 1E-10                                    M2
 1.0                                      h
 1                                        St_flag
-1.7                                      omega_st
+1.0                                      omega_st
 1.0                                      kapT
 1.0                                      kap_rho
 0.0                                      azim_mode
-(0.6269202054,-0.1925527802)             KH_zero_1
-(0.2481691030,0.)                        mu_plus
+(1.223231,-1.024101)                     KH_zero_1
+(-0.4900960,0.)                          mu_plus
 1.0e-3                                   offset
 1.0e-4                                   tol
 0                                        num_zeros_s1_s2
@@ -17,7 +17,7 @@
 0                                        num_sup_zeros
 0                                        num_sup_poles
 300                                      num_ker_pts_loop
-6.0                                      theta
+4.0                                      theta
 1000                                     num_IFT_pts_loop
 0.1                                      Rmin
 5.0                                      Rmax

@@ -46,6 +46,9 @@ Module io_utils
         real(dpk)            :: PI, delr, deli
         integer              :: i
         !! the basic data file:
+
+        PI = 4._dpk*ATAN(1.)
+
         open(10, file='input.list.p', status='old')
 
         read(10,*) input_data%vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
@@ -77,7 +80,7 @@ Module io_utils
         read(10,*) input_data%St_flag
         read(10,*) input_data%omega_st
 
-        if (input_data%St_flag == 1 ) then
+        if (input_data%St_flag .EQ. 1 ) then
             input_data%w0 = PI*input_data%M1*input_data%omega_st  ! Helmholtz number 
         end if
 
@@ -237,7 +240,6 @@ Module io_utils
 
       close(10)
         
-      PI = 4._dpk*ATAN(1.)
       delr = 0._dpk   !! for real omega
       deli = PI/2._dpk  !! for purely imaginary omega
 
