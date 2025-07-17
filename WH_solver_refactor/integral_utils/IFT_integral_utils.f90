@@ -83,7 +83,7 @@ Module IFT_integral_utils
             
             if (input_data%prswitch == 0) then  !! compute velocity potential
                
-               pressure(i,j) = input_data%omega_r/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))*prsum(i,j)
+               pressure(i,j) = (input_data%omega_r/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))*prsum(i,j)
 
                acoupressure(i,j) = pressure(i,j)  !! acoustic part
 
@@ -122,7 +122,7 @@ Module IFT_integral_utils
 
                if (input_data%reflswitch == 1) then
 
-                  pressure(i,j) = input_data%omega_r*input_data%omega_r/(2._dpk*PI)*prsum(i,j)   !! incident wave NOT added
+                  pressure(i,j) = (input_data%omega_r*input_data%omega_r/(2._dpk*PI))*prsum(i,j)   !! incident wave NOT added
 
                else
 
