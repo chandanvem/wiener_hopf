@@ -276,7 +276,7 @@ Module kernel_integral_utils
     type(input_params_t)  :: input_data
 
     if (switch == 1)  then !! K/U
-       In = LOG(compute_kernel(kswitch,zi,input_data)/compute_U_s_factor(kswitch,zi,input_data))
+       In = LOG(compute_kernel(kswitch,zi,input_data)/compute_U_s_factor(zi,input_data))
     else
        In = LOG(compute_kernel(kswitch,zi,input_data))
     end if
@@ -314,7 +314,7 @@ Module kernel_integral_utils
     integer                    :: j, N, ss
 
     do j = 1, N
-       I(j) = compute_kernel(ss,z(j),input_data)/compute_U_s_factor(ss,z(j),input_data)
+       I(j) = compute_kernel(ss,z(j),input_data)/compute_U_s_factor(z(j),input_data)
     end do
 
     do j = 1, N-1

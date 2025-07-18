@@ -255,7 +255,7 @@ SUBROUTINE IFT_trapz_int(r,z,IFT_pt_idx,integral,input_data,contour_data)
 
     ds = contour_data%iftpoints(IFT_pt_idx+1) - contour_data%iftpoints(IFT_pt_idx)
 
-    integral = ds/2._dpk*(f1+f2)
+    integral = (ds/2._dpk)*(f1+f2)
 
   END SUBROUTINE IFT_trapz_int
 
