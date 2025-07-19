@@ -31,7 +31,7 @@ Module user_defined_fplus
     if ((input_data%farswitch == 1) .OR. (input_data%farswitch == 2)) then
        if (REAL(s_target) >= contour_data%cont_cross_over_pt) then
           k_plus_at_s = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
-               LOG(compute_kernel(0,s_target,input_data)/compute_U_s_factor(0,s_target,input_data)))  !! s_target is above contour; cont_cross_over_pt is crossover pt
+               LOG(compute_kernel(0,s_target,input_data)/compute_U_s_factor(s_target,input_data)))  !! s_target is above contour; cont_cross_over_pt is crossover pt
        else
           k_plus_at_s = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! s_target is below
        end if
@@ -43,7 +43,7 @@ Module user_defined_fplus
     fplus_num = fplus_num*( ((s_target - input_data%KH_zero_1)/(input_data%mu_plus - s_target)) + input_data%vs_param_gamma) 
 
     fplus_den = (input_data%mu_plus - input_data%KH_zero_1)* &
-                 input_data%k_minus_at_mu_plus*k_plus_at_s*compute_U_s_factor(0,s_target,input_data)
+                 input_data%k_minus_at_mu_plus*k_plus_at_s*compute_U_s_factor(s_target,input_data)
 
     fplus = fplus_num/fplus_den
 

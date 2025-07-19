@@ -13,14 +13,13 @@ Module user_defined_functions
 
   CONTAINS 
 
-  FUNCTION compute_U_s_factor(ss,s_target,input_data) result(u_s)
+  FUNCTION compute_U_s_factor(s_target,input_data) result(u_s)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The factor U(s)
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
     complex(dpk)  :: s_target, u_s
-    integer       :: j, jj, ss
     type(input_params_t) :: input_data
 
     u_s = (s_target-input_data%KH_zero_1)
@@ -42,13 +41,12 @@ Module user_defined_functions
    type(input_params_t) :: input_data
 
 
-   lambda1 =  sqrt(1._dpk - zeta*(input_data%M1+1._dpk))*sqrt(1._dpk - zeta*(input_data%M1-1._dpk))
-   lambda2 =  sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M2+1._dpk))* &
+   lambda1 =   sqrt(1._dpk - zeta*(input_data%M1+1._dpk))*sqrt(1._dpk - zeta*(input_data%M1-1._dpk))
+   lambda2 =   sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M2+1._dpk))* &
                sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M2-1._dpk))
 
 
-   if ((ABS(lambda1*input_data%omega_r) < input_data%asymplim .AND.&
-                     ABS(AIMAG(lambda1*input_data%omega_r)) < input_data%asymplim1)) then
+   if ((ABS(lambda1*input_data%omega_r) < input_data%asymplim)) then
 
       F1n =   bessj(lambda1*input_data%omega_r,input_data%azim_mode,1)
       F1d =  dbessj(lambda1*input_data%omega_r,input_data%azim_mode,1)
@@ -62,8 +60,7 @@ Module user_defined_functions
 
    F1 = ((input_data%kap_rho*((1._dpk - zeta*input_data%M1)**2))/lambda1)*F1f
 
-   if (ABS(lambda2*input_data%omega_r) < input_data%asymplim .AND. &
-        ABS(AIMAG(lambda2*input_data%omega_r)) < input_data%asymplim1) then
+   if ( ABS(AIMAG(lambda2*input_data%omega_r)) < input_data%asymplim1) then
       
       F2n =  hank1(lambda2*input_data%omega_r,input_data%azim_mode,1)
       F2d = dhank1(lambda2*input_data%omega_r,input_data%azim_mode,1)
@@ -183,7 +180,7 @@ Module user_defined_functions
 
     if (stream_idx==1) then
 
-       integrandiftpr = (1._dpk - u*input_data%M2)**2
+       integrandiftpr = (1._dpk - u*input_data%M1)**2
        integrandiftpr = integrandiftpr*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
                         input_data%fplusz(ift_contour_idx)* & 
                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
@@ -191,7 +188,8 @@ Module user_defined_functions
     else if (stream_idx==2) then
        
        integrandiftpr = (1._dpk - u*input_data%M2)**2
-       integrandiftpr = integrandiftpr*compute_Trs_lambda(ri,u,stream_idx,input_data)*input_data%fplusz(ift_contour_idx)* &
+       integrandiftpr = integrandiftpr*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
+                        input_data%fplusz(ift_contour_idx)* &
                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
    end if
 
@@ -215,7 +213,7 @@ Module user_defined_functions
 
     type(input_params_t)  :: input_data
 
-    NAN_flag = .false.
+    NAN_flag = .FALSE.
  
     lambda1 = sqrt(1._dpk - si*(input_data%M1+1._dpk))*sqrt(1._dpk - si*(input_data%M1-1._dpk))
 
@@ -224,17 +222,21 @@ Module user_defined_functions
 
     if (stream_idx==1) then
        
-       if (ABS(lambda1*input_data%omega_r) < input_data%asymplim) then
+    !   if (ABS(lambda1*input_data%omega_r) < input_data%asymplim) then
 
-          F1n =  bessj(lambda1*input_data%omega_r,input_data%azim_mode,1)
+          F1n =  bessj(lambda1*input_data%omega_r*ri,input_data%azim_mode,1)
+          F1n = F1n*EXP(ABS(AIMAG(lambda1*input_data%omega_r*ri))) 
+  
           F1d = dbessj(lambda1*input_data%omega_r,input_data%azim_mode,1)
+          F1d = F1d*EXP(ABS(AIMAG(lambda1*input_data%omega_r))) 
+
           F1f = F1n/F1d
 
-       else   ! asymtotic limit  ~ i
+     !  else   ! asymtotic limit  ~ i
 
-          F1f = CMPLX(0._dpk,1._dpk,kind=dpk)
+      !    F1f = CMPLX(0._dpk,1._dpk,kind=dpk)
           
-       end if
+     !  end if
 
        Trs = F1f/lambda1
 
@@ -242,8 +244,12 @@ Module user_defined_functions
 
        if ( ABS(AIMAG(lambda2*input_data%omega_r)) < input_data%asymplim1) then
       
-         F2n = hank1(lambda2*input_data%omega_r,input_data%azim_mode,1)
+         F2n =  hank1(lambda2*input_data%omega_r*ri,input_data%azim_mode,1)
+         F2n = F2n*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*input_data%omega_r*ri)
+
          F2d = dhank1(lambda2*input_data%omega_r,input_data%azim_mode,1)
+         F2d = F2d*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*input_data%omega_r)
+
          F2f = F2n/F2d
        
        else   ! asymtotic limit   
