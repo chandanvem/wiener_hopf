@@ -39,7 +39,8 @@ Module io_utils
      call create_directory('./DataDump/Ift')
      call create_directory('./DataDump/Kernel')
      call create_directory('./DataDump/compute_fplus_log')
-
+     call create_directory('./DataDump/compute_IFT_log')
+  
    END SUBROUTINE create_req_dirs
 
    SUBROUTINE define_input_params(input_data)
