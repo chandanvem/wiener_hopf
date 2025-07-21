@@ -10,7 +10,8 @@ PROGRAM main
   USE fplus_utils
   USE IFT_integral_utils
   USE user_defined_precompute
-  USE user_defined_functions  
+  USE user_defined_functions 
+  USE user_defined_IFT 
   USE user_defined_fplus
 
   IMPLICIT none

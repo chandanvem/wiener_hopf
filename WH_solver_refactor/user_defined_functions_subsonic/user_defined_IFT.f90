@@ -104,7 +104,7 @@ Module user_defined_IFT
                acoupressure(i,j) = pressure(i,j)  !! acoustic part
                instab_pressure1(i,j) = residuepr(input_data%R(i),input_data%Z(j),input_data)  !! inner instability wave
                inc_pressure(i,j) = compute_psi_incident(input_data%R(i),input_data%Z(j),input_data)  !! the incident wave
-               totpressure(i,j) = acoupressure(i,j) + instab_pressure(i,j)  !! total part 
+               totpressure(i,j) = acoupressure(i,j) + instab_pressure1(i,j)  !! total part 
 
             end if
 
