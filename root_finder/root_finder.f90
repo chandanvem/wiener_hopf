@@ -38,8 +38,8 @@ PROGRAM root_finder
   real(dpk)                                 :: Xmin, Xmax, Ymin, Ymax !! Search box
   real(dpk)                                 :: Xm1, Xm2, Xmid
   real(dpk), allocatable, dimension(:)      :: X, Y !! ''
-  integer                                   :: Nzero, Nzero_inc !! Computed zeros
-  complex(dpk), allocatable, dimension(:,:) :: zero !! Records all the activity over (X,Y)
+  integer                                   :: Nzero, Nzero_incident !! Computed zeros
+  complex(dpk), allocatable, dimension(:,:) :: zero_activity !! Records all the activity over (X,Y)
   complex(dpk), allocatable, dimension(:)   :: zerolist !! Lists only the zeros
   complex(dpk), allocatable, dimension(:)   :: checkzero !! Checks if it's really one
   real(dpk), allocatable, dimension(:,:)    :: alpha, alphap !! Real wave nos for the inc case
@@ -60,10 +60,13 @@ PROGRAM root_finder
   integer                                   :: step, limit,func_case,St_flag,num_of_frequencies
   real(dpk), parameter                      :: asymplim = 3.27E4
   real(dpk), parameter                      :: asymplim1 = 100
-  character(len=200)                        :: dummy, file_name, data_file_name, omega_real, omega_imag
+  character(len=200)                        :: dummy, file_name, data_file_name, plus_data_file_name,&
+                                                         omega_real_str, omega_imag_str, azim_mode_str
+
   real :: start_time, end_time, elapsed_time
   integer :: thread_id, num_threads, chunk
-  integer :: start_idx, end_idx, file_ID, data_file_ID, freq_idx
+  integer :: start_idx, end_idx, file_ID, data_file_ID, plus_data_file_ID,freq_idx
+
  
   call cpu_time(start_time)
 
@@ -76,7 +79,9 @@ PROGRAM root_finder
   !$omp parallel  &
   !$omp&  private(freq_idx,thread_id,num_threads, &
   !$omp&          chunk,start_idx,end_idx,file_ID,data_file_ID,file_name,data_file_name, &
-  !$omp&          omega,omega_real,omega_imag,Nzero,zerolist,checkzero,zero)
+  !$omp&          omega,omega_real_str,omega_imag_str,azim_mode_str,Nzero,zerolist,checkzero,zero_activity, &
+  !$omp&          alpha,alphap,Nzero_incident,plus_data_file_name,plus_data_file_ID)
+
 
    block 
      thread_id = omp_get_thread_num()
@@ -93,31 +98,35 @@ PROGRAM root_finder
         omega = ABS(omega)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
 
         if (St_flag == 1) then
-            write(omega_real, '(F10.3)') REAL(omega/(PI*M1))
-            write(omega_imag, '(F10.3)') AIMAG(omega/(PI*M1))
+            write(omega_real_str, '(F10.3)') REAL(omega/(PI*M1))
+            write(omega_imag_str, '(F10.3)') AIMAG(omega/(PI*M1))
         else 
-            write(omega_real, '(F10.3)') REAL(omega)
-            write(omega_imag, '(F10.3)') AIMAG(omega)
+            write(omega_real_str, '(F10.3)') REAL(omega)
+            write(omega_imag_str, '(F10.3)') AIMAG(omega)
         end if
+         
+        write(azim_mode_str, '(F10.3)') azim_mode
 
         write(file_name, '("./log/log_", I0, ".out")') freq_idx
 
         if (func_case > 0 ) then
            if (AIMAG(omega) == 0) then 
-                write(data_file_name, '("DataDump/zeroslist_", A,  ".dat")') &
-                                            trim(adjustl(omega_real))
+               write(data_file_name, '("DataDump/zeroslist_",A,"_m_",A,".dat")') &
+                   trim(adjustl(omega_real_str)), trim(adjustl(azim_mode_str))
            else 
-                write(data_file_name, '("DataDump/zeroslist_", A, "_i", A, ".dat")') &
-                                            trim(adjustl(omega_real)), trim(adjustl(omega_imag))
+                write(data_file_name, '("DataDump/zeroslist_", A, "_i", A, "_m_", A,".dat")') &
+                   trim(adjustl(omega_real_str)),trim(adjustl(omega_imag_str)),trim(adjustl(azim_mode_str))
+ 
            end if
         else 
-          if (AIMAG(omega) == 0 ) then
-               write(data_file_name, '("DataDump/poleslist_", A, ".dat")') & 
-                                            trim(adjustl(omega_real))
-          else            
-              write(data_file_name, '("DataDump/poleslist_", A, "_i", A, ".dat")') & 
-                                            trim(adjustl(omega_real)), trim(adjustl(omega_imag))
-          end if
+           if (AIMAG(omega) == 0) then 
+               write(data_file_name, '("DataDump/poleslist_",A,"_m_",A,".dat")') &
+                   trim(adjustl(omega_real_str)), trim(adjustl(azim_mode_str))
+           else 
+                write(data_file_name, '("DataDump/poleslist_", A, "_i", A, "_m_", A,".dat")') &
+                   trim(adjustl(omega_real_str)),trim(adjustl(omega_imag_str)),trim(adjustl(azim_mode_str))
+ 
+           end if
         end if 
 
         
@@ -126,11 +135,34 @@ PROGRAM root_finder
 
         open(file_ID,file=file_name,form='FORMATTED',status='UNKNOWN') 
         open(data_file_ID,file=data_file_name,form='FORMATTED',status='UNKNOWN') 
-        call findzero(omega,Nzero,zerolist,checkzero,zero,file_ID)   !! The main subroutine
-        call printinfo(omega,Nzero,zerolist,checkzero,zero,file_ID,data_file_ID)  !! Print & write data
+        call findzero(omega,Nzero,zerolist,checkzero,zero_activity,file_ID)   !! The main subroutine
+
+        IF(func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
+            allocate(alpha(Nzero,3),alphap(Nzero,3))
+            CALL findzeroplus(omega,Nzero,Nzero_incident,zerolist,&
+                 checkzero,zero_activity,alpha,alphap,file_ID)
+        END IF
+
+        call printinfo(omega,Nzero,zerolist,checkzero,zero_activity,file_ID,data_file_ID)  !! Print & write data
+     
+        IF(func_case .EQ. 0 .OR. func_case .EQ. 100 .AND. Nzero_incident > 0 ) THEN
+            write(plus_data_file_name, '("DataDump/poleslist_plus_", A,"_m_", A,".dat")') &
+                                            trim(adjustl(omega_real_str)), trim(adjustl(azim_mode_str))
+
+
+            plus_data_file_ID =   4*num_of_frequencies + freq_idx
+
+            open(plus_data_file_ID,file=plus_data_file_name,form='FORMATTED',status='UNKNOWN')
+
+            CALL printinfoplus(omega,Nzero,Nzero_incident,&
+                 alpha,alphap,file_ID,plus_data_file_ID)
+
+            close(plus_data_file_ID)
+
+        END IF
+
         close(file_ID)
         close(data_file_ID)
-
      end do
     end block
    !$omp end parallel
@@ -278,7 +310,7 @@ CONTAINS
         Ymax = 0.
      END IF
 
-     ALLOCATE(zero(Nx,Ny))
+     ALLOCATE(zero_activity(Nx,Ny))
      ALLOCATE(zerolist(MAX_ZERO))
      ALLOCATE(checkzero(MAX_ZERO))
 
@@ -455,72 +487,72 @@ CONTAINS
 
   END SUBROUTINE findzero
 
-!
-!  SUBROUTINE findzeroplus(w,Nz,Nzi,zl,cz,zz,al,alp)
-!
-!    complex(dpk)                               :: w, wdel
-!    real(dpk), dimension(Nz,3)                 :: al, alp
-!    complex(dpk), dimension(Nx,Ny)             :: zz, zz1, zz2
-!    complex(dpk), dimension(MAX_ZERO)          :: zl, cz, zl1, cz1, zl2, cz2
-!    complex(dpk)                               :: Z, a, check
-!    real(dpk)                                  :: zeror, zeroi, factor, dwdmu, temp, temp1, temp2
-!    integer                                    :: Nz, Nzi, zerocount
-!    character(10)                              :: zflag
-!    integer                                    :: i, j, k
-!    
-!    factor = 1.E-3_dpk
-!    wdel = ABS(factor)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)  
-!
-!    do i = 1, Nzero
-!       al(i,1) = REAL(zl(i))
-!       al(i,2) = w*sqrt((1._dpk - REAL(zl(i))*M1)**2 - REAL(zl(i))**2)
-!       al(i,3) = w*sqrt(kap_T**2*(1._dpk - REAL(zl(i))*M2)**2 - REAL(zl(i))**2)
-!    end do
-!
-!    CALL findzero(w+wdel,Nz,zl1,cz1,zz1)
-!    CALL findzero(w-wdel,Nz,zl2,cz2,zz2)
-!
-!    zerocount = 0
-!    do i = 1, Nz
-!       dwdmu = (2._dpk*REAL(wdel))/(REAL(zl1(i)) - REAL(zl2(i)))
-!       if (func_case .EQ. 0) then
-!          if (dwdmu > 0) then
-!             zerocount = zerocount + 1
-!             alp(zerocount,1) = al(i,1)
-!             alp(zerocount,2) = al(i,2)
-!             alp(zerocount,3) = al(i,3)
-!          end if
-!       else
-!          if (dwdmu < 0) then
-!             zerocount = zerocount + 1
-!             alp(zerocount,1) = al(i,1)
-!             alp(zerocount,2) = al(i,2)
-!             alp(zerocount,3) = al(i,3)
-!          end if
-!       end if
-!    end do
-!
-!    do j = 2, zerocount  !! Sorted in terms of ascending value of alpha1(or alpha2)
-!       temp = alp(j,2)
-!       temp1 = alp(j,3)
-!       temp2 = alp(j,1)
-!       do i = j-1, 1, -1
-!          if (alp(i,2) <= temp) EXIT
-!          alp(i+1,2) = alp(i,2)
-!          alp(i+1,3) = alp(i,3)
-!          alp(i+1,1) = alp(i,1)
-!          alp(i,2) = temp
-!          alp(i,3) = temp1
-!          alp(i,1) = temp2
-!       end do
-!    end do
-!
-!    Nzi = zerocount
-!
-!
-!  END SUBROUTINE findzeroplus
-!
-!
+
+  SUBROUTINE findzeroplus(w,Nz,Nzi,zl,cz,zz,al,alp,file_ID)
+
+    complex(dpk)                               :: w, wdel
+    real(dpk), dimension(Nz,3)                 :: al, alp
+    complex(dpk), dimension(Nx,Ny)             :: zz, zz1, zz2
+    complex(dpk), dimension(MAX_ZERO)          :: zl, cz, zl1, cz1, zl2, cz2
+    complex(dpk)                               :: Z, a, check
+    real(dpk)                                  :: zeror, zeroi, factor, dwdmu, temp, temp1, temp2
+    integer                                    :: Nz, Nzi, zerocount, file_ID
+    character(10)                              :: zflag
+    integer                                    :: i, j, k
+    
+    factor = 1.E-3_dpk
+    wdel = ABS(factor)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)  
+
+    do i = 1, Nzero
+       al(i,1) = REAL(zl(i))
+       al(i,2) = w*sqrt((1._dpk - REAL(zl(i))*M1)**2 - REAL(zl(i))**2)
+       al(i,3) = w*sqrt(kap_T**2*(1._dpk - REAL(zl(i))*M2)**2 - REAL(zl(i))**2)
+    end do
+
+    CALL findzero(w+wdel,Nz,zl1,cz1,zz1,file_ID)
+    CALL findzero(w-wdel,Nz,zl2,cz2,zz2,file_ID)
+
+    zerocount = 0
+    do i = 1, Nz
+       dwdmu = (2._dpk*REAL(wdel))/(REAL(zl1(i)) - REAL(zl2(i)))
+       if (func_case .EQ. 0) then
+          if (dwdmu > 0) then
+             zerocount = zerocount + 1
+             alp(zerocount,1) = al(i,1)
+             alp(zerocount,2) = al(i,2)
+             alp(zerocount,3) = al(i,3)
+          end if
+       else
+          if (dwdmu < 0) then
+             zerocount = zerocount + 1
+             alp(zerocount,1) = al(i,1)
+             alp(zerocount,2) = al(i,2)
+             alp(zerocount,3) = al(i,3)
+          end if
+       end if
+    end do
+
+    do j = 2, zerocount  !! Sorted in terms of ascending value of alpha1(or alpha2)
+       temp = alp(j,2)
+       temp1 = alp(j,3)
+       temp2 = alp(j,1)
+       do i = j-1, 1, -1
+          if (alp(i,2) <= temp) EXIT
+          alp(i+1,2) = alp(i,2)
+          alp(i+1,3) = alp(i,3)
+          alp(i+1,1) = alp(i,1)
+          alp(i,2) = temp
+          alp(i,3) = temp1
+          alp(i,1) = temp2
+       end do
+    end do
+
+    Nzi = zerocount
+
+
+  END SUBROUTINE findzeroplus
+
+
   SUBROUTINE printinfo(w,Nz,zl,cz,zz,file_ID,data_file_ID)
 
     complex(dpk)                               :: w
@@ -652,74 +684,72 @@ CONTAINS
 
   END SUBROUTINE printinfo
 
-!
-!  SUBROUTINE printinfoplus(w,Nz,Nzi,al,alp)
-!
-!    real(dpk), dimension(Nz,3)                 :: al, alp
-!    complex(dpk)                               :: w
-!    integer                                    :: Nz, Nzi
-!    integer                                    :: i, j
-!    character(len=200)                         :: file_name
-!    if (Nz == 0) then
-!
-!       print*,'No zero found in the box!!'
-!
-!    else
-!
-!       write(*,'(/A52)')'----------------------------------------------------'
-!       write(*,'(A52)')'   n         mu            alpha            beta    '
-!       write(*,'(A52)')'----------------------------------------------------'
-!       do i = 1, Nz
-!          write(*,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)') i,al(i,1),al(i,2),al(i,3)
-!       end do
-!       write(*,'(A52/)')'-----------------------------------------------------'
-!
-!       write(file_name, '("zerolist_", F0.3, ".out")') real(w)
-!       open(10,file=file_name,form='FORMATTED')
-!
-!     !  open(10,file='zerolist.out',form='FORMATTED')
-!       write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-!       write(10,'(A2,2F15.5)') '#',w
-!       write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-!       write(10,'(A2,2F10.5)') '#',Ymin, Ymax
-!       do i = 1, Nz
-!          write(10,'(I5,3F20.10,2X)') i,al(i,1),al(i,2),al(i,3)
-!       end do
-!       close(10)
-!
-!       print*,''
-!       if (func_case .EQ. 0) then
-!          print*,'Considering only the +Z (RIGHT) moving waves.....'
-!       else
-!          print*,'Considering only the -Z (LEFT) moving waves......'
-!       end if
-!
-!       write(*,'(/A52)')'----------------------------------------------------'
-!       write(*,'(A52)')'   n         mu            alpha            beta    '
-!       write(*,'(A52)')'----------------------------------------------------'
-!       do i = 1, Nzi
-!          write(*,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)')i,alp(i,1),alp(i,2),alp(i,3)
-!       end do
-!       write(*,'(A52/)')'-----------------------------------------------------'
-!
-!       if (func_case .EQ. 0) then
-!          open(10,file='incident_waves.out',form='FORMATTED')
-!       else
-!          open(10,file='reflected_waves.out',form='FORMATTED')
-!       end if
-!       write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-!       write(10,'(A2,2F15.5)') '#',w
-!       write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-!       write(10,'(A2,2F10.5)') '#',Ymin, Ymax
-!       do i = 1, Nzi
-!          write(10,'(I5,3F20.10,2X)') i,alp(i,1),alp(i,2),alp(i,3)
-!       end do
-!       close(10)
-!
-!    end if
-!
-!
-!  END SUBROUTINE printinfoplus
+
+  SUBROUTINE printinfoplus(w,Nz,Nzi,al,alp,file_ID,plus_data_file_ID)
+
+    real(dpk), dimension(Nz,3)                 :: al, alp
+    complex(dpk)                               :: w
+    integer                                    :: Nz, Nzi
+    integer                                    :: i, j
+    integer                                    :: file_ID, plus_data_file_ID
+    character(len=200)                         :: file_name
+    if (Nz == 0) then
+
+       print*,'No zero found in the box!!'
+
+    else
+
+       write(file_ID,'(/A52)')'----------------------------------------------------'
+       write(file_ID,'(A52)')'   n         mu            alpha            beta    '
+       write(file_ID,'(A52)')'----------------------------------------------------'
+       do i = 1, Nz
+          write(file_ID,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)') i,al(i,1),al(i,2),al(i,3)
+       end do
+       write(file_ID,'(A52/)')'-----------------------------------------------------'
+
+       write(file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+       write(file_ID,'(A2,2F15.5)') '#',w
+       write(file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+       write(file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
+       do i = 1, Nz
+          write(file_ID,'(I5,3F20.10,2X)') i,al(i,1),al(i,2),al(i,3)
+       end do
+       close(10)
+
+       print*,''
+       if (func_case .EQ. 0) then
+          print*,'Considering only the +Z (RIGHT) moving waves.....'
+       else
+          print*,'Considering only the -Z (LEFT) moving waves......'
+       end if
+
+       write(file_ID,'(/A52)')'----------------------------------------------------'
+       write(file_ID,'(A52)')'   n         mu            alpha            beta    '
+       write(file_ID,'(A52)')'----------------------------------------------------'
+       do i = 1, Nzi
+          write(file_ID,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)')i,alp(i,1),alp(i,2),alp(i,3)
+       end do
+       write(file_ID,'(A52/)')'-----------------------------------------------------'
+
+      ! if (func_case .EQ. 0) then
+      !    open(10,file='incident_waves.out',form='FORMATTED')
+      ! else
+      !    open(10,file='reflected_waves.out',form='FORMATTED')
+      ! end if
+
+       write(plus_data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+       write(plus_data_file_ID,'(A2,2F15.5)') '#',w
+       write(plus_data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+       write(plus_data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
+       do i = 1, Nzi
+          write(plus_data_file_ID,'(I5,3F20.10,2X)') i,alp(i,1),alp(i,2),alp(i,3)
+       end do
+       close(10)
+
+    end if
+
+
+  END SUBROUTINE printinfoplus
 !
 !  
   FUNCTION fun(z,w)
