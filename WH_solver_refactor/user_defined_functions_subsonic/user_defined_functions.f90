@@ -90,7 +90,6 @@ Module user_defined_functions
   END FUNCTION compute_kernel
 
 
-
   FUNCTION bc(z,input_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
@@ -105,55 +104,6 @@ Module user_defined_functions
 
 
   END FUNCTION bc
-
-
-
-  FUNCTION integrand_IFT_pot(ri,zi,ift_contour_idx,input_data,contour_data) result(integrandiftpot)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Compute the IFT integrand when computing for potential
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    real(dpk)       :: ri, zi
-    integer         :: ift_contour_idx, stream_idx
-    complex(dpk)    :: u
-    complex(dpk)    :: integrandiftpot
-
-    type(input_params_t)   :: input_data
-    type(contour_params_t) :: contour_data
-
-
-    if (ri .LE. 1) then 
-       stream_idx = 1
-    else
-       stream_idx = 2
-    end if
-
-    u = contour_data%iftpoints(ift_contour_idx)
-
-    if (stream_idx==1) then
-
-!! potential:
-
-       integrandiftpot = ((1._dpk - u*input_data%M1))
-       integrandiftpot = integrandiftpot *compute_Trs_lambda(ri,u,stream_idx,input_data)* &
-                         input_data%fplusz(ift_contour_idx)* & 
-                          EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
-
-    else if (stream_idx==2) then
-
-!! potential:
-       
-       integrandiftpot = ((1._dpk - u*input_data%M2))
-       integrandiftpot = integrandiftpot*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
-                         input_data%fplusz(ift_contour_idx)* &
-                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
-
-    end if
-
-
-  END FUNCTION integrand_IFT_pot
-
 
 
   FUNCTION integrand_IFT_pr(ri,zi,ift_contour_idx,input_data,contour_data) result(integrandiftpr)
@@ -222,7 +172,7 @@ Module user_defined_functions
 
     if (stream_idx==1) then
        
-    !   if (ABS(lambda1*input_data%omega_r) < input_data%asymplim) then
+       if (ABS(lambda1*input_data%omega_r) < input_data%asymplim) then
 
           F1n =  bessj(lambda1*input_data%omega_r*ri,input_data%azim_mode,1)
           F1n = F1n*EXP(ABS(AIMAG(lambda1*input_data%omega_r*ri))) 
@@ -232,11 +182,11 @@ Module user_defined_functions
 
           F1f = F1n/F1d
 
-     !  else   ! asymtotic limit  ~ i
+       else   ! asymtotic limit  ~ i
 
-      !    F1f = CMPLX(0._dpk,1._dpk,kind=dpk)
+          F1f = CMPLX(0._dpk,1._dpk,kind=dpk)
           
-     !  end if
+       end if
 
        Trs = F1f/lambda1
 
@@ -276,51 +226,14 @@ Module user_defined_functions
   END FUNCTION compute_Trs_lambda
 
 
-  FUNCTION residuepot(r,z,ss,input_data)
+  FUNCTION residuepr(r,z,input_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Same as above but for computing velocity potential
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
     real(dpk)            :: r, z
-    integer              :: ss, ii, jj
-    complex(dpk)         :: residuepot, res, fn
-   
-    type(input_params_t) :: input_data
-
-
-    if (input_data%vs_param_gamma .EQ. 0) then
-
-       residuepot = 0.
-
-    else 
-
-        res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)/((input_data%mu_plus - input_data%KH_zero_1)* & 
-                                                                 input_data%k_minus_at_mu_plus*input_data%k_plus_sz1)
-
-        if (input_data%vortswitch .EQ. 0) then
-         
-           if (r <= 1) then
-              fn = (1._dpk - (input_data%KH_zero_1*input_data%M1))*compute_Trs_lambda(r,input_data%KH_zero_1,1,input_data)
-           else
-              fn = (1._dpk - (input_data%KH_zero_1*input_data%M2))*compute_Trs_lambda(r,input_data%KH_zero_1,2,input_data)
-           end if
-        end if
-         
-        residuepot = input_data%omega_r*res*fn*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_1*z)
-        
-    end if      
-    
-  END FUNCTION residuepot
- 
-  FUNCTION residuepr(r,z,ss,input_data)
-
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Same as above but for computing velocity potential
-!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-
-    real(dpk)            :: r, z
-    integer              :: ss, ii, jj
+    integer              :: ii, jj
     complex(dpk)         :: residuepr, res, fn
    
     type(input_params_t) :: input_data
@@ -350,6 +263,7 @@ Module user_defined_functions
     end if      
     
   END FUNCTION residuepr
+
 
  FUNCTION compute_psi_incident(r,z,input_data) result(psi0)
 
@@ -395,6 +309,90 @@ Module user_defined_functions
   END FUNCTION compute_psi_incident
 
 
+  FUNCTION integrand_IFT_pot(ri,zi,ift_contour_idx,input_data,contour_data) result(integrandiftpot)
+
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+!! 1. Compute the IFT integrand when computing for potential
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+
+    real(dpk)       :: ri, zi
+    integer         :: ift_contour_idx, stream_idx
+    complex(dpk)    :: u
+    complex(dpk)    :: integrandiftpot
+
+    type(input_params_t)   :: input_data
+    type(contour_params_t) :: contour_data
+
+
+    if (ri .LE. 1) then 
+       stream_idx = 1
+    else
+       stream_idx = 2
+    end if
+
+    u = contour_data%iftpoints(ift_contour_idx)
+
+    if (stream_idx==1) then
+
+!! potential:
+
+       integrandiftpot = ((1._dpk - u*input_data%M1))
+       integrandiftpot = integrandiftpot *compute_Trs_lambda(ri,u,stream_idx,input_data)* &
+                         input_data%fplusz(ift_contour_idx)* & 
+                          EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
+
+    else if (stream_idx==2) then
+
+!! potential:
+       
+       integrandiftpot = ((1._dpk - u*input_data%M2))
+       integrandiftpot = integrandiftpot*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
+                         input_data%fplusz(ift_contour_idx)* &
+                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
+
+    end if
+
+
+  END FUNCTION integrand_IFT_pot
+
+
+  FUNCTION residuepot(r,z,ss,input_data)
+
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+!! 1. Same as above but for computing velocity potential
+!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+
+    real(dpk)            :: r, z
+    integer              :: ss, ii, jj
+    complex(dpk)         :: residuepot, res, fn
+   
+    type(input_params_t) :: input_data
+
+
+    if (input_data%vs_param_gamma .EQ. 0) then
+
+       residuepot = 0.
+
+    else 
+
+        res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)/((input_data%mu_plus - input_data%KH_zero_1)* & 
+                                                                 input_data%k_minus_at_mu_plus*input_data%k_plus_sz1)
+
+        if (input_data%vortswitch .EQ. 0) then
+         
+           if (r <= 1) then
+              fn = (1._dpk - (input_data%KH_zero_1*input_data%M1))*compute_Trs_lambda(r,input_data%KH_zero_1,1,input_data)
+           else
+              fn = (1._dpk - (input_data%KH_zero_1*input_data%M2))*compute_Trs_lambda(r,input_data%KH_zero_1,2,input_data)
+           end if
+        end if
+         
+        residuepot = input_data%omega_r*res*fn*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_1*z)
+        
+    end if      
+    
+  END FUNCTION residuepot
+ 
 end module user_defined_functions
 
 

@@ -47,8 +47,8 @@ Module user_defined_precompute
 
       input_data%alpha1 = input_data%omega_r*SQRT((1._dpk - input_data%mu_plus*input_data%M1)**2 - (input_data%mu_plus)**2)
 
-       print*,'precompute: The radial wave numbers:'
-       write(*,'(/A12,2X,2F15.10)') ' alpha1:->', input_data%alpha1
+      print*,'precompute: The radial wave numbers:'
+      write(*,'(/A12,2X,2F15.10)') ' alpha1:->', input_data%alpha1
 
 !! the factor \Psi_{mn}(1) of (3.30) [see the JFM]:
 
