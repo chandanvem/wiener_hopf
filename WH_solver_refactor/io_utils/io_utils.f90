@@ -276,12 +276,13 @@ Module io_utils
 
    complex(dpk)  :: input
    logical       :: is_nan_flag
-   real(dpk)     :: input_real,input_imag
+   real(dpk)     :: input_real,input_imag, input_abs
 
    input_real = REAL(input)
    input_imag = AIMAG(input)
+   input_abs  = ABS(input_abs)
 
-   if(ieee_is_nan(input_real) .OR. ieee_is_nan(input_imag)) then
+   if(ieee_is_nan(input_real) .OR. ieee_is_nan(input_imag) .OR. input_abs .GT. 1E8 ) then
         is_nan_flag = .true.
    end if 
 

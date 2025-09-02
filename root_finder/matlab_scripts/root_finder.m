@@ -1,11 +1,10 @@
 clear all; close all; clc;
 
-
 %%
 num_of_threads = 24;
 
 %%
-op_dir = '/work/home/chandan/Chandan_case_files/wiener_hopf_code/near_field_dev/root_finder/case3_subsonic_matlab';
+op_dir = '/work/home/chandan/Chandan_case_files/wiener_hopf_results/two_stream_subsonic_runs/results_St_1.7/roots_delta_vary/matlab_results_del_0.001';
 data_op_dir = sprintf('%s/DataDump',op_dir);
 log_op_dir = sprintf('%s/log',op_dir);
 
@@ -29,7 +28,9 @@ k_T = sqrt(1);
 M_j = 0.9;
 M_o = 1e-10;
 
-St_list = 0.3:0.01:1.0;
+delta_degrees = 0.001;
+
+St_list = 0.1:0.01:2.0;
 St_min = St_list(1);
 St_max = St_list(end);
 
@@ -40,16 +41,16 @@ else
 end
 
 num_frequencies = length(St_list);
-omega_list = pi*M_j*St_list;
+omega_list = pi*M_j*St_list*exp(1i*delta_degrees*pi/180);
 s_solutions_vs_freq = cell(num_frequencies,1);
 
 azim_wave_number = 0;
 
-pole_zero_string = 'pole_mode';
+pole_zero_string = 'zero_mode';
 
 s_real_max =   2;
-s_real_min =  -8;
-N_real = 250;
+s_real_min =  -2;
+N_real = 100;
 
 s_real_stencil = linspace(s_real_min,s_real_max,N_real);
 % N_real = length(kD_r5eal_stencil);

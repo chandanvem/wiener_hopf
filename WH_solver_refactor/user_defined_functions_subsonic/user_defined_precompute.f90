@@ -22,7 +22,7 @@ Module user_defined_precompute
     complex(dpk)          :: intgrl_A1_at_mu_plus, intgrl_A1_at_KH_zero_1, intgrl_A1_at_KH_zero_2, intgrl_at_sup_zero
     complex(dpk)          :: k_plus_at_mu_plus, f1, f2, f3
     integer               :: f, i1
-    real(dpk)             :: PI
+    real(dpk)             :: PI, res_mu_plus, res_KH_1
 
     type(input_params_t)   :: input_data
     type(contour_params_t) :: contour_data 
@@ -61,6 +61,13 @@ Module user_defined_precompute
   
     end if
     
+
+    res_mu_plus = ABS(compute_kernel(1,input_data%mu_plus,input_data))
+    res_KH_1    = ABS(compute_kernel(1,input_data%KH_zero_1,input_data))
+
+    write(*,'(/A12,2X,2F15.10)') ' Residue mu plus:->', res_mu_plus
+    write(*,'(/A12,2X,2F15.10)') ' Residue KH zero:->', res_KH_1
+
 !!  the factor Kt^{-}(\mu_{mn}^{+}):
 
     if (input_data%vortswitch .EQ. 0) then
