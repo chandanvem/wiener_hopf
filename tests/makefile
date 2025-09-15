@@ -4,7 +4,7 @@ FC = gfortran
 FLAGS = -O2
 
 OBJS = bessel_functions_toms.o bessel_utils.o bessel_test.o
-TARGET = bessel_program
+TARGET = bessel_test
 
 all: $(TARGET)
 
