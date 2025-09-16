@@ -42,7 +42,9 @@ module input_params
           complex(dpk), allocatable, dimension(:)    :: fplusz
           complex(dpk)                               :: alpha1,alpha2
 
-          character(len=40) :: solution_mode
+          complex(dpk)                               :: s_GJ
+          integer                                    :: GJ_num_int_pts 
+          character(len=40)                          :: solution_mode
 
      end type input_params_t
 
@@ -55,7 +57,9 @@ module input_params
           integer                                    :: total_ker_points,tot_IFT_pts 
           complex(dpk), allocatable, dimension(:)    :: ker_int_points  !!location of the starting pts
           complex(dpk), allocatable, dimension(:)    :: iftpoints  
-
+          complex(dpk)                               :: GJ_ref_pt
+          complex(dpk)                               :: GJ_cntr_maxima
+          integer(dpk)                               :: GJ_num_int_pts
      end type contour_params_t
 
 end module input_params

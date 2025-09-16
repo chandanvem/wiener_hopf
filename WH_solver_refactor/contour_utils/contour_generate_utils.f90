@@ -2,6 +2,7 @@ Module contour_generate_utils
   
   USE input_params 
   USE contour_init_utils
+  USE contour_GJ_utils
   
   IMPLICIT NONE
   
@@ -20,6 +21,10 @@ Module contour_generate_utils
   
     call compute_kernel_contour(input_data,contour_data)
     call compute_IFT_contour(input_data,contour_data)
+   
+    if (input_data%solution_mode == 'guided_jet') then
+           call update_GJ_IFT_cont(input_data,contour_data)
+    end if
 
 
   END SUBROUTINE compute_contours
@@ -62,7 +67,6 @@ Module contour_generate_utils
     close(10)
 
  END SUBROUTINE compute_kernel_contour
-
 
  SUBROUTINE compute_IFT_contour(input_data,contour_data)
 

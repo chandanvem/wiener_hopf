@@ -241,6 +241,13 @@ Module io_utils
 
       read(10,*) input_data%restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
 
+      read(10,*) input_data%solution_mode
+
+      if (input_data%solution_mode == 'guided_jet') then
+           read(10,*) input_data%s_GJ 
+           print*,'initialize:  Choosing guided jet mode...'
+      end if
+
     close(10)
       
     delr = 0._dpk   !! for real omega

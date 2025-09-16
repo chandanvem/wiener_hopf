@@ -13,6 +13,7 @@ OBJS = bessel_functions_toms.o \
        input_param_utils.o \
        io_utils.o \
        contour_init_utils.o \
+       contour_GJ_utils.o \
        contour_generate_utils.o \
        kernel_integral_utils.o \
 	IFT_integral_utils.o \
@@ -45,7 +46,10 @@ io_utils.o: $(IO_UTILS_DIR)/io_utils.f90 input_param_utils.o
 contour_init_utils.o: $(CONTOUR_UTILS_DIR)/contour_init_utils.f90 input_param_utils.o
 	$(FC) $(FLAGS) -c $<
 
-contour_generate_utils.o: $(CONTOUR_UTILS_DIR)/contour_generate_utils.f90 contour_init_utils.o input_param_utils.o
+contour_GJ_utils.o: $(CONTOUR_UTILS_DIR)/contour_GJ_utils.f90 input_param_utils.o
+	$(FC) $(FLAGS) -c $<
+
+contour_generate_utils.o: $(CONTOUR_UTILS_DIR)/contour_generate_utils.f90 contour_init_utils.o contour_GJ_utils.o input_param_utils.o
 	$(FC) $(FLAGS) -c $<
 
 user_defined_functions.o: $(USER_DEFINED_FUNCS)/user_defined_functions.f90 \
