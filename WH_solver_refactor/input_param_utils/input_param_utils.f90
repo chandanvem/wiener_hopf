@@ -57,8 +57,7 @@ module input_params
           integer                                    :: total_ker_points,tot_IFT_pts 
           complex(dpk), allocatable, dimension(:)    :: ker_int_points  !!location of the starting pts
           complex(dpk), allocatable, dimension(:)    :: iftpoints  
-          complex(dpk)                               :: GJ_ref_pt
-          complex(dpk)                               :: GJ_cntr_maxima
+          complex(dpk)                               :: GJ_ref_pt, GJ_cntr_maxima
           integer(dpk)                               :: GJ_num_int_pts
      end type contour_params_t
 

@@ -41,15 +41,7 @@ Module contour_init_utils
         read(10,*) t
         af = t
       
-        if (input_data%solution_mode == 'guided_jet')  then
-           read(10,*) t
-           contour_data%GJ_ref_pt = CMPLX(t,0._dpk,kind=dpk)
-           read(10,*) t
-           contour_data%GJ_ref_pt = t
-           read(10,*) contour_data%GJ_cntr_maxima 
-        end if
-
-
+     
         call get_y_alg_int_contour(ai,ai_im,REAL(contour_data%def_pts_IFT_cntr(3)), &
                                  REAL(contour_data%def_pts_IFT_cntr(2)-contour_data%def_pts_IFT_cntr(3)), &
                                     AIMAG(contour_data%def_pts_IFT_cntr(2)-contour_data%def_pts_IFT_cntr(3)))
@@ -65,6 +57,12 @@ Module contour_init_utils
         aki = t
         read(10,*) t
         akf = t
+  
+        if (input_data%solution_mode == 'guided_jet')  then
+           read(10,*) contour_data%GJ_ref_pt
+           read(10,*) contour_data%GJ_cntr_maxima
+        end if
+
 
         close(1)
 

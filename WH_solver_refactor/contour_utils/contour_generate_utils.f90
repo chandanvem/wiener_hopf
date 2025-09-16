@@ -18,15 +18,34 @@ Module contour_generate_utils
 
     type(input_params_t)          :: input_data
     type(contour_params_t)        :: contour_data
+    integer                       :: i
   
     call compute_kernel_contour(input_data,contour_data)
     call compute_IFT_contour(input_data,contour_data)
    
     if (input_data%solution_mode == 'guided_jet') then
+           print*,'definecontours: Updating contours'
            call update_GJ_IFT_cont(input_data,contour_data)
     end if
 
+    print*,''
+    print*,'definecontours: Writing kernel integration points to file:'
+    open(10,file='initialpoints.out',form='FORMATTED')
+   
+    do i = 1,contour_data%total_ker_points
+       write(10,'(I10,2F30.20)') i,contour_data%ker_int_points(i)
+    end do
+ 
+    print*,'definecontours: Writing IFT integration points to file:'
+    open(10,file='iftpoints.out',form='FORMATTED')
 
+    do i = 1,contour_data%tot_IFT_pts
+       write(10,'(I10,2F30.20)') i, contour_data%iftpoints(i)
+    end do
+
+    close(10)
+
+  
   END SUBROUTINE compute_contours
  
   SUBROUTINE compute_kernel_contour(input_data,contour_data)
@@ -55,15 +74,7 @@ Module contour_generate_utils
                                panel_len_right,input_data%num_ker_pts_loop,input_data%theta,&
                                1,contour_data%ker_int_points)
 
-    print*,''
-    print*,'definecontours: Writing kernel integration points to file:'
-
-    open(10,file='initialpoints.out',form='FORMATTED')
-   
-    do i = 1,contour_data%total_ker_points
-       write(10,'(I10,2F30.20)') i,contour_data%ker_int_points(i)
-    end do
-   
+  
     close(10)
 
  END SUBROUTINE compute_kernel_contour
@@ -89,16 +100,6 @@ Module contour_generate_utils
     call initialize_contour(contour_data%def_pts_IFT_cntr,panel_len_left,&
                              panel_len_right,input_data%num_IFT_pts_loop,input_data%theta, & 
                              2,contour_data%iftpoints)
-
-    print*,'definecontours: Writing IFT integration points to file:'
-
-    open(10,file='iftpoints.out',form='FORMATTED')
-
-    do i = 1,contour_data%tot_IFT_pts
-       write(10,'(I10,2F30.20)') i, contour_data%iftpoints(i)
-    end do
-
-    close(10)
 
   
  END SUBROUTINE compute_IFT_contour
