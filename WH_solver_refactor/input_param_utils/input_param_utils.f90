@@ -1,4 +1,4 @@
-module input_params 
+MODULE input_params 
      
      IMPLICIT none
 
@@ -56,10 +56,13 @@ module input_params
           real(dpk)                                  :: cont_cross_over_pt 
           integer                                    :: total_ker_points,tot_IFT_pts 
           complex(dpk), allocatable, dimension(:)    :: ker_int_points  !!location of the starting pts
-          complex(dpk), allocatable, dimension(:)    :: iftpoints  
+          complex(dpk), allocatable, dimension(:)    :: iftpoints 
+          integer                                    :: num_ker_pts_in_cubics 
           complex(dpk)                               :: GJ_ref_pt, GJ_cntr_maxima
-          integer(dpk)                               :: GJ_num_int_pts
+          !integer(dpk)                               :: GJ_num_int_pts
+          complex(dpk)                               ::  IFT_cross_over_pt
+          real(dpk) :: poly_coeffs_cubic_1(4), poly_coeffs_cubic_2(4),poly_coeffs_cubic_3(4)
      end type contour_params_t
 
-end module input_params
+END MODULE input_params
 

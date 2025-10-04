@@ -24,8 +24,9 @@ Module contour_generate_utils
     call compute_IFT_contour(input_data,contour_data)
    
     if (input_data%solution_mode == 'guided_jet') then
-           print*,'definecontours: Updating contours'
-           call update_GJ_IFT_cont(input_data,contour_data)
+       print*,'definecontours: Updating contours'
+       call update_GJ_IFT_cont(input_data,contour_data)
+       call update_GJ_kernel_cont(input_data,contour_data)
     end if
 
     print*,''

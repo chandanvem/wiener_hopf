@@ -5,9 +5,10 @@ Module contour_GJ_utils
   IMPLICIT NONE
   
   PRIVATE :: solve_gaussian, compute_FD_sec_order, compute_A_B_matrices,&
-             get_pos_idx, get_y_nth_degree_poly
+             get_pos_idx, get_y_nth_degree_poly, get_dy_nth_degree_poly,&
+             compute_offset_point, swap_arrays
 
-  PUBLIC  :: update_GJ_IFT_cont, get_dy_dx_alg_int_contour
+  PUBLIC  :: update_GJ_IFT_cont, update_GJ_kernel_cont
 
 
   CONTAINS 
@@ -23,7 +24,6 @@ Module contour_GJ_utils
 
       real(dpk) :: dx, slope_at_cross_over
       real(dpk) :: A(4,4), B(4)
-      real(dpk) :: poly_coeffs_1(4), poly_coeffs_2(4), poly_coeffs_3(4)
       real(dpk) :: x_in,imag_part
  
       integer   :: pos_idx
@@ -37,6 +37,9 @@ Module contour_GJ_utils
       cross_over_pt_idx = temp3(1)
 
       cross_over_pt = contour_data%iftpoints(cross_over_pt_idx)
+
+      contour_data%IFT_cross_over_pt = cross_over_pt
+
       dx =  REAL(contour_data%iftpoints(cross_over_pt_idx + 1) - contour_data%iftpoints(cross_over_pt_idx))
 
       slope_at_cross_over = compute_FD_sec_order(AIMAG(contour_data%iftpoints(cross_over_pt_idx)),&
@@ -45,14 +48,15 @@ Module contour_GJ_utils
                                                  dx, dx)
 
       call compute_A_B_matrices(max_IFT_cont,contour_data%GJ_ref_pt,0._dpk,0._dpk,A,B)  
-      call solve_gaussian(A, B, poly_coeffs_1, 4)
+      call solve_gaussian(A, B, contour_data%poly_coeffs_cubic_1, 4)
     
       call compute_A_B_matrices(contour_data%GJ_ref_pt,contour_data%GJ_cntr_maxima,0._dpk,0._dpk,A,B)  
-      call solve_gaussian(A, B, poly_coeffs_2, 4)
+      call solve_gaussian(A, B, contour_data%poly_coeffs_cubic_2, 4)
    
       call compute_A_B_matrices(contour_data%GJ_cntr_maxima,cross_over_pt,0._dpk,slope_at_cross_over,A,B)  
-      call solve_gaussian(A, B, poly_coeffs_3, 4)
+      call solve_gaussian(A, B, contour_data%poly_coeffs_cubic_3, 4)
 
+      print*,'update_GJ_IFT_cont: num of points = ', cross_over_pt_idx - max_IFT_idx + 1
 
       do i= max_IFT_idx,cross_over_pt_idx
 
@@ -63,11 +67,11 @@ Module contour_GJ_utils
 
          select case (pos_idx)
             case (1)
-                imag_part = get_y_nth_degree_poly(x_in, poly_coeffs_1, 4)
+                imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_1, 4)
             case (2)
-                imag_part = get_y_nth_degree_poly(x_in, poly_coeffs_2, 4)
+                imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_2, 4)
             case (3)
-                imag_part = get_y_nth_degree_poly(x_in, poly_coeffs_3, 4)
+                imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_3, 4)
             case default
                 print*,'update_GJ_IFT_cont: STOPPING. out of bounds for three cubic contours'
                 STOP
@@ -78,200 +82,294 @@ Module contour_GJ_utils
      end do
  
   END SUBROUTINE update_GJ_IFT_cont
+
+  SUBROUTINE update_GJ_kernel_cont(input_data,contour_data)
+
+      type(input_params_t)   :: input_data
+      type(contour_params_t) :: contour_data
   
-FUNCTION compute_FD_sec_order(f0, f1, f2, dx1, dx2) result(df)
+      real(dpk) :: temp1(1), temp3(1)
+      integer   :: max_IFT_idx, temp2(1), temp4(1), cross_over_pt_idx, i, max_kernel_idx
+      integer   :: cross_over_pt_idx_kernel
 
-  real(dpk), intent(in)  :: f0, f1, f2   
-  real(dpk), intent(in)  :: dx1, dx2           
-  real(dpk)              :: df         
+      complex(dpk)  :: max_IFT_cont, max_kernel_cont
+      complex(dpk)  :: cross_over_pt_kernel, cross_over_pt_IFT
+      real(dpk)     :: dx, imag_part, offset,  x_in, x_out, y_out, slope
 
-  if (dx1 == dx2) then
-     df = (-3.0*f0 + 4.0*f1 - f2) / (2.0*dx1)
-  end if
+      integer   :: pos_idx, updated_total_num_kernel_pts
+      complex(dpk), allocatable, dimension(:)    :: kernel_pts_cubics_list
+      complex(dpk), allocatable, dimension(:)    :: updated_ker_int_points
+
+
+      allocate(kernel_pts_cubics_list(contour_data%num_ker_pts_in_cubics))
  
-END FUNCTION compute_FD_sec_order
+      temp2 =  maxloc(AIMAG(contour_data%ker_int_points))
+      max_kernel_idx = temp2(1)
+      max_kernel_cont = contour_data%ker_int_points(max_kernel_idx)
 
-SUBROUTINE compute_A_B_matrices(z1,z2,slope1,slope2,A,B)
+      temp2 =  maxloc(AIMAG(contour_data%iftpoints))
+      max_IFT_idx = temp2(1)
+      max_IFT_cont = contour_data%iftpoints(max_IFT_idx)
 
-  complex(dpk), intent(in)  :: z1,z2
-  real(dpk), intent(in)     :: slope1, slope2
-  real(dpk), intent(out)    :: A(4,4), B(4)
+      temp3 = minloc(ABS(AIMAG(contour_data%ker_int_points)))
+      cross_over_pt_idx_kernel = temp3(1)
 
-  integer :: i,n
-
-  n = 4
-
-   do i = 1,n
-      A(1,i) = (REAL(z1))**(n-i)
-   end do  
-  
-   do i = 1,n-1
-      if (REAL(z1) == 0._dpk .AND. n-i-1 .EQ. 0) then
-         A(2,i) = 1._dpk
-      else
-         A(2,i) = (n-i)*(REAL(z1))**(n-i-1)
-     end if
-   end do  
-   A(2,n) = 0._dpk
-   
-   do i = 1,n
-      A(3,i) = (REAL(z2))**(n-i)
-   end do  
+      cross_over_pt_kernel = contour_data%ker_int_points(cross_over_pt_idx_kernel)
+      cross_over_pt_IFT    = contour_data%IFT_cross_over_pt
  
-   do i = 1,n-1
-    if (REAL(z2) == 0._dpk .AND. n-i-1 .EQ. 0) then
-         A(4,i) = 1._dpk
-      else
-         A(4,i) = (n-i)*(REAL(z2))**(n-i-1)
-     end if
-   end do  
-   A(4,n) = 0._dpk
+      offset = REAL(cross_over_pt_kernel - cross_over_pt_IFT)
 
-   B = [AIMAG(z1), slope1, AIMAG(z2), slope2]
+      dx = REAL( cross_over_pt_IFT - max_IFT_cont )/(contour_data%num_ker_pts_in_cubics - 1 )
+
+
+      do i = 1,contour_data%num_ker_pts_in_cubics
+
+         x_in  = REAL(max_IFT_cont) + (i-1)*dx
+  
+         call get_pos_idx(x_in,REAL(max_IFT_cont),REAL(contour_data%GJ_ref_pt),REAL(contour_data%GJ_cntr_maxima), &
+                                                                                        REAL(cross_over_pt_IFT),pos_idx)
+
+         select case (pos_idx)
+            case (1)
+                imag_part =  get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_1, 4)
+                slope     =  get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_1, 4)
+            case (2)
+                imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_2, 4)
+                slope     = get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_2, 4)
+            case (3)
+                imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_3, 4)
+                slope     = get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_3, 4)
+            case default
+                print*,'update_GJ_IFT_cont: STOPPING. out of bounds for three cubic contours'
+                STOP
+         end select
+
+         call compute_offset_point(x_in, imag_part, slope, 5._dpk*input_data%offset, x_out, y_out)
+
+         kernel_pts_cubics_list(i) = CMPLX(x_out,y_out,kind=dpk)
+
+     end do     
+
+     
+     updated_total_num_kernel_pts = contour_data%total_ker_points +&
+                                              contour_data%num_ker_pts_in_cubics - 2
+     allocate(updated_ker_int_points(updated_total_num_kernel_pts))
+
+      
+     open(10,file='kernelpoints_temp.out',form='FORMATTED')
+     do i = 1, updated_total_num_kernel_pts
+
+        if (i < max_kernel_idx) then
+            updated_ker_int_points(i) = contour_data%ker_int_points(i)
+        else if (i >= max_kernel_idx .AND. i <= cross_over_pt_idx_kernel) then
+           updated_ker_int_points(i) = kernel_pts_cubics_list(i-max_kernel_idx + 1)
+        else if ( i > cross_over_pt_idx_kernel) then
+           updated_ker_int_points(i) = contour_data%ker_int_points(i + cross_over_pt_idx_kernel&
+                                                       - contour_data%num_ker_pts_in_cubics)
+        end if
+
+         write(10,'(I10,2F30.20)') i, updated_ker_int_points(i)
+     end do
+     close(10)
+     
+     call swap_arrays(contour_data%ker_int_points,updated_ker_int_points) 
+
+     contour_data%total_ker_points = updated_total_num_kernel_pts
+
+ END SUBROUTINE update_GJ_kernel_cont
+ 
    
+ FUNCTION compute_FD_sec_order(f0, f1, f2, dx1, dx2) result(df)
 
- END SUBROUTINE 
+    real(dpk), intent(in)  :: f0, f1, f2   
+    real(dpk), intent(in)  :: dx1, dx2           
+    real(dpk)              :: df         
 
-SUBROUTINE solve_gaussian(A, b, x, n)
+    if (dx1 == dx2) then
+       df = (-3._dpk*f0 + 4._dpk*f1 - f2) / (2._dpk*dx1)
+    else
+       df =  -(2._dpk*dx1 + dx2) / (dx1*(dx1+dx2)) * f0  &
+             + ((dx1+dx2) / (dx1*dx2)) * f1              &
+             - (dx1 / (dx2*(dx1+dx2))) * f2
+    end if
+   
+  END FUNCTION compute_FD_sec_order
 
-   integer, intent(in) :: n
-   real(dpk), intent(inout) :: A(n,n)
-   real(dpk), intent(inout) :: b(n)
-   real(dpk), intent(out)   :: x(n)
+  SUBROUTINE compute_A_B_matrices(z1,z2,slope1,slope2,A,B)
 
-   integer :: i, j, k, piv
-   real(dpk) :: factor, maxval, tmp
-   real(dpk) :: row(n)
+    complex(dpk), intent(in)  :: z1,z2
+    real(dpk), intent(in)     :: slope1, slope2
+    real(dpk), intent(out)    :: A(4,4), B(4)
 
-   ! Forward elimination with partial pivoting
-   do k = 1, n-1
-      piv = k
-      maxval = abs(A(k,k))
-      do i = k+1, n
-         if (abs(A(i,k)) > maxval) then
-            piv = i
-            maxval = abs(A(i,k))
-         end if
-      end do
+    integer :: i,n
 
-      if (piv /= k) then
-         row      = A(k,:)   ! swap rows in A
-         A(k,:)   = A(piv,:)
-         A(piv,:) = row
+    n = 4
 
-         tmp = b(k); b(k) = b(piv); b(piv) = tmp
-      end if
+     do i = 1,n
+        A(1,i) = (REAL(z1))**(n-i)
+     end do  
+    
+     do i = 1,n-1
+        if (REAL(z1) == 0._dpk .AND. n-i-1 .EQ. 0) then
+           A(2,i) = 1._dpk
+        else
+           A(2,i) = (n-i)*(REAL(z1))**(n-i-1)
+       end if
+     end do  
+     A(2,n) = 0._dpk
+     
+     do i = 1,n
+        A(3,i) = (REAL(z2))**(n-i)
+     end do  
+   
+     do i = 1,n-1
+      if (REAL(z2) == 0._dpk .AND. n-i-1 .EQ. 0) then
+           A(4,i) = 1._dpk
+        else
+           A(4,i) = (n-i)*(REAL(z2))**(n-i-1)
+       end if
+     end do  
+     A(4,n) = 0._dpk
 
-      do i = k+1, n
-         factor = A(i,k) / A(k,k)
-         A(i,k) = 0.0_dpk
-         A(i,k+1:n) = A(i,k+1:n) - factor * A(k,k+1:n)
-         b(i) = b(i) - factor * b(k)
-      end do
-   end do
+     B = [AIMAG(z1), slope1, AIMAG(z2), slope2]
+     
 
-   ! Back substitution
-   do i = n, 1, -1
-      tmp = b(i)
-      do j = i+1, n
-         tmp = tmp - A(i,j) * x(j)
-      end do
-      x(i) = tmp / A(i,i)
-   end do
+   END SUBROUTINE 
 
-END SUBROUTINE solve_gaussian
+  SUBROUTINE solve_gaussian(A, b, x, n)
 
-FUNCTION get_y_nth_degree_poly(x_in,poly_coeffs,n) result(y)
+     integer, intent(in) :: n
+     real(dpk), intent(inout) :: A(n,n)
+     real(dpk), intent(inout) :: b(n)
+     real(dpk), intent(out)   :: x(n)
 
-  integer                :: n, i
-  real(dpk), intent(in)  :: x_in 
-  real(dpk), intent(in)  :: poly_coeffs(n)          
-  real(dpk)              :: y
-  
-  y = poly_coeffs(1)
-  do i = 2, n
-     y = y * x_in + poly_coeffs(i)
-  end do
+     integer :: i, j, k, piv
+     real(dpk) :: factor, maxval, tmp
+     real(dpk) :: row(n)
 
-END FUNCTION get_y_nth_degree_poly  
+     ! Forward elimination with partial pivoting
+     do k = 1, n-1
+        piv = k
+        maxval = abs(A(k,k))
+        do i = k+1, n
+           if (abs(A(i,k)) > maxval) then
+              piv = i
+              maxval = abs(A(i,k))
+           end if
+        end do
 
-SUBROUTINE get_pos_idx(x_in, a, b, c, d, pos_idx)
-  
-  real(8), intent(in) :: x_in, a, b, c, d
-  integer, intent(out) :: pos_idx
+        if (piv /= k) then
+           row      = A(k,:)   ! swap rows in A
+           A(k,:)   = A(piv,:)
+           A(piv,:) = row
 
-  pos_idx = 0  
+           tmp = b(k); b(k) = b(piv); b(piv) = tmp
+        end if
 
-  if ( (x_in >= min(a,b)) .AND. (x_in <= max(a,b)) ) then
-     pos_idx = 1
-  else if ( (x_in >= min(b,c)) .AND. (x_in <= max(b,c)) ) then
-     pos_idx = 2
-  else if ( (x_in >= min(c,d)) .AND. (x_in <= max(c,d)) ) then
-     pos_idx = 3
-  end if
+        do i = k+1, n
+           factor = A(i,k) / A(k,k)
+           A(i,k) = 0.0_dpk
+           A(i,k+1:n) = A(i,k+1:n) - factor * A(k,k+1:n)
+           b(i) = b(i) - factor * b(k)
+        end do
+     end do
 
-END SUBROUTINE get_pos_idx
-  
-SUBROUTINE get_dy_dx_alg_int_contour(x, dy_dx, p, a, b)
-  !! Computes exact derivative dy/dx of the algebraic contour
+     ! Back substitution
+     do i = n, 1, -1
+        tmp = b(i)
+        do j = i+1, n
+           tmp = tmp - A(i,j) * x(j)
+        end do
+        x(i) = tmp / A(i,i)
+     end do
 
-    real(dpk), intent(in)  :: x, a, b, p
-    real(dpk), intent(out) :: dy_dx
+  END SUBROUTINE solve_gaussian
 
-    real(dpk) :: u
+  FUNCTION get_y_nth_degree_poly(x_in,poly_coeffs_cubic,n) result(y)
 
-    u  = (x - p) / a
-    dy_dx = b * (12.0_dpk * (1.0_dpk - u**4)) / (a * (3.0_dpk + u**4)**2)
+    integer                :: n, i
+    real(dpk), intent(in)  :: x_in 
+    real(dpk), intent(in)  :: poly_coeffs_cubic(n)          
+    real(dpk)              :: y
+    
+    y = poly_coeffs_cubic(1)
+    do i = 2, n
+       y = y * x_in + poly_coeffs_cubic(i)
+    end do
 
-END SUBROUTINE get_dy_dx_alg_int_contour
+  END FUNCTION get_y_nth_degree_poly  
 
+
+  FUNCTION get_dy_nth_degree_poly(x_in,poly_coeffs_cubic,n) result(y)
+
+    integer                :: n, i
+    real(dpk), intent(in)  :: x_in 
+    real(dpk), intent(in)  :: poly_coeffs_cubic(n)          
+    real(dpk)              :: y
+    
+    y = (n-1)*poly_coeffs_cubic(1)
+    do i = 2, n-1
+       y = y * x_in + (n - i)* poly_coeffs_cubic(i)
+    end do
+
+  END FUNCTION get_dy_nth_degree_poly  
+
+
+  SUBROUTINE get_pos_idx(x_in, a, b, c, d, pos_idx)
+    
+    real(dpk), intent(in) :: x_in, a, b, c, d
+    integer, intent(out) :: pos_idx
+
+    pos_idx = 0  
+
+    if ( (x_in >= min(a,b)) .AND. (x_in <= max(a,b)) ) then
+       pos_idx = 1
+    else if ( (x_in >= min(b,c)) .AND. (x_in <= max(b,c)) ) then
+       pos_idx = 2
+    else if ( (x_in >= min(c,d)) .AND. (x_in <= max(c,d)) ) then
+       pos_idx = 3
+    end if
+
+  END SUBROUTINE get_pos_idx
+    
+
+  SUBROUTINE compute_offset_point(x_in, y_in, slope, r, x_out, y_out)
+
+    real(dpk), intent(in)  :: x_in, y_in, slope, r
+    real(dpk), intent(out) :: x_out, y_out
+    real(dpk) :: dx, dy, denom
+
+    if (ABS(slope) > 1.0d12) then
+       dx = 0.0d0
+       dy = r
+    else
+       denom = sqrt(1.0d0 + slope*slope)
+       dx = r / denom
+       dy = r * slope / denom
+    end if
+
+    if (slope < 0._dpk .OR. slope .EQ. 0) then
+       x_out = x_in + dx
+       y_out = y_in + dy
+    else 
+       x_out = x_in - dx
+       y_out = y_in + dy
+    end if
+
+  END SUBROUTINE compute_offset_point
+
+  SUBROUTINE swap_arrays(A, B)
+
+    complex(dpk), allocatable, intent(inout) :: A(:), B(:)
+    complex(dpk), allocatable :: tmp(:)
+
+    call move_alloc(A, tmp)
+    call move_alloc(B, A)
+    call move_alloc(tmp, B)
+    
+  END SUBROUTINE swap_arrays
 
 
 END MODULE contour_GJ_utils
 
-!program solve_axb
-!  implicit none
-!  integer, parameter :: dpk = kind(1.0d0)
-!  real(dpk) :: A(8,8), B(8), X(8)
-!  integer :: i, j
-!
-!  ! Example system: A * X = B
-!  A = reshape([ &
-!      4.0_dpk, -1.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk, &
-!     -1.0_dpk,  4.0_dpk, -1.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk, &
-!      0.0_dpk, -1.0_dpk,  4.0_dpk, -1.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk, &
-!      0.0_dpk,  0.0_dpk, -1.0_dpk,  4.0_dpk, -1.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk, &
-!      0.0_dpk,  0.0_dpk,  0.0_dpk, -1.0_dpk,  4.0_dpk, -1.0_dpk,  0.0_dpk,  0.0_dpk, &
-!      0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk, -1.0_dpk,  4.0_dpk, -1.0_dpk,  0.0_dpk, &
-!      0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk, -1.0_dpk,  4.0_dpk, -1.0_dpk, &
-!      0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk,  0.0_dpk, -1.0_dpk,  4.0_dpk  ],
-!&
-!      shape(A))
-!
-!  B = [1.0_dpk, 2.0_dpk, 3.0_dpk, 4.0_dpk, 5.0_dpk, 6.0_dpk, 7.0_dpk, 8.0_dpk]
-!
-!  call gauss_solve(A, B, 8, X)
-!
-!  print *, "Solution X:"
-!  do i = 1, 8
-!     print '(F12.6)', X(i)
-!  end do
-!
-!
-
-!     print*,'max_IFT_idx = ', max_IFT_idx
-!      print*,'cross_over_pt_idx ', cross_over_pt_idx 
-
-!      print*, 'max IFT contour =', max_IFT_cont
-!      print*, 'GJ_ref_pt = ', contour_data%GJ_ref_pt
-!      print*, 'GJ_cntr_maxima = ', contour_data%GJ_cntr_maxima
-!      print*, 'cross_over_pt = ', cross_over_pt
-!      print*, 'slope_at_cross_over =', slope_at_cross_over
-
-  
-!       print*,'------------------------------------'
-!      do i = 1, 4
-!        print* , poly_coeffs_3(i)   ! 8 columns, width=8, 2 decimals
-!      end do
-!      print*,'-------------------------------------'
-  
+ 
