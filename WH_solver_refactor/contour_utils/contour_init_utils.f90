@@ -61,8 +61,10 @@ Module contour_init_utils
         if (input_data%solution_mode == 'guided_jet')  then
            read(10,*) contour_data%GJ_ref_pt
            read(10,*) contour_data%GJ_cntr_maxima
-           read(10,*) contour_data%num_ker_pts_in_cubics
-        end if
+           read(10,*) contour_data%num_ker_pts_in_cubics(1)
+           read(10,*) contour_data%num_ker_pts_in_cubics(2)
+           read(10,*) contour_data%num_ker_pts_in_cubics(3)
+       end if
 
         close(1)
 

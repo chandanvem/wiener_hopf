@@ -75,8 +75,6 @@ Module contour_generate_utils
                                panel_len_right,input_data%num_ker_pts_loop,input_data%theta,&
                                1,contour_data%ker_int_points)
 
-  
-    close(10)
 
  END SUBROUTINE compute_kernel_contour
 

@@ -93,7 +93,7 @@ Module contour_GJ_utils
       integer   :: cross_over_pt_idx_kernel
 
       complex(dpk)  :: max_IFT_cont, max_kernel_cont
-      complex(dpk)  :: cross_over_pt_kernel, cross_over_pt_IFT
+      complex(dpk)  :: cross_over_pt_kernel, cross_over_pt_IFT, start_new_kernel_contour
       real(dpk)     :: dx, imag_part, offset,  x_in, x_out, y_out, slope
 
       integer   :: pos_idx, updated_total_num_kernel_pts
@@ -101,7 +101,7 @@ Module contour_GJ_utils
       complex(dpk), allocatable, dimension(:)    :: updated_ker_int_points
 
 
-      allocate(kernel_pts_cubics_list(contour_data%num_ker_pts_in_cubics))
+      allocate(kernel_pts_cubics_list(contour_data%num_ker_pts_in_cubics(1)))
  
       temp2 =  maxloc(AIMAG(contour_data%ker_int_points))
       max_kernel_idx = temp2(1)
@@ -114,20 +114,22 @@ Module contour_GJ_utils
       temp3 = minloc(ABS(AIMAG(contour_data%ker_int_points)))
       cross_over_pt_idx_kernel = temp3(1)
 
+      start_new_kernel_contour =  contour_data%ker_int_points(max_kernel_idx + 1)
+
       cross_over_pt_kernel = contour_data%ker_int_points(cross_over_pt_idx_kernel)
       cross_over_pt_IFT    = contour_data%IFT_cross_over_pt
- 
-      offset = REAL(cross_over_pt_kernel - cross_over_pt_IFT)
 
-      dx = REAL( cross_over_pt_IFT - max_IFT_cont )/(contour_data%num_ker_pts_in_cubics - 1 )
+      dx = REAL( contour_data%GJ_ref_pt - max_IFT_cont )/(contour_data%num_ker_pts_in_cubics(1) - 1 )
 
 
-      do i = 1,contour_data%num_ker_pts_in_cubics
+      open(10,file='kernelpoints_temp.out',form='FORMATTED')
+      do i = 1,contour_data%num_ker_pts_in_cubics(1)
 
          x_in  = REAL(max_IFT_cont) + (i-1)*dx
-  
+
+
          call get_pos_idx(x_in,REAL(max_IFT_cont),REAL(contour_data%GJ_ref_pt),REAL(contour_data%GJ_cntr_maxima), &
-                                                                                        REAL(cross_over_pt_IFT),pos_idx)
+                                                                                REAL(cross_over_pt_IFT),pos_idx)
 
          select case (pos_idx)
             case (1)
@@ -144,37 +146,38 @@ Module contour_GJ_utils
                 STOP
          end select
 
-         call compute_offset_point(x_in, imag_part, slope, 5._dpk*input_data%offset, x_out, y_out)
+      
+         call compute_offset_point(x_in, imag_part, slope, 10._dpk*input_data%offset, x_out, y_out)
+         print*,'x_in = ',x_in, 'slope = ', slope, 'x_out = ', x_out, 'y_out = ', y_out
 
          kernel_pts_cubics_list(i) = CMPLX(x_out,y_out,kind=dpk)
 
+         write(10,'(I10,2F30.20)') i, kernel_pts_cubics_list(i)
      end do     
 
-     
-     updated_total_num_kernel_pts = contour_data%total_ker_points +&
-                                              contour_data%num_ker_pts_in_cubics - 2
-     allocate(updated_ker_int_points(updated_total_num_kernel_pts))
-
-      
-     open(10,file='kernelpoints_temp.out',form='FORMATTED')
-     do i = 1, updated_total_num_kernel_pts
-
-        if (i < max_kernel_idx) then
-            updated_ker_int_points(i) = contour_data%ker_int_points(i)
-        else if (i >= max_kernel_idx .AND. i <= cross_over_pt_idx_kernel) then
-           updated_ker_int_points(i) = kernel_pts_cubics_list(i-max_kernel_idx + 1)
-        else if ( i > cross_over_pt_idx_kernel) then
-           updated_ker_int_points(i) = contour_data%ker_int_points(i + cross_over_pt_idx_kernel&
-                                                       - contour_data%num_ker_pts_in_cubics)
-        end if
-
-         write(10,'(I10,2F30.20)') i, updated_ker_int_points(i)
-     end do
      close(10)
      
-     call swap_arrays(contour_data%ker_int_points,updated_ker_int_points) 
-
-     contour_data%total_ker_points = updated_total_num_kernel_pts
+!     updated_total_num_kernel_pts = contour_data%total_ker_points +&
+!                                              contour_data%num_ker_pts_in_cubics - 2
+!     allocate(updated_ker_int_points(updated_total_num_kernel_pts))
+!
+!      
+!     do i = 1, updated_total_num_kernel_pts
+!
+!        if (i < max_kernel_idx) then
+!            updated_ker_int_points(i) = contour_data%ker_int_points(i)
+!        else if (i >= max_kernel_idx .AND. i <= cross_over_pt_idx_kernel) then
+!           updated_ker_int_points(i) = kernel_pts_cubics_list(i-max_kernel_idx + 1)
+!        else if ( i > 2*cross_over_pt_idx_kernel) then
+!           updated_ker_int_points(i) = contour_data%ker_int_points(i + cross_over_pt_idx_kernel&
+!                                                       - contour_data%num_ker_pts_in_cubics)
+!        end if
+!
+!     end do
+!     
+!     call swap_arrays(contour_data%ker_int_points,updated_ker_int_points) 
+!
+!     contour_data%total_ker_points = updated_total_num_kernel_pts
 
  END SUBROUTINE update_GJ_kernel_cont
  
@@ -340,20 +343,20 @@ Module contour_GJ_utils
     real(dpk) :: dx, dy, denom
 
     if (ABS(slope) > 1.0d12) then
-       dx = 0.0d0
+       dx = 0._dpk
        dy = r
     else
-       denom = sqrt(1.0d0 + slope*slope)
-       dx = r / denom
-       dy = r * slope / denom
+       denom = sqrt(1._dpk + slope*slope)
+       dx = r*slope / denom
+       dy = r  / denom
     end if
 
     if (slope < 0._dpk .OR. slope .EQ. 0) then
-       x_out = x_in + dx
-       y_out = y_in + dy
+       x_out = x_in + ABS(dx)
+       y_out = y_in + ABS(dy)
     else 
-       x_out = x_in - dx
-       y_out = y_in + dy
+       x_out = x_in - ABS(dx)
+       y_out = y_in + ABS(dy)
     end if
 
   END SUBROUTINE compute_offset_point

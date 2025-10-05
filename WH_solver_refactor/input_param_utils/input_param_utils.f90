@@ -57,7 +57,7 @@ MODULE input_params
           integer                                    :: total_ker_points,tot_IFT_pts 
           complex(dpk), allocatable, dimension(:)    :: ker_int_points  !!location of the starting pts
           complex(dpk), allocatable, dimension(:)    :: iftpoints 
-          integer                                    :: num_ker_pts_in_cubics 
+          integer                                    :: num_ker_pts_in_cubics(3)
           complex(dpk)                               :: GJ_ref_pt, GJ_cntr_maxima
           !integer(dpk)                               :: GJ_num_int_pts
           complex(dpk)                               ::  IFT_cross_over_pt
