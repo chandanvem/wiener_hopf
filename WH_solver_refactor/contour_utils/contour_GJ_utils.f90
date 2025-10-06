@@ -100,8 +100,13 @@ Module contour_GJ_utils
       complex(dpk), allocatable, dimension(:)    :: kernel_pts_cubics_list
       complex(dpk), allocatable, dimension(:)    :: updated_ker_int_points
 
+      integer   :: j, num_temp_points, count_temp_point, updated_cross_over_pt_index
+      complex(dpk)  :: start_point, end_point
 
-      allocate(kernel_pts_cubics_list(contour_data%num_ker_pts_in_cubics(1)))
+
+      allocate(kernel_pts_cubics_list(contour_data%num_ker_pts_in_cubics(1) + &
+                                      contour_data%num_ker_pts_in_cubics(2) + &
+                                      contour_data%num_ker_pts_in_cubics(3) - 2 ))
  
       temp2 =  maxloc(AIMAG(contour_data%ker_int_points))
       max_kernel_idx = temp2(1)
@@ -119,65 +124,100 @@ Module contour_GJ_utils
       cross_over_pt_kernel = contour_data%ker_int_points(cross_over_pt_idx_kernel)
       cross_over_pt_IFT    = contour_data%IFT_cross_over_pt
 
-      dx = REAL( contour_data%GJ_ref_pt - max_IFT_cont )/(contour_data%num_ker_pts_in_cubics(1) - 1 )
+  !    open(10,file='kernelpoints_temp.out',form='FORMATTED')
 
+      count_temp_point = 1
+      do j = 1,3
+        select case (j)
+               case (1)
+                  start_point =  max_IFT_cont
+                  end_point   =  contour_data%GJ_ref_pt 
+                  num_temp_points = contour_data%num_ker_pts_in_cubics(1)-1
+               case (2)
+                  start_point =  contour_data%GJ_ref_pt 
+                  end_point   =  contour_data%GJ_cntr_maxima
+                  num_temp_points = contour_data%num_ker_pts_in_cubics(2)-1
+               case (3)
+                  start_point =  contour_data%GJ_cntr_maxima
+                  end_point   =  contour_data%IFT_cross_over_pt
+                  num_temp_points = contour_data%num_ker_pts_in_cubics(3)
+        end select
+    
+        dx = REAL(end_point- start_point)/(contour_data%num_ker_pts_in_cubics(j) - 1)
 
-      open(10,file='kernelpoints_temp.out',form='FORMATTED')
-      do i = 1,contour_data%num_ker_pts_in_cubics(1)
-
-         x_in  = REAL(max_IFT_cont) + (i-1)*dx
-
-
-         call get_pos_idx(x_in,REAL(max_IFT_cont),REAL(contour_data%GJ_ref_pt),REAL(contour_data%GJ_cntr_maxima), &
-                                                                                REAL(cross_over_pt_IFT),pos_idx)
-
-         select case (pos_idx)
-            case (1)
-                imag_part =  get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_1, 4)
-                slope     =  get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_1, 4)
-            case (2)
-                imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_2, 4)
-                slope     = get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_2, 4)
-            case (3)
-                imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_3, 4)
-                slope     = get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_3, 4)
-            case default
-                print*,'update_GJ_IFT_cont: STOPPING. out of bounds for three cubic contours'
-                STOP
-         end select
-
-      
-         call compute_offset_point(x_in, imag_part, slope, 10._dpk*input_data%offset, x_out, y_out)
-         print*,'x_in = ',x_in, 'slope = ', slope, 'x_out = ', x_out, 'y_out = ', y_out
-
-         kernel_pts_cubics_list(i) = CMPLX(x_out,y_out,kind=dpk)
-
-         write(10,'(I10,2F30.20)') i, kernel_pts_cubics_list(i)
-     end do     
-
-     close(10)
+        do i = 1,num_temp_points
      
-!     updated_total_num_kernel_pts = contour_data%total_ker_points +&
-!                                              contour_data%num_ker_pts_in_cubics - 2
-!     allocate(updated_ker_int_points(updated_total_num_kernel_pts))
+           x_in  = REAL(start_point) + (i-1)*dx
+
+           if (i == 1) then
+               x_in = REAL(start_point)
+           else if ( i == num_temp_points) then
+               x_in = REAL(end_point)           
+           end if
+
+           call get_pos_idx(x_in,REAL(max_IFT_cont),REAL(contour_data%GJ_ref_pt),REAL(contour_data%GJ_cntr_maxima), &
+                                                                                  REAL(cross_over_pt_IFT),pos_idx)
+
+           select case (pos_idx)
+              case (1)
+                  imag_part =  get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_1, 4)
+                  slope     =  get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_1, 4)
+              case (2)
+                  imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_2, 4)
+                  slope     = get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_2, 4)
+              case (3)
+                  imag_part = get_y_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_3, 4)
+                  slope     = get_dy_nth_degree_poly(x_in, contour_data%poly_coeffs_cubic_3, 4)
+              case default
+                  print*,'update_GJ_IFT_cont: STOPPING. out of bounds for three cubic contours for cubic',j,&
+                                                                                          'i = ',i,'x_in = ', x_in 
+                  STOP
+           end select
+        
+           call compute_offset_point(x_in, imag_part, slope, input_data%offset, x_out, y_out)
+          
+           !print*,'x_in = ',x_in, 'y_in = ',imag_part, 'slope = ', slope, 'x_out = ', x_out, 'y_out = ', y_out
+
+           kernel_pts_cubics_list(count_temp_point) = CMPLX(x_out,y_out,kind=dpk)
+
+           if(j == 3 .AND. i == num_temp_points) then
+               kernel_pts_cubics_list(count_temp_point)  = cross_over_pt_kernel
+           end if
+
+     !      write(10,'(I10,2F30.20)') count_temp_point,kernel_pts_cubics_list(count_temp_point)
+           count_temp_point = count_temp_point + 1
+         end do     
+       end do
+    ! close(10)
+
+     
+    updated_cross_over_pt_index = max_kernel_idx + count_temp_point - 1
+    updated_total_num_kernel_pts = updated_cross_over_pt_index + &
+                                   contour_data%total_ker_points - cross_over_pt_idx_kernel
+
+
+    allocate(updated_ker_int_points(updated_total_num_kernel_pts))
+    
+    open(10,file='kernelpoints_temp.out',form='FORMATTED')
+  
+    do i = 1, updated_total_num_kernel_pts
+        if (i <= max_kernel_idx) then
+            updated_ker_int_points(i) = contour_data%ker_int_points(i)
+        else if (i > max_kernel_idx .AND. i <= updated_cross_over_pt_index ) then
+           updated_ker_int_points(i) = kernel_pts_cubics_list(i- max_kernel_idx)
+        else
+           updated_ker_int_points(i) = contour_data%ker_int_points(i + cross_over_pt_idx_kernel &
+                                                                 - updated_cross_over_pt_index )
+        end if
+       write(10,'(I10,2F30.20)') i,updated_ker_int_points(i)
+     print*,'i =  ',i,'x = ', REAL(updated_ker_int_points(i)), 'y_out = ',AIMAG(updated_ker_int_points(i))
+
+     end do
+    close(10)
+      
+    call swap_arrays(contour_data%ker_int_points,updated_ker_int_points) 
 !
-!      
-!     do i = 1, updated_total_num_kernel_pts
-!
-!        if (i < max_kernel_idx) then
-!            updated_ker_int_points(i) = contour_data%ker_int_points(i)
-!        else if (i >= max_kernel_idx .AND. i <= cross_over_pt_idx_kernel) then
-!           updated_ker_int_points(i) = kernel_pts_cubics_list(i-max_kernel_idx + 1)
-!        else if ( i > 2*cross_over_pt_idx_kernel) then
-!           updated_ker_int_points(i) = contour_data%ker_int_points(i + cross_over_pt_idx_kernel&
-!                                                       - contour_data%num_ker_pts_in_cubics)
-!        end if
-!
-!     end do
-!     
-!     call swap_arrays(contour_data%ker_int_points,updated_ker_int_points) 
-!
-!     contour_data%total_ker_points = updated_total_num_kernel_pts
+    contour_data%total_ker_points = updated_total_num_kernel_pts
 
  END SUBROUTINE update_GJ_kernel_cont
  
