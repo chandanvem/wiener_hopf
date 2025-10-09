@@ -22,7 +22,11 @@ Module user_defined_functions
     complex(dpk)  :: s_target, u_s
     type(input_params_t) :: input_data
 
-    u_s = (s_target-input_data%KH_zero_1)
+    if (input_data%solution_mode == 'guided_jet') then
+       u_s = (s_target-input_data%KH_zero_1)(s_target - input_data%s_GJ)
+    else if
+       u_s = (s_target-input_data%KH_zero_1)
+    end if
 
   END FUNCTION compute_U_s_factor
 
@@ -39,15 +43,6 @@ Module user_defined_functions
    integer         :: ss
    real(dpk)       :: s1_1, s2_1, s1_2, s2_2
    type(input_params_t) :: input_data
-
-
-!   s1_1 = 1._dpk/(input_data%M1 - 1._dpk)
-!   s2_1 = 1._dpk/(input_data%M1 + 1._dpk)
-!   lambda1 = compute_lambda_0_2pi(zeta,s1_1,s2_1)
-
-!   s1_2 = input_data%kapT/(input_data%kapT*input_data%M2 - 1._dpk)
-!   s2_2 = input_data%kapT/(input_data%kapT*input_data%M2 + 1._dpk)
-!   lambda2 = compute_lambda_0_2pi(zeta,s1_2,s2_2)
 
    lambda1 =   sqrt(1._dpk - zeta*(input_data%M1+1._dpk))*sqrt(1._dpk - zeta*(input_data%M1-1._dpk))
    lambda2 =   sqrt(input_data%kapT - zeta*(input_data%kapT*input_data%M2+1._dpk))* &
@@ -85,10 +80,6 @@ Module user_defined_functions
             4._dpk*input_data%azim_mode*input_data%azim_mode - 3._dpk)
 
    end if
-
-!!$    print*,'F2n:',F2n
-!!$    print*,'F2d:',F2d
-!!$    print*,'F2f:',F2f
 
    F2 =(((1._dpk - zeta*input_data%M2)**2)/lambda2)*F2f
       
@@ -173,14 +164,6 @@ Module user_defined_functions
     type(input_params_t)  :: input_data
 
     NAN_flag = .FALSE.
-
-!    s1_1 = 1._dpk/(input_data%M1 - 1._dpk)
-!    s2_1 = 1._dpk/(input_data%M1 + 1._dpk)
-!    lambda1 = compute_lambda_0_2pi(si,s1_1,s2_1)
-
-!    s1_2 = input_data%kapT/(input_data%kapT*input_data%M2 - 1._dpk)
-!    s2_2 = input_data%kapT/(input_data%kapT*input_data%M2 + 1._dpk)
-!    lambda2 = compute_lambda_0_2pi(si,s1_2,s2_2)
 
     lambda1 = sqrt(1._dpk - si*(input_data%M1+1._dpk))*sqrt(1._dpk - si*(input_data%M1-1._dpk))
 
@@ -410,33 +393,7 @@ Module user_defined_functions
     
   END FUNCTION residuepot
 
-  FUNCTION compute_lambda_0_2pi(zeta,s1,s2)  result(w)
 
-    complex(dpk) :: zeta
-    complex(dpk) :: w
-    real(dpk)    :: r1, r2, theta1, theta2, x1, y1, x2, y2
-    real(dpk)    :: s1, s2, PI
-
-    PI = 4._dpk*ATAN(1._dpk)
-
-    r1 = ABS(zeta-s1)
-    x1 = REAL(zeta-s1)
-    y1 = AIMAG(zeta-s1)
-    theta1 = ATAN2(y1, x1)
-    if (theta1 < 0._dpk) theta1 = theta1 + 2._dpk * PI
-
-    r2 = ABS(zeta-s2)
-    x2 = REAL(zeta-s2)
-    y2 = AIMAG(zeta-s2)
-    theta2 = ATAN2(y2, x2)
-    if (theta2 < 0._dpk) theta2 = theta2 + 2._dpk * PI
-
-    w =  sqrt(1._dpk -(zeta/s2))
-    w =  w* CMPLX(COS(0.5*(theta1)) , SIN(0.5*(theta1)),kind=dpk)
-    w = -w*SQRT(r1/(ABS(s1)))
-
- END FUNCTION compute_lambda_0_2pi
- 
 end module user_defined_functions
 
 

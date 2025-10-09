@@ -8,10 +8,26 @@ Module user_defined_precompute
   IMPLICIT NONE
   
   PUBLIC  :: precompute 
+  PRIVATE :: precompute_hard_duct_mode, precompute_guided_jet_mode
+
 
   CONTAINS 
  
   SUBROUTINE precompute(input_data,contour_data)
+
+    type(input_params_t)   :: input_data
+    type(contour_params_t) :: contour_data
+
+    if (input_data%solution_mode == 'guided_jet') then
+       call precompute_guided_jet_mode(input_data,contour_data)
+    else
+       call precompute_hard_duct_mode(input_data,contour_data)
+    end if
+
+
+  END SUBROUTINE precompute
+ 
+  SUBROUTINE precompute_hard_duct_mode(input_data,contour_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the various parameters needed while computing the IFT contour
@@ -27,7 +43,6 @@ Module user_defined_precompute
     type(input_params_t)   :: input_data
     type(contour_params_t) :: contour_data 
  
-
     PI = 4._dpk*ATAN(1.)
  
     if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
@@ -109,6 +124,57 @@ Module user_defined_precompute
 
     end if
   
-  END SUBROUTINE precompute
+  END SUBROUTINE precompute_hard_duct_mode
+
+
+  SUBROUTINE precompute_guided_jet_mode(input_data,contour_data)
+
+
+    complex(dpk)          :: intgrl_A1_at_mu_plus, intgrl_A1_at_KH_zero_1, intgrl_A1_at_KH_zero_2, intgrl_at_sup_zero
+    complex(dpk)          :: k_plus_at_mu_plus, f1, f2, f3
+    integer               :: f, i1
+    real(dpk)             :: PI, res_mu_plus, res_KH_1
+
+    type(input_params_t)   :: input_data
+    type(contour_params_t) :: contour_data 
+ 
+    PI = 4._dpk*ATAN(1.)
+    
+    res_mu_plus = ABS(compute_kernel(1,input_data%mu_plus,input_data))
+    res_KH_1    = ABS(compute_kernel(1,input_data%KH_zero_1,input_data))
+
+    write(*,'(/A12,2X,2F15.10)') ' Residue mu plus:->', res_mu_plus
+    write(*,'(/A12,2X,2F15.10)') ' Residue KH zero:->', res_KH_1
+    
+    print*, 'precompute_guided_jet_mode: Evaluating kernel at mu_plus'
+
+    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,input_data,contour_data)
+       
+    k_plus_at_mu_plus = EXP(-intgrl_A1_at_mu_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
+                        LOG(compute_kernel(0,input_data%mu_plus,input_data)/compute_U_s_factor(input_data%mu_plus,input_data)))
+
+    write(*,'(/A12,2X,2F15.10)') 'precompute_guided_jet_mode: integral at mu_plus:->', intgrl_A1_at_mu_plus
+ 
+    input_data%k_minus_at_mu_plus =  compute_kernel(0,input_data%mu_plus,input_data)/ &
+                          (k_plus_at_mu_plus*compute_U_s_factor(input_data%mu_plus,input_data)) 
+
+    write(*,'(/A22,2X,2F20.10/)') 'precompute_guided_jet_mode: K- at mu+ :->', input_data%k_minus_at_mu_plus 
+
+!!  the factor Kt^{+}(s_{z1}):
+
+    if (input_data%vortswitch .EQ. 0) then
+  
+       print*, 'precompute_guided_jet_mode: Evaluating Kt^{+}(s_{z1}) at KH_zero_1'
+       call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,input_data,contour_data)
+
+       input_data%k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
+       !! NOTE: zero KH_zero_1 has to lie below  !! the contour
+
+       write(*,'(/A22,2X,2F20.10/)') 'precompute_guided_jet_mode: K+ at KH1   :->', input_data%k_plus_sz1
+
+    end if
+
+  END SUBROUTINE precompute_guided_jet_mode
+
 
 END MODULE user_defined_precompute 

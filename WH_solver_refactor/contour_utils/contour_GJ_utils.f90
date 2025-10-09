@@ -198,7 +198,7 @@ Module contour_GJ_utils
 
     allocate(updated_ker_int_points(updated_total_num_kernel_pts))
     
-    open(10,file='kernelpoints_temp.out',form='FORMATTED')
+!    open(10,file='kernelpoints_temp.out',form='FORMATTED')
   
     do i = 1, updated_total_num_kernel_pts
         if (i <= max_kernel_idx) then
@@ -209,14 +209,12 @@ Module contour_GJ_utils
            updated_ker_int_points(i) = contour_data%ker_int_points(i + cross_over_pt_idx_kernel &
                                                                  - updated_cross_over_pt_index )
         end if
-       write(10,'(I10,2F30.20)') i,updated_ker_int_points(i)
-     print*,'i =  ',i,'x = ', REAL(updated_ker_int_points(i)), 'y_out = ',AIMAG(updated_ker_int_points(i))
-
-     end do
-    close(10)
+     !  write(10,'(I10,2F30.20)') i,updated_ker_int_points(i)
+    ! print*,'i =  ',i,'x = ', REAL(updated_ker_int_points(i)), 'y_out = ',AIMAG(updated_ker_int_points(i))
+    end do
+ !   close(10)
       
     call swap_arrays(contour_data%ker_int_points,updated_ker_int_points) 
-!
     contour_data%total_ker_points = updated_total_num_kernel_pts
 
  END SUBROUTINE update_GJ_kernel_cont
