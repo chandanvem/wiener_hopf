@@ -19,14 +19,12 @@ Module user_defined_fplus
     complex(dpk)       :: fplus_num, fplus_den, fplus, s_target, gpz, k_plus_at_s, int_A1_at_s_target
     integer            :: f
     real(dpk)          :: PI
-
     type(input_params_t) :: input_data
     type(contour_params_t) :: contour_data
 
-
     PI = 4._dpk*ATAN(1.)
 
-    call compute_eqn_A1_integral(s_target,int_A1_at_s_target,0,0,1,input_data,contour_data)
+    call compute_eqn_A1_integral(s_target,int_A1_at_s_target,0,0,1,'not_derivative',input_data,contour_data)
 
     if ((input_data%farswitch == 1) .OR. (input_data%farswitch == 2)) then
        if (REAL(s_target) >= contour_data%cont_cross_over_pt) then

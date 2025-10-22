@@ -98,7 +98,7 @@ Module user_defined_precompute
      
     print*, 'precompute: Evaluating kernel at mu_plus'
 
-    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,input_data,contour_data)
+    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,'not_derivative',input_data,contour_data)
        
     k_plus_at_mu_plus = EXP(-intgrl_A1_at_mu_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
                         LOG(compute_kernel(0,input_data%mu_plus,input_data)/compute_U_s_factor(input_data%mu_plus,input_data)))
@@ -115,7 +115,7 @@ Module user_defined_precompute
     if (input_data%vortswitch .EQ. 0) then
   
        print*, 'precompute: Evaluating Kt^{+}(s_{z1}) at KH_zero_1'
-       call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,input_data,contour_data)
+       call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,'not_derivative',input_data,contour_data)
 
        input_data%k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
        !! NOTE: zero KH_zero_1 has to lie below  !! the contour
@@ -144,6 +144,8 @@ Module user_defined_precompute
  
     input_data%psi = 1._dpk
 
+    input_data%C0 = -1._dpk*input_data%psi
+
     input_data%alpha1 = input_data%omega_r*SQRT((1._dpk - input_data%mu_plus*input_data%M1)**2&
                                                         - (input_data%mu_plus)**2)
     input_data%alpha2 = input_data%omega_r*SQRT(((input_data%kapT)**2)*(1._dpk - input_data%mu_plus*input_data%M2)**2 &
@@ -159,7 +161,7 @@ Module user_defined_precompute
  
     print*, 'precompute_guided_jet_mode: Evaluating kernel integral at mu_plus'
 
-    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,input_data,contour_data)
+    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,'not_derivative',input_data,contour_data)
     k_plus_at_mu_plus = EXP(-intgrl_A1_at_mu_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
                         LOG(compute_kernel(0,input_data%mu_plus,input_data)/compute_U_s_factor(input_data%mu_plus,input_data)))
     write(*,'(/A12,2X,2F15.10)') 'precompute_guided_jet_mode: integral at mu_plus:->', intgrl_A1_at_mu_plus
@@ -170,7 +172,7 @@ Module user_defined_precompute
 
   
     print*, 'precompute_guided_jet_mode: Evaluating Kt^{+}(s_{z1}) at KH_zero_1'
-    call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,input_data,contour_data)
+    call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,'not_derivative',input_data,contour_data)
     input_data%k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
     !! NOTE: zero KH_zero_1 has to lie below  !! the contour
     write(*,'(/A22,2X,2F20.10/)') 'precompute_guided_jet_mode: K+ at KH1   :->', input_data%k_plus_sz1

@@ -14,7 +14,7 @@ Module kernel_integral_utils
   CONTAINS 
 
   SUBROUTINE compute_eqn_A1_integral(s_target,integral_value,kswitch,ch,KU_K_switch, &
-                                                              input_data,contour_data)
+                                              derivative_flag,input_data,contour_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Evaluate (A1)
@@ -25,6 +25,7 @@ Module kernel_integral_utils
     integer                :: num_of_quad_points, ch
     integer                :: KU_K_switch  !! 1: K/U; else: K
     integer                :: kswitch  !! 1: compute (4.10); else: compute (3.22)
+    character(len=*)      :: derivative_flag
     complex(dpk), allocatable, dimension(:)    :: intpanel !! integral value at each panel
     integer(dpk), allocatable, dimension(:)    ::  Npanel 
 
@@ -34,7 +35,7 @@ Module kernel_integral_utils
     allocate(intpanel(contour_data%total_ker_points-1))
     allocate(Npanel(contour_data%total_ker_points-1))
 
-    call adaptive(s_target,kswitch,ch,KU_K_switch,intpanel,Npanel,input_data,contour_data)
+    call adaptive(s_target,kswitch,ch,KU_K_switch,derivative_flag,intpanel,Npanel,input_data,contour_data)
 
     call sum_panel_contributions_kernel(integral_value,num_of_quad_points,s_target, &
                                                       intpanel,Npanel,input_data,contour_data)
@@ -46,7 +47,7 @@ Module kernel_integral_utils
   END SUBROUTINE compute_eqn_A1_integral
 
 
-  SUBROUTINE adaptive(si,ksw,check,sw,intpanel,Npanel,input_data,contour_data)
+  SUBROUTINE adaptive(si,ksw,check,sw,derivative_flag,intpanel,Npanel,input_data,contour_data)
     
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The kernel integration is computed using an adaptive routine; which not feasible
@@ -65,7 +66,9 @@ Module kernel_integral_utils
     complex(dpk)                               :: T, si, scale
     integer                                    :: Np, Nq, Nr, panel_no, Nloopindex, check, sw, ksw
     integer                                    :: i, j, ii
-
+    character(len=*)                          :: derivative_flag
+ 
+  
     do j = 1, contour_data%total_ker_points-1  !! the integration points already specified
 
        len = contour_data%ker_int_points(j+1) - contour_data%ker_int_points(j)  !! the length of a mini panel
@@ -81,7 +84,7 @@ Module kernel_integral_utils
        end if
 
        call kernel_trapz_int(si,contour_data%ker_int_points(j),contour_data%ker_int_points(j+1),&
-                                          ksw,sw,T,input_data)  !! the basis for comparison
+                                          ksw,sw,derivative_flag,T,input_data)  !! the basis for comparison
 
        Np = 1
 
@@ -127,7 +130,7 @@ Module kernel_integral_utils
           allocate(T_temp(panel_no))
           
           do i = 1,panel_no
-             call kernel_trapz_int(si,zp(i),zp(i+1),ksw,sw,T_temp(i),input_data)
+             call kernel_trapz_int(si,zp(i),zp(i+1),ksw,sw,derivative_flag,T_temp(i),input_data)
           end do
           
           intpanel(j) = (0._dpk,0._dpk)
@@ -196,7 +199,7 @@ Module kernel_integral_utils
   END SUBROUTINE adaptive
 
 
-  SUBROUTINE kernel_trapz_int(s,z1,z2,ksw,sw,int_value,input_data)
+  SUBROUTINE kernel_trapz_int(s,z1,z2,ksw,sw,derivative_flag,int_value,input_data)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The trapezoidal rule for the kernel contour
@@ -207,9 +210,10 @@ Module kernel_integral_utils
     integer                     :: sw, ksw
 
     type(input_params_t)        :: input_data
+    character(len=*)           :: derivative_flag
 
-    f1 = kernel_integrand(ksw,sw,s,z1,input_data)
-    f2 = kernel_integrand(ksw,sw,s,z2,input_data)
+    f1 = kernel_integrand(ksw,sw,derivative_flag,s,z1,input_data)
+    f2 = kernel_integrand(ksw,sw,derivative_flag,s,z2,input_data)
 
     dz = (z2-z1)
 
@@ -263,7 +267,7 @@ Module kernel_integral_utils
   END SUBROUTINE sum_panel_contributions_kernel
 
 
-  FUNCTION kernel_integrand(kswitch,switch,si,zi,input_data) result(integrand)
+  FUNCTION kernel_integrand(kswitch,switch,derivative_flag,si,zi,input_data) result(integrand)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the kernel integrand
@@ -272,15 +276,22 @@ Module kernel_integral_utils
     complex(dpk)    :: si, zi, integrand
     complex(dpk)    :: In, Id
     integer         :: switch, kswitch
+    character(len=*) :: derivative_flag
 
     type(input_params_t)  :: input_data
-
+    
     if (switch == 1)  then !! K/U
        In = LOG(compute_kernel(kswitch,zi,input_data)/compute_U_s_factor(zi,input_data))
     else
        In = LOG(compute_kernel(kswitch,zi,input_data))
     end if
+ 
     Id = zi-si
+
+    if (derivative_flag == 'derivative') then
+        Id = (zi - si)**2   
+    end if
+
     integrand = In/Id
     
 !!$    if (ABS(integrand) > 1.0E3) then

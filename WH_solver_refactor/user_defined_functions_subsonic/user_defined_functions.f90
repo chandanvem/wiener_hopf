@@ -255,28 +255,26 @@ Module user_defined_functions
   FUNCTION residuepr_guided_jet_mode(r,z,input_data) result(residuepr_op)
 
     real(dpk)            :: r, z
-    integer              :: ii, jj
-    complex(dpk)         :: residuepr_op, res, fn
+    integer              :: ii, jj, stream_idx
+    complex(dpk)         :: residuepr_op, pre_factor, fn
     type(input_params_t) :: input_data
 
+    if (r .LE. 1) then
+       stream_idx = 1
+    else
+       stream_idx = 2
+    end if
 
-    if (input_data%vs_param_gamma .EQ. 0) then
-       residuepr_op = 0.
-    else 
-        res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)/((input_data%mu_plus - input_data%KH_zero_1)* & 
-                                                                 input_data%k_minus_at_mu_plus*input_data%k_plus_sz1)
+    pre_factor = ((input_data%omega_r)**2) * input_data%C0 * (1 - (input_data%KH_zero_1*input_data%M1))**2 
+   
+    pre_factor = pre_factor/&
+                (input_data%k_minus_at_mu_plus*input_data%k_plus_sz1*((input_data%KH_zero_1-input_data%mu_plus)**2) )
 
-        if (input_data%vortswitch .EQ. 0) then
-           if (r <= 1) then
-              fn = ((1._dpk -(input_data%KH_zero_1*input_data%M1))**2)*compute_Trs_lambda(r,input_data%KH_zero_1,1,input_data)
-           else
-              fn = ((1._dpk -(input_data%KH_zero_1*input_data%M2))**2)*compute_Trs_lambda(r,input_data%KH_zero_1,2,input_data)
-           end if
-        end if
-         
-        residuepr_op = ((input_data%omega_r)**2)*res*fn*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_1*z)
-        
-    end if      
+    pre_factor = pre_factor*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r * input_data%KH_zero_1 * z)
+
+    fn = compute_Trs_lambda(r,input_data%KH_zero_1,stream_idx,input_data)
+
+    residuepr_op = pre_factor * fn 
     
   END FUNCTION residuepr_guided_jet_mode
 
@@ -368,6 +366,7 @@ Module user_defined_functions
           psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*(1._dpk -input_data%M2*input_data%mu_plus)* &
                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%mu_plus*z)
 
+          psi0 = 0.0
        end if
     end if
   

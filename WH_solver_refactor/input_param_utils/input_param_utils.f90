@@ -41,7 +41,7 @@ MODULE input_params
           real(dpk), allocatable, dimension(:)       :: phi  
           complex(dpk), allocatable, dimension(:)    :: fplusz
           complex(dpk)                               :: alpha1,alpha2
-
+          complex(dpk)                               :: C0
           complex(dpk)                               :: s_GJ
           integer                                    :: GJ_num_int_pts 
           character(len=40)                          :: solution_mode
