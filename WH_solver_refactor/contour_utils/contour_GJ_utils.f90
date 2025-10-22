@@ -56,7 +56,7 @@ Module contour_GJ_utils
       call compute_A_B_matrices(contour_data%GJ_cntr_maxima,cross_over_pt,0._dpk,slope_at_cross_over,A,B)  
       call solve_gaussian(A, B, contour_data%poly_coeffs_cubic_3, 4)
 
-      print*,'update_GJ_IFT_cont: num of points = ', cross_over_pt_idx - max_IFT_idx + 1
+    !  print*,'update_GJ_IFT_cont: num of points = ', cross_over_pt_idx - max_IFT_idx + 1
 
       do i= max_IFT_idx,cross_over_pt_idx
 

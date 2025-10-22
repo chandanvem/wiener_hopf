@@ -45,7 +45,7 @@ MODULE input_params
           complex(dpk)                               :: s_GJ
           integer                                    :: GJ_num_int_pts 
           character(len=40)                          :: solution_mode
-
+          complex(dpk)                               :: k_plus_at_GJ
      end type input_params_t
 
 

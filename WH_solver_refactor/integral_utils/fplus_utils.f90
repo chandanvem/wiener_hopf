@@ -20,7 +20,8 @@ MODULE fplus_utils
     integer :: thread_id, num_threads, chunk
     integer :: start_idx, end_idx, file_ID
     character(len=200) :: filename
-    real :: start_time, end_time, elapsed_time
+    integer :: start_time, end_time, clock_rate
+    real :: elapsed_time
 
     type(input_params_t) :: input_data
     type(contour_params_t) :: contour_data
@@ -28,7 +29,9 @@ MODULE fplus_utils
     allocate(input_data%fplusz(contour_data%tot_IFT_pts))  !! fplus is same as \xi^{+}(s) of (3.30)
     input_data%fplusz = (0._dpk,0._dpk)
 
-    !$omp parallel private(i,thread_id,num_threads,chunk,start_idx,end_idx,filename,file_ID,start_time,end_time,elapsed_time)
+    !$omp parallel private(i,thread_id,num_threads,chunk,start_idx,end_idx,filename,file_ID, &
+    !$omp& start_time,end_time,clock_rate,elapsed_time)
+
      block 
         thread_id = omp_get_thread_num()
         num_threads = omp_get_num_threads()
@@ -41,7 +44,8 @@ MODULE fplus_utils
         write(filename, '("./DataDump/compute_fplus_log/log_", I0, ".out")') thread_id + 1
         file_ID = 10 + thread_id
 
-        call cpu_time(start_time)
+        call system_clock(start_time,clock_rate)
+
         do i = start_idx, end_idx
           input_data%fplusz(i) = get_fplus_value(contour_data%iftpoints(i),input_data,contour_data)
           if (i == start_idx) then
@@ -51,8 +55,9 @@ MODULE fplus_utils
           end if
           write(file_ID,'(I5,4E20.10)') i,contour_data%iftpoints(i),input_data%fplusz(i)
         end do
-        call cpu_time(end_time)
-        elapsed_time = end_time - start_time
+        call system_clock(end_time)
+        elapsed_time = real(end_time - start_time)/real(clock_rate)
+
         write(file_ID, *) 'Elapsed CPU time (seconds):', elapsed_time
         close(file_ID)
 

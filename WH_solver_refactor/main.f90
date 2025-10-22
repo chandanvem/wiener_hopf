@@ -18,6 +18,11 @@ PROGRAM main
 
   type(input_params_t)   :: input_data
   type(contour_params_t) :: contour_data
+
+  integer :: start_time, end_time, clock_rate
+  real :: elapsed_time
+
+  call system_clock(start_time,clock_rate)
   
   call create_req_dirs
   call define_input_params(input_data)
@@ -25,7 +30,7 @@ PROGRAM main
   call compute_contours(input_data,contour_data)
   
   call precompute(input_data,contour_data)
-
+!
   if ((input_data%farswitch == 1) .OR. (input_data%farswitch == 2)) then
 
     print*,''
@@ -46,8 +51,14 @@ PROGRAM main
 
     call computeift(input_data,contour_data)
 
+    print*,'solve: IFT computed.'
+    print*,''
 
-  end if
+ end if
 
+ call system_clock(end_time)
+ elapsed_time = real(end_time - start_time)/real(clock_rate)
+
+ print*, 'Elapsed time for entire computation (seconds):', elapsed_time
 
 END PROGRAM main   

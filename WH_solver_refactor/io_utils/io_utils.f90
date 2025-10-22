@@ -52,6 +52,8 @@ Module io_utils
 
       PI = 4._dpk*ATAN(1.)
 
+      input_data%solution_mode='hard_duct_mode'
+
       open(10, file='input.list.p', status='old')
 
       read(10,*) input_data%vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
@@ -90,6 +92,9 @@ Module io_utils
       read(10,*) input_data%kapT  !! sqrt(temp ratio)
       read(10,*) input_data%kap_rho  !! density ratio
       read(10,*) input_data%azim_mode  !! the circumferential mode no
+
+
+      print*,'azim_mode = ', input_data%azim_mode
 
       PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2, ", ", F8.2,A)', &
             ' (h, w0, kapT, kap_rho, azim_mode) = (', input_data%h, input_data%w0, input_data%kapT, &
@@ -241,11 +246,16 @@ Module io_utils
 
       read(10,*) input_data%restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
 
-      read(10,*) input_data%solution_mode
-
-      if (input_data%solution_mode == 'guided_jet') then
-           read(10,*) input_data%s_GJ 
-           print*,'initialize:  Choosing guided jet mode...'
+      if (len_trim(input_data%solution_mode) > 0) then
+            read(10,*) input_data%solution_mode
+            if (trim(input_data%solution_mode) == 'guided_jet') then
+               read(10,*) input_data%s_GJ
+               print*, 'initialize: Choosing guided jet mode...'
+            else
+               print*, 'initialize: Choosing hard duct mode:'
+            end if
+      else
+            print*, 'Error: solution_mode not set or missing in input file.'
       end if
 
     close(10)

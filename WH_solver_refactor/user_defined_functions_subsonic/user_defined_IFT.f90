@@ -70,7 +70,6 @@ Module user_defined_IFT
 
 
               do IFT_pt_idx = 1, contour_data%tot_IFT_pts-1
-
  
                   call IFT_trapz_int(input_data%R(i),input_data%Z(j),IFT_pt_idx,pr_at_IFT_points(IFT_pt_idx), &
                                                                input_data,contour_data)
@@ -95,14 +94,14 @@ Module user_defined_IFT
 
                else
 
-                  pressure(i,j) = input_data%omega_r*input_data%omega_r/(2._dpk*PI)*pr_integral(i,j) + &
+                  pressure(i,j) = (input_data%omega_r*input_data%omega_r/(2._dpk*PI))*pr_integral(i,j) + &
                                    compute_psi_incident(input_data%R(i),input_data%Z(j),input_data) 
                                                   !! the incident wave added
 
                end if
             
                acoupressure(i,j) = pressure(i,j)  !! acoustic part
-               instab_pressure1(i,j) = residuepr(input_data%R(i),input_data%Z(j),input_data)  !! inner instability wave
+               instab_pressure1(i,j) = residuepr(input_data%R(i),input_data%Z(j),input_data)  !! instability wave
                inc_pressure(i,j) = compute_psi_incident(input_data%R(i),input_data%Z(j),input_data)  !! the incident wave
                totpressure(i,j) = acoupressure(i,j) + instab_pressure1(i,j)  !! total part 
 

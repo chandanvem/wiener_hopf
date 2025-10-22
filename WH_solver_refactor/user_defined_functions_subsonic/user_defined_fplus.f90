@@ -40,10 +40,20 @@ Module user_defined_fplus
     end if
 
     fplus_num = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)
-    fplus_num = fplus_num*( ((s_target - input_data%KH_zero_1)/(input_data%mu_plus - s_target)) + input_data%vs_param_gamma) 
+   
+    if (input_data%solution_mode=='guided_jet') then
 
-    fplus_den = (input_data%mu_plus - input_data%KH_zero_1)* &
-                 input_data%k_minus_at_mu_plus*k_plus_at_s*compute_U_s_factor(s_target,input_data)
+      fplus_den = (input_data%mu_plus - s_target)* &
+                   input_data%k_minus_at_mu_plus*k_plus_at_s*compute_U_s_factor(s_target,input_data)
+
+    else 
+
+      fplus_num = fplus_num*( ((s_target - input_data%KH_zero_1)/(input_data%mu_plus - s_target)) + input_data%vs_param_gamma) 
+
+      fplus_den = (input_data%mu_plus - input_data%KH_zero_1)* &
+                   input_data%k_minus_at_mu_plus*k_plus_at_s*compute_U_s_factor(s_target,input_data)
+     
+    end if 
 
     fplus = fplus_num/fplus_den
 
