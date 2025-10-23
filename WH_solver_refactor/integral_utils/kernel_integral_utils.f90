@@ -25,7 +25,7 @@ Module kernel_integral_utils
     integer                :: num_of_quad_points, ch
     integer                :: KU_K_switch  !! 1: K/U; else: K
     integer                :: kswitch  !! 1: compute (4.10); else: compute (3.22)
-    character(len=*)      :: derivative_flag
+    character(len=*)       :: derivative_flag
     complex(dpk), allocatable, dimension(:)    :: intpanel !! integral value at each panel
     integer(dpk), allocatable, dimension(:)    ::  Npanel 
 
@@ -66,7 +66,7 @@ Module kernel_integral_utils
     complex(dpk)                               :: T, si, scale
     integer                                    :: Np, Nq, Nr, panel_no, Nloopindex, check, sw, ksw
     integer                                    :: i, j, ii
-    character(len=*)                          :: derivative_flag
+    character(len=*)                           :: derivative_flag
  
   
     do j = 1, contour_data%total_ker_points-1  !! the integration points already specified
@@ -286,7 +286,7 @@ Module kernel_integral_utils
        In = LOG(compute_kernel(kswitch,zi,input_data))
     end if
  
-    Id = zi-si
+    Id = (zi-si)
 
     if (derivative_flag == 'derivative') then
         Id = (zi - si)**2   

@@ -5,6 +5,7 @@ Module user_defined_IFT
   USE input_params
   USE user_defined_functions
   USE IFT_integral_utils
+  USE user_defined_incident_modes
 
   IMPLICIT NONE
 
