@@ -164,6 +164,8 @@ Module user_defined_precompute
 
     call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,'not_derivative',input_data,contour_data)
     k_plus_at_mu_plus = EXP(-intgrl_A1_at_mu_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
+    input_data%k_plus_at_mu_plus = k_plus_at_mu_plus
+
 !+ & 
                     !    LOG(compute_kernel(0,input_data%mu_plus,input_data)/compute_U_s_factor(input_data%mu_plus,input_data)))
    ! write(*,'(/A12,2X,2F15.10)') 'precompute_guided_jet_mode: integral at mu_plus:->', intgrl_A1_at_mu_plus

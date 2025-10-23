@@ -6,7 +6,8 @@ Module bessel_utils
   ! iii INTEGER, PARAMETER, PUBLIC  :: dp = SELECTED_REAL_KIND(12, 60)
 
   PRIVATE
-  PUBLIC  :: bessj, bessy, hank1, hank2, dbessj, dbessy, dhank1, dhank2
+  PUBLIC  :: bessj, bessy, hank1, hank2, dbessj, dbessy, dhank1, dhank2,&
+             d2bessj, d2hank1
 
   CONTAINS 
 
@@ -204,6 +205,16 @@ Module bessel_utils
 
     END FUNCTION dbessj
 
+    FUNCTION d2bessj(z,nu,s)
+
+        complex(dp)    :: z, d2bessj, psi
+        real(dp)       :: nu, q, expo, pow
+        integer         :: s
+
+        d2bessj = 0.5*(dbessj(z,nu-1,s) - dbessj(z,nu+1,s))
+
+    END FUNCTION d2bessj
+
 
     FUNCTION dbessy(z,nu,s)
 
@@ -228,6 +239,16 @@ Module bessel_utils
 
     END FUNCTION dhank1
 
+    FUNCTION d2hank1(z,nu,s)
+
+      complex(dp)    :: z, d2hank1, psi
+      real(dp)       :: nu, q, expo, pow
+      integer         :: s
+
+      
+      d2hank1 = 0.5*(dhank1(z,nu-1,s) - dhank1(z,nu+1,s))
+
+    END FUNCTION d2hank1
 
     FUNCTION dhank2(z,nu,s)
 

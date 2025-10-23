@@ -6,12 +6,9 @@ Module user_defined_functions
 
   IMPLICIT NONE
 
-  PRIVATE ::  compute_Trs_lambda, residuepr_hard_duct_mode, &
-              residuepr_guided_jet_mode
-
   PUBLIC  :: compute_U_s_factor, compute_kernel, &
-             integrand_IFT_pot, integrand_IFT_pr, &
-             residuepr, residuepot
+             integrand_ifT_pot, integrand_ifT_pr,&
+             compute_Trs_lambda, compute_d_ds_Trs_lambda
 
   CONTAINS 
 
@@ -90,21 +87,21 @@ Module user_defined_functions
 
   END FUNCTION compute_kernel
 
-  FUNCTION integrand_IFT_pr(ri,zi,ift_contour_idx,input_data,contour_data) result(integrandiftpr)
+  FUNCTION integrand_ifT_pr(ri,zi,IFT_contour_idx,input_data,contour_data) result(integrandIFTpr)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!! 1. Compute the IFT integrand when computing for prestream_idxure
+!! 1. Compute the ifT integrand when computing for prestream_idxure
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
     real(dpk)       :: ri, zi
-    integer         :: ift_contour_idx, stream_idx
+    integer         :: IFT_contour_idx, stream_idx
     complex(dpk)    :: u
-    complex(dpk)    :: integrandiftpr
+    complex(dpk)    :: integrandIFTpr
 
     type(input_params_t)   :: input_data
     type(contour_params_t) :: contour_data
 
-    u = contour_data%iftpoints(ift_contour_idx)
+    u = contour_data%IFTpoints(IFT_contour_idx)
 
     if (ri .LE. 1) then 
        stream_idx = 1
@@ -114,23 +111,69 @@ Module user_defined_functions
 
     if (stream_idx==1) then
 
-       integrandiftpr = (1._dpk - u*input_data%M1)**2
-       integrandiftpr = integrandiftpr*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
-                        input_data%fplusz(ift_contour_idx)* & 
+       integrandIFTpr = (1._dpk - u*input_data%M1)**2
+       integrandIFTpr = integrandIFTpr*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
+                        input_data%fplusz(IFT_contour_idx)* & 
                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
 
     else if (stream_idx==2) then
        
-       integrandiftpr = (1._dpk - u*input_data%M2)**2
-       integrandiftpr = integrandiftpr*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
-                        input_data%fplusz(ift_contour_idx)* &
+       integrandIFTpr = (1._dpk - u*input_data%M2)**2
+       integrandIFTpr = integrandIFTpr*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
+                        input_data%fplusz(IFT_contour_idx)* &
                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
    end if
 
 
-  END FUNCTION integrand_IFT_pr
+  END FUNCTION integrand_ifT_pr
 
-!
+  FUNCTION integrand_ifT_pot(ri,zi,IFT_contour_idx,input_data,contour_data) result(integrandIFTpot)
+ !
+ !!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+ !!1. Compute the ifT integrand when computing for potential
+ !!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
+ !
+    real(dpk)       :: ri, zi
+    integer         :: IFT_contour_idx, stream_idx
+    complex(dpk)    :: u
+    complex(dpk)    :: integrandIFTpot
+ !
+    type(input_params_t)   :: input_data
+    type(contour_params_t) :: contour_data
+ !
+ !
+    if (ri .LE. 1) then 
+       stream_idx = 1
+    else
+       stream_idx = 2
+    end if
+ !
+    u = contour_data%IFTpoints(IFT_contour_idx)
+ !
+    if (stream_idx==1) then
+ !
+ !!potential:
+ !
+       integrandIFTpot = ((1._dpk - u*input_data%M1))
+       integrandIFTpot = integrandIFTpot *compute_Trs_lambda(ri,u,stream_idx,input_data)* &
+                         input_data%fplusz(IFT_contour_idx)* & 
+                          EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
+ !
+    else if (stream_idx==2) then
+ !
+ !!potential:
+       
+       integrandIFTpot = ((1._dpk - u*input_data%M2))
+       integrandIFTpot = integrandIFTpot*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
+                         input_data%fplusz(IFT_contour_idx)* &
+                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
+ !
+    end if
+ !
+ !
+  END FUNCTION integrand_ifT_pot
+ !
+ 
   FUNCTION compute_Trs_lambda(ri,si,stream_idx,input_data) result(Trs)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
@@ -209,160 +252,76 @@ Module user_defined_functions
 
   END FUNCTION compute_Trs_lambda
 
-  FUNCTION residuepr(r,z,input_data)  result(residuepr_op)
-    real(dpk)            :: r, z
-    integer              :: ii, jj
-    complex(dpk)         :: residuepr_op, res, fn
-    type(input_params_t) :: input_data
 
-    if (input_data%solution_mode == 'guided_jet') then
-       residuepr_op =  residuepr_guided_jet_mode(r,z,input_data)
-    else
-       residuepr_op =  residuepr_hard_duct_mode(r,z,input_data)
-    end if
-
-  END FUNCTION residuepr
-
-  FUNCTION residuepr_hard_duct_mode(r,z,input_data) result(residuepr_op)
-    real(dpk)            :: r, z
-    integer              :: ii, jj
-    complex(dpk)         :: residuepr_op, res, fn
-    type(input_params_t) :: input_data
-
-
-    if (input_data%vs_param_gamma .EQ. 0) then
-       residuepr_op = 0.
-    else 
-      res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)/((input_data%mu_plus - input_data%KH_zero_1)* & 
-                                                               input_data%k_minus_at_mu_plus*input_data%k_plus_sz1)
-
-      if (input_data%vortswitch .EQ. 0) then
-         if (r <= 1) then
-            fn = ((1._dpk -(input_data%KH_zero_1*input_data%M1))**2)*compute_Trs_lambda(r,input_data%KH_zero_1,1,input_data)
-         else
-            fn = ((1._dpk -(input_data%KH_zero_1*input_data%M2))**2)*compute_Trs_lambda(r,input_data%KH_zero_1,2,input_data)
-         end if
-      end if
-       
-      residuepr_op = ((input_data%omega_r)**2)*res*fn*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_1*z)
-      
-    end if      
-    
-  END FUNCTION residuepr_hard_duct_mode
-
-  FUNCTION residuepr_guided_jet_mode(r,z,input_data) result(residuepr_op)
-
-    real(dpk)            :: r, z
-    integer              :: ii, jj, stream_idx
-    complex(dpk)         :: residuepr_op, pre_factor, fn
-    type(input_params_t) :: input_data
-
-    if (r .LE. 1) then
-       stream_idx = 1
-    else
-       stream_idx = 2
-    end if
-
-    pre_factor = ((input_data%omega_r)**2) * input_data%C0 * (1 - (input_data%KH_zero_1*input_data%M1))**2 
-   
-    pre_factor = pre_factor/&
-                (input_data%k_minus_at_mu_plus*input_data%k_plus_sz1*((input_data%KH_zero_1-input_data%mu_plus)**2) )
-
-    pre_factor = pre_factor*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r * input_data%KH_zero_1 * z)
-
-    fn = compute_Trs_lambda(r,input_data%KH_zero_1,stream_idx,input_data)
-
-    residuepr_op = pre_factor * fn 
-    
-  END FUNCTION residuepr_guided_jet_mode
-
-
-
- FUNCTION integrand_IFT_pot(ri,zi,ift_contour_idx,input_data,contour_data) result(integrandiftpot)
-!
-!!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!!1. Compute the IFT integrand when computing for potential
-!!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!
-   real(dpk)       :: ri, zi
-   integer         :: ift_contour_idx, stream_idx
-   complex(dpk)    :: u
-   complex(dpk)    :: integrandiftpot
-!
-   type(input_params_t)   :: input_data
-   type(contour_params_t) :: contour_data
-!
-!
-   if (ri .LE. 1) then 
-      stream_idx = 1
-   else
-      stream_idx = 2
-   end if
-!
-   u = contour_data%iftpoints(ift_contour_idx)
-!
-   if (stream_idx==1) then
-!
-!!potential:
-!
-      integrandiftpot = ((1._dpk - u*input_data%M1))
-      integrandiftpot = integrandiftpot *compute_Trs_lambda(ri,u,stream_idx,input_data)* &
-                        input_data%fplusz(ift_contour_idx)* & 
-                         EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
-!
-   else if (stream_idx==2) then
-!
-!!potential:
-      
-      integrandiftpot = ((1._dpk - u*input_data%M2))
-      integrandiftpot = integrandiftpot*compute_Trs_lambda(ri,u,stream_idx,input_data)* &
-                        input_data%fplusz(ift_contour_idx)* &
-                        EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*u*zi)
-!
-   end if
-!
-!
- END FUNCTION integrand_IFT_pot
-!
-!
- FUNCTION residuepot(r,z,ss,input_data)
-!
-!!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!!1. Same as above but for computing velocity potential
-!!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
-!
-   real(dpk)            :: r, z
-   integer              :: ss, ii, jj
-   complex(dpk)         :: residuepot, res, fn
+FUNCTION compute_d_ds_Trs_lambda(ri, si, stream_idx, input_data) result(dTrs)
   
-   type(input_params_t) :: input_data
-!
-!
-   if (input_data%vs_param_gamma .EQ. 0) then
-!
-      residuepot = 0.
-!
-   else 
-!
-       res = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)/((input_data%mu_plus - input_data%KH_zero_1)* & 
-                                                                input_data%k_minus_at_mu_plus*input_data%k_plus_sz1)
-!
-       if (input_data%vortswitch .EQ. 0) then
-        
-          if (r <= 1) then
-             fn = (1._dpk - (input_data%KH_zero_1*input_data%M1))*compute_Trs_lambda(r,input_data%KH_zero_1,1,input_data)
-          else
-             fn = (1._dpk - (input_data%KH_zero_1*input_data%M2))*compute_Trs_lambda(r,input_data%KH_zero_1,2,input_data)
-          end if
-       end if
-        
-       residuepot = input_data%omega_r*res*fn*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%KH_zero_1*z)
-       
-   end if      
-   
- END FUNCTION residuepot
+  real(dpk)            :: ri
+  complex(dpk)         :: si, dTrs
+  complex(dpk)         :: lambda1, lambda2, dlambda1_ds, dlambda2_ds
+  complex(dpk)         :: term_1_num, term_1_den, term_1
+  complex(dpk)         :: term_2_num, term_2_den, term_2
+  complex(dpk)         :: pre_factor
+  real(dpk)            :: omega
+  integer              :: stream_idx
+  logical              :: NAN_flag
+
+  type(input_params_t)  :: input_data
+
+  NAN_flag = .FALSE.
+
+  omega = input_data%omega_r
+
+  lambda1 = sqrt(1._dpk - si*(input_data%M1+1._dpk)) * sqrt(1._dpk -si*(input_data%M1-1._dpk))
+  lambda2 = sqrt(input_data%kapT - si*(input_data%kapT*input_data%M2+1._dpk)) *&
+            sqrt(input_data%kapT - si*(input_data%kapT*input_data%M2-1._dpk))
+
+  dlambda1_ds = -(input_data%M1 - si*( (input_data%M1)**2 - 1))
+  dlambda1_ds = dlambda1_ds/lambda1
+
+  dlambda2_ds = -( ((input_data%kapT)**2)*input_data%M2 - si*((input_data%kapT*input_data%M1)**2 - 1))
+  dlambda2_ds = dlambda2_ds/lambda2
+
+  if (stream_idx == 1) then
+     
+     pre_factor = dlambda1_ds*omega
+     
+     term_1_num = ri*dbessj(lambda1*omega*ri, input_data%azim_mode, 1)
+     term_1_den = dbessj(lambda1*omega, input_data%azim_mode, 1)
+     term_1     = term_1_num/term_1_den
+
+     term_2_num =   bessj(lambda1*omega*ri, input_data%azim_mode, 1)
+     term_2_num =   term_2_num*d2bessj(lambda1*omega*ri, input_data%azim_mode, 1)
+     term_2_den =   (dbessj(lambda1*omega, input_data%azim_mode, 1))**2
+     term_2     =   term_2_num/term_2_den
+
+  else if (stream_idx == 2 ) then
+
+     pre_factor = dlambda2_ds*omega
+     
+     term_1_num = ri*dhank1(lambda2*omega*ri, input_data%azim_mode, 1)
+     term_1_den = dhank1(lambda2*omega, input_data%azim_mode, 1)
+     term_1     = term_1_num/term_1_den
+
+     term_2_num =   hank1(lambda2*omega*ri, input_data%azim_mode, 1)
+     term_2_num =   term_2_num*d2hank1(lambda2*omega*ri, input_data%azim_mode, 1)
+     term_2_den =   (dhank1(lambda2*omega, input_data%azim_mode, 1))**2
+     term_2     =   term_2_num/term_2_den
+
+  end if 
+
+  dTrs = pre_factor*(term_1 - term_2)
+
+  call check_NAN(dTrs,NAN_flag)
+
+  if(NAN_flag) then
+      print*,'compute_dTrs_ds: NAN found at s = ', si
+      STOP
+  end if
 
 
-end module user_defined_functions
+END FUNCTION compute_d_ds_Trs_lambda
+
+
+END MODULE user_defined_functions
 
 

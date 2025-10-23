@@ -6,6 +6,7 @@ Module user_defined_IFT
   USE user_defined_functions
   USE IFT_integral_utils
   USE user_defined_incident_modes
+  USE user_defined_residue_functions
 
   IMPLICIT NONE
 
@@ -83,7 +84,7 @@ Module user_defined_IFT
                  
                  pressure(i,j) = (input_data%omega_r/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))*pr_integral(i,j)
                  acoupressure(i,j) = pressure(i,j)  !! acoustic part
-                 instab_pressure1(i,j) = residuepot(input_data%R(i),input_data%Z(j),1,input_data)  !! inner instability wave 
+                 instab_pressure1(i,j) = residue_pot_instab(input_data%R(i),input_data%Z(j),1,input_data)  !! inner instability wave 
                  totpressure(i,j) = acoupressure(i,j) + instab_pressure2(i,j)
                 
 
@@ -102,7 +103,7 @@ Module user_defined_IFT
                end if
             
                acoupressure(i,j) = pressure(i,j)  !! acoustic part
-               instab_pressure1(i,j) = residuepr(input_data%R(i),input_data%Z(j),input_data)  !! instability wave
+               instab_pressure1(i,j) = residue_pr_instab(input_data%R(i),input_data%Z(j),input_data)  !! instability wave
                inc_pressure(i,j) = compute_psi_incident(input_data%R(i),input_data%Z(j),input_data)  !! the incident wave
                totpressure(i,j) = acoupressure(i,j) + instab_pressure1(i,j)  !! total part 
 

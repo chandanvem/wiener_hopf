@@ -38,6 +38,7 @@ MODULE input_params
           real(dpk), allocatable, dimension(:)       :: cnanglei
           complex(dpk)                               :: omega_r
           complex(dpk)                               :: k_minus_at_mu_plus, k_plus_prime_at_mu_plus,k_plus_sz1,k_plus_sz2, kpsp1
+          complex(dpk)                               :: k_plus_at_mu_plus
           real(dpk), allocatable, dimension(:)       :: phi  
           complex(dpk), allocatable, dimension(:)    :: fplusz
           complex(dpk)                               :: alpha1,alpha2
