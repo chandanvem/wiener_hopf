@@ -100,7 +100,7 @@ Module user_defined_incident_modes
           psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*(1._dpk -input_data%M2*input_data%mu_plus)* &
                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%mu_plus*z)
 
-          psi0 = 0.0
+    !      psi0 = 0.0
        end if
     end if
   

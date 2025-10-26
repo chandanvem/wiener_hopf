@@ -27,8 +27,9 @@ Module user_defined_IFT
      complex(dpk), allocatable, dimension(:,:)     ::  pr_integral
      complex(dpk), allocatable, dimension(:,:,:)   ::  supinstab_pressure
      complex(dpk), allocatable, dimension(:,:)     ::  pressure
-     complex(dpk), allocatable, dimension(:,:)     ::  acoupressure,totpressure, &
-                                                      instab_pressure1,instab_pressure2,inc_pressure
+     complex(dpk), allocatable, dimension(:,:)     ::  acoustic_comp_pressure,totpressure, &
+                                                       instab_pressure1,instab_pressure2,inc_pressure, &
+                                                       GJ_comp_pressure,GJ_plus_acoustic_comp_pressure
 
      integer                                       :: i,j,k,f, IFT_pt_idx
      integer                                       :: switch
@@ -47,10 +48,12 @@ Module user_defined_IFT
       
      allocate(pr_integral(input_data%Nmeshr,input_data%Nmeshz))
      allocate(pressure(input_data%Nmeshr,input_data%Nmeshz))
-     allocate(acoupressure(input_data%Nmeshr,input_data%Nmeshz))
+     allocate(acoustic_comp_pressure(input_data%Nmeshr,input_data%Nmeshz))
      allocate(instab_pressure1(input_data%Nmeshr,input_data%Nmeshz))
      allocate(inc_pressure(input_data%Nmeshr,input_data%Nmeshz))
      allocate(totpressure(input_data%Nmeshr,input_data%Nmeshz))
+     allocate(GJ_comp_pressure(input_data%Nmeshr,input_data%Nmeshz))
+     allocate(GJ_plus_acoustic_comp_pressure(input_data%Nmeshr,input_data%Nmeshz))
 
     !$omp parallel private(i,j,IFT_pt_idx,thread_id,num_threads,chunk,start_idx,end_idx,filename,file_ID,pr_at_IFT_points)
      block 
@@ -83,9 +86,9 @@ Module user_defined_IFT
               if (input_data%prswitch == 0) then  !! compute velocity potential
                  
                  pressure(i,j) = (input_data%omega_r/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))*pr_integral(i,j)
-                 acoupressure(i,j) = pressure(i,j)  !! acoustic part
+                 acoustic_comp_pressure(i,j) = pressure(i,j)  !! acoustic part
                  instab_pressure1(i,j) = residue_pot_instab(input_data%R(i),input_data%Z(j),1,input_data)  !! inner instability wave 
-                 totpressure(i,j) = acoupressure(i,j) + instab_pressure2(i,j)
+                 totpressure(i,j) = acoustic_comp_pressure(i,j) + instab_pressure2(i,j)
                 
 
               else  !! compute pressure
@@ -102,10 +105,17 @@ Module user_defined_IFT
 
                end if
             
-               acoupressure(i,j) = pressure(i,j)  !! acoustic part
+               acoustic_comp_pressure(i,j) = pressure(i,j)  !! acoustic part
                instab_pressure1(i,j) = residue_pr_instab(input_data%R(i),input_data%Z(j),input_data)  !! instability wave
-               inc_pressure(i,j) = compute_psi_incident(input_data%R(i),input_data%Z(j),input_data)  !! the incident wave
-               totpressure(i,j) = acoupressure(i,j) + instab_pressure1(i,j)  !! total part 
+  
+           
+               if (input_data%solution_mode == 'guided_jet') then
+                   GJ_comp_pressure(i,j)   = residue_pr_GJ_guided_jet_mode(input_data%R(i),input_data%Z(j),input_data)
+                   GJ_plus_acoustic_comp_pressure(i,j)  = acoustic_comp_pressure(i,j) +  GJ_comp_pressure(i,j)
+               end if
+
+               inc_pressure(i,j) = compute_psi_incident(input_data%R(i),input_data%Z(j),input_data)  !! the incident wave               
+               totpressure(i,j) = acoustic_comp_pressure(i,j) + instab_pressure1(i,j)  !! total part 
 
             end if
 
@@ -137,8 +147,21 @@ Module user_defined_IFT
 
     open(1,file='acousticpr.out',form='UNFORMATTED')
     write(1) input_data%Nmeshz,input_data%Nmeshr,1
-    write(1) ((REAL(acoupressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+    write(1) ((REAL(acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
     close(1)   
+
+    if (input_data%solution_mode == 'guided_jet') then
+       open(1,file='GJ_comp_pressure.out',form='UNFORMATTED')
+       write(1) input_data%Nmeshz,input_data%Nmeshr,1
+       write(1) ((REAL(GJ_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+       close(1)   
+
+       open(1,file='GJ_plus_acous_comp_pressure.out',form='UNFORMATTED')
+       write(1) input_data%Nmeshz,input_data%Nmeshr,1
+       write(1) ((REAL(GJ_plus_acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+       close(1)   
+
+    end if
 
     if (input_data%vortswitch .EQ. 0) then
        open(1,file='instabilitypr1.out',form='UNFORMATTED')
@@ -152,7 +175,7 @@ Module user_defined_IFT
     close(1)   
 
     open(1,file='acousprdata.out',form='UNFORMATTED')
-    write(1) input_data%Nmeshz,input_data%Nmeshr,acoupressure
+    write(1) input_data%Nmeshz,input_data%Nmeshr,acoustic_comp_pressure
     close(1)   
     
       

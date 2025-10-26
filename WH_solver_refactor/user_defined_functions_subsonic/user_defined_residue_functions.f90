@@ -69,25 +69,30 @@ MODULE user_defined_residue_functions
        stream_idx = 2
     end if
 
-    pre_factor = ((input_data%omega_r)**2) * input_data%C0 * (1 - (input_data%KH_zero_1*input_data%M1))**2 
-   
+    pre_factor = (CMPLX(0._dpk,1._dpk,kind=dpk)) *&
+                 ((input_data%omega_r)**2)*input_data%C0*(1 - (input_data%mu_plus*input_data%M1))
+ 
+    pre_factor = pre_factor*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r * input_data%KH_zero_1 * z)
+  
     pre_factor = pre_factor/&
                 (input_data%k_minus_at_mu_plus*input_data%k_plus_sz1*((input_data%KH_zero_1-input_data%mu_plus)**2) )
 
-    pre_factor = pre_factor*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r * input_data%KH_zero_1 * z)
 
     fn = compute_Trs_lambda(r,input_data%KH_zero_1,stream_idx,input_data)
 
-    residuepr_op = pre_factor * fn 
+    if (stream_idx == 1) then
+        residuepr_op = pre_factor * fn * (1._dpk - (input_data%KH_zero_1 * input_data%M1))**2
+    else if (stream_idx == 2) then
+        residuepr_op = pre_factor * fn * (1._dpk - (input_data%KH_zero_1 * input_data%M2))**2
+    end if 
     
   END FUNCTION residue_pr_instab_guided_jet_mode
 
-  FUNCTION residue_pr_GJ_guided_jet_mode(r,z,input_data) result(residue_pr_GJ_op)
+  FUNCTION residue_pr_GJ_guided_jet_mode(r,z,input_data) result(residuepr_op)
 
     real(dpk)            :: r, z
     integer              :: ii, jj, stream_idx
-    complex(dpk)         :: residue_pr_GJ_op, pre_factor, fn
-    complex(dpk)         :: res1, res2
+    complex(dpk)         :: residuepr_op, pre_factor, fn
     type(input_params_t) :: input_data
 
     if (r .LE. 1) then
@@ -96,24 +101,57 @@ MODULE user_defined_residue_functions
        stream_idx = 2
     end if
 
-    pre_factor = CMPLX(0._dpk,1._dpk,kind=dpk)
-    pre_factor = pre_factor*((input_data%omega_r)**2) * input_data%C0  
+    pre_factor = (CMPLX(0._dpk,1._dpk,kind=dpk)) *&
+                 ((input_data%omega_r)**2)*input_data%C0*(1 - (input_data%mu_plus*input_data%M1))
+ 
+    pre_factor = pre_factor*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r * input_data%mu_plus * z)
+  
     pre_factor = pre_factor/&
-                (input_data%k_minus_at_mu_plus )
+                (input_data%k_minus_at_mu_plus*input_data%k_plus_at_mu_plus*((input_data%mu_plus-input_data%KH_zero_1)) )
+
+
+    fn = compute_Trs_lambda(r,input_data%mu_plus,stream_idx,input_data)
 
     if (stream_idx == 1) then
-       pre_factor = pre_factor*(1- (input_data%s_GJ*input_data%M1))      
-       res1 = (1- (input_data%s_GJ*input_data%M1))*compute_d_ds_Trs_lambda(r,input_data%mu_plus ,stream_idx,input_data)
-       res2 = input_data%M2*compute_F_GJ(stream_idx,r,z,input_data)
-    elseif (stream_idx == 2) then
-       pre_factor = pre_factor*(1- (input_data%s_GJ*input_data%M2))
-       res1 = (1- (input_data%s_GJ*input_data%M2))*compute_d_ds_Trs_lambda(r,input_data%mu_plus ,stream_idx,input_data)
-       res2 = input_data%M2*compute_F_GJ(stream_idx,r,z,input_data)
+        residuepr_op = pre_factor * fn * (1._dpk - (input_data%mu_plus * input_data%M1))**2
+    else if (stream_idx == 2) then
+        residuepr_op = pre_factor * fn * (1._dpk - (input_data%mu_plus * input_data%M2))**2
     end if 
-
-    residue_pr_GJ_op = pre_factor * (res1 - res2)
     
   END FUNCTION residue_pr_GJ_guided_jet_mode
+
+
+!  FUNCTION residue_pr_GJ_guided_jet_mode(r,z,input_data) result(residue_pr_GJ_op)
+!
+!    real(dpk)            :: r, z
+!    integer              :: ii, jj, stream_idx
+!    complex(dpk)         :: residue_pr_GJ_op, pre_factor, fn
+!    complex(dpk)         :: res1, res2
+!    type(input_params_t) :: input_data
+!
+!    if (r .LE. 1) then
+!       stream_idx = 1
+!    else
+!       stream_idx = 2
+!    end if
+!
+!    pre_factor = CMPLX(0._dpk,1._dpk,kind=dpk)
+!    pre_factor = pre_factor*((input_data%omega_r)**2) * input_data%C0  
+!    pre_factor = pre_factor/&
+!                (input_data%k_minus_at_mu_plus )
+!    pre_factor = pre_factor*(1- (input_data%s_GJ*input_data%M1))      
+!
+!    if (stream_idx == 1) then
+!       res1 = (1- (input_data%s_GJ*input_data%M1))*compute_d_ds_Trs_lambda(r,input_data%mu_plus,stream_idx,input_data)
+!       res2 = input_data%M1*compute_F_GJ(stream_idx,r,z,input_data)
+!    elseif (stream_idx == 2) then
+!       res1 = (1- (input_data%s_GJ*input_data%M2))*compute_d_ds_Trs_lambda(r,input_data%mu_plus,stream_idx,input_data)
+!       res2 = input_data%M2*compute_F_GJ(stream_idx,r,z,input_data)
+!    end if 
+!
+!    residue_pr_GJ_op = pre_factor * (res1 - res2)
+!    
+!  END FUNCTION residue_pr_GJ_guided_jet_mode
 
 
   FUNCTION compute_F_GJ(stream_idx,r,z,input_data) result(F_value)

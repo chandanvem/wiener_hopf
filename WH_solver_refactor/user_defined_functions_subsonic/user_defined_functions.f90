@@ -22,7 +22,8 @@ Module user_defined_functions
     type(input_params_t) :: input_data
 
     if (input_data%solution_mode == 'guided_jet') then
-       u_s = (s_target-input_data%KH_zero_1)*(s_target - input_data%s_GJ)
+       u_s = (s_target-input_data%KH_zero_1)
+        !*(s_target - input_data%s_GJ)
     else 
        u_s = (s_target-input_data%KH_zero_1)
     end if
