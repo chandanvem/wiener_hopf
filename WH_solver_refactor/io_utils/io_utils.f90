@@ -244,7 +244,7 @@ Module io_utils
 
   !!=====================================================
 
-      read(10,*) input_data%restart  !! restart status: 0 = fresh job, i.e., no "fplus_part.out" exists
+      read(10,*) input_data%fplus_compute_restart  
 
       if (len_trim(input_data%solution_mode) > 0) then
             read(10,*) input_data%solution_mode

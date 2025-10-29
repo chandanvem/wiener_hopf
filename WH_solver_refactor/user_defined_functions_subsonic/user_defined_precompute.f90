@@ -142,8 +142,7 @@ Module user_defined_precompute
  
     PI = 4._dpk*ATAN(1.)
 
-    input_data%C0 = -1._dpk*input_data%psi
-
+ 
     input_data%alpha1 = input_data%omega_r*SQRT((1._dpk - input_data%mu_plus*input_data%M1)**2&
                                                         - (input_data%mu_plus)**2)
     input_data%alpha2 = input_data%omega_r*SQRT(((input_data%kapT)**2)*(1._dpk - input_data%mu_plus*input_data%M2)**2 &
@@ -154,6 +153,7 @@ Module user_defined_precompute
 
     input_data%psi = f1
 
+    input_data%C0 = -1._dpk*input_data%psi
 
     write(*,'(/A,2X,2F15.10)') 'psi for guided jet mode :->', input_data%psi
  

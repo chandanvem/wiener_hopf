@@ -73,6 +73,11 @@ Module user_defined_incident_modes
 
     type(input_params_t) :: input_data
 
+!    if ( z .LE. 0) then
+!        psi0 = 0._dpk
+!        return
+!    end if
+  
     if (r .LE. 1) then 
        stream_idx = 1
     else
@@ -102,6 +107,7 @@ Module user_defined_incident_modes
 
     !      psi0 = 0.0
        end if
+
     end if
   
  END FUNCTION compute_psi_incident_guided_jet_mode

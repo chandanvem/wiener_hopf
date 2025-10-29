@@ -9,7 +9,8 @@ MODULE input_params
           real(dpk)                                  :: tol  !! specified tolerance level
           integer                                    :: num_ker_pts_loop !! number of starting pts for kernel contour
           integer                                    :: total_ker_points, tot_IFT_pts
-          integer                                    :: prswitch, restart, reflswitch, farswitch, vortswitch
+          integer                                    :: prswitch, reflswitch, farswitch, vortswitch
+          character(len=40)                          :: fplus_compute_restart
           integer                                    :: num_zeros_s1_s2, num_poles_s1_s2  !! num  zeros & poles in between s_1- s_2
           integer                                    :: num_sup_zeros, num_sup_poles  !! number of supersonic zeros & poles
           integer                                    :: Nphi  !! polar mesh resolution for directivity computation

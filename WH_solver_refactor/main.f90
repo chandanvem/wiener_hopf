@@ -40,10 +40,13 @@ PROGRAM main
   else
 
     call meshgrid(input_data)
-
-    print*,'solve: Now computing F+. This takes a while:'
-    
-    call compute_fplus(input_data,contour_data)
+    if (input_data%fplus_compute_restart == 'restart') then
+       print*,'solve: Reading from fplus.out'
+       call read_fplus(input_data,contour_data)
+    else
+       print*,'solve: Computing F+. This takes a while:'
+       call compute_fplus(input_data,contour_data)
+    end if
 
     print*,''
     print*,'solve: Now starting the IFT:'

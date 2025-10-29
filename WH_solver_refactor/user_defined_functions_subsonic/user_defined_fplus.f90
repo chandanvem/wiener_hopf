@@ -41,8 +41,10 @@ Module user_defined_fplus
    
     if (input_data%solution_mode=='guided_jet') then
 
-      fplus_den = (input_data%mu_plus - s_target)* &
-                   input_data%k_minus_at_mu_plus*k_plus_at_s*compute_U_s_factor(s_target,input_data)
+      fplus_den =  (input_data%mu_plus - input_data%KH_zero_1)* & 
+                   (input_data%k_minus_at_mu_plus*k_plus_at_s)* &
+                   (input_data%mu_plus - s_target)
+                    !*compute_U_s_factor(s_target,input_data)
 
     else 
 

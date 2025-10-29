@@ -101,6 +101,12 @@ MODULE user_defined_residue_functions
        stream_idx = 2
     end if
 
+    if ( r .LE. 1 .AND. z .LE. 0) then
+        residuepr_op = 0._dpk
+        return
+    end if
+
+
     pre_factor = (CMPLX(0._dpk,1._dpk,kind=dpk)) *&
                  ((input_data%omega_r)**2)*input_data%C0*(1 - (input_data%mu_plus*input_data%M1))
  
@@ -117,7 +123,7 @@ MODULE user_defined_residue_functions
     else if (stream_idx == 2) then
         residuepr_op = pre_factor * fn * (1._dpk - (input_data%mu_plus * input_data%M2))**2
     end if 
-    
+ 
   END FUNCTION residue_pr_GJ_guided_jet_mode
 
 

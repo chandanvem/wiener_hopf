@@ -7,7 +7,7 @@ Module user_defined_functions
   IMPLICIT NONE
 
   PUBLIC  :: compute_U_s_factor, compute_kernel, &
-             integrand_ifT_pot, integrand_ifT_pr,&
+             integrand_IFT_pot, integrand_IFT_pr,&
              compute_Trs_lambda, compute_d_ds_Trs_lambda
 
   CONTAINS 
@@ -88,7 +88,7 @@ Module user_defined_functions
 
   END FUNCTION compute_kernel
 
-  FUNCTION integrand_ifT_pr(ri,zi,IFT_contour_idx,input_data,contour_data) result(integrandIFTpr)
+  FUNCTION integrand_IFT_pr(ri,zi,IFT_contour_idx,input_data,contour_data) result(integrandIFTpr)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the ifT integrand when computing for prestream_idxure
@@ -126,9 +126,9 @@ Module user_defined_functions
    end if
 
 
-  END FUNCTION integrand_ifT_pr
+  END FUNCTION integrand_IFT_pr
 
-  FUNCTION integrand_ifT_pot(ri,zi,IFT_contour_idx,input_data,contour_data) result(integrandIFTpot)
+  FUNCTION integrand_IFT_pot(ri,zi,IFT_contour_idx,input_data,contour_data) result(integrandIFTpot)
  !
  !!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
  !!1. Compute the ifT integrand when computing for potential
@@ -172,7 +172,7 @@ Module user_defined_functions
     end if
  !
  !
-  END FUNCTION integrand_ifT_pot
+  END FUNCTION integrand_IFT_pot
  !
  
   FUNCTION compute_Trs_lambda(ri,si,stream_idx,input_data) result(Trs)
