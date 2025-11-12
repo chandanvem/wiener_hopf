@@ -5,43 +5,6 @@ PROGRAM root_finder
 !***! scheme due to Ridders'. This scheme finds multiple zeros by checking
 !***! against a database of already-found zeros.
 
-  USE bessel_utils
-
-
-  IMPLICIT none
-  
-  integer, parameter                        :: dpk = kind(1.0d0) !! Double precision kind
-  integer                                   :: Nx, Ny !! Mesh points
-  real(dpk)                                 :: Xmin, Xmax, Ymin, Ymax !! Search box
-  real(dpk)                                 :: Xm1, Xm2, Xmid
-  real(dpk), allocatable, dimension(:)      :: X, Y !! ''
-  integer                                   :: Nzero, Nzero_inc !! Computed zeros
-  complex(dpk), allocatable, dimension(:,:) :: zero !! Records all the activity over (X,Y)
-  complex(dpk), allocatable, dimension(:)   :: zerolist !! Lists only the zeros
-  complex(dpk), allocatable, dimension(:)   :: checkzero !! Checks if it's really one
-  real(dpk), allocatable, dimension(:,:)    :: alpha, alphap !! Real wave nos for the inc case
-  real(dpk)                                 :: delta !! Derivative step size
-  integer                                   :: MAX_ITE !! Max iterations in N-R scheme
-  integer                                   :: MAX_ZERO !! Max estimated zeros
-  real(dpk)                                 :: ZERO_ACC !! The accuracy in finding zeros
-  real(dpk)                                 :: ZERO_PREC !! The precision in finding zeros
-  integer                                   :: prec !! nag_bessel precision digits
-  real(dpk)                                 :: M1, M2, M3
-  real(dpk)                                 :: h, w0
-  real(dpk)                                 :: m
-  real(dpk)                                 :: del  !! phase angle in degrees
-  real(dpk)                                 :: kap_T  !! sqrt(T1/T0)
-  real(dpk)                                 :: kap_rho  !! rho1/rho0
-  complex(dpk)                              :: omega
-  real(dpk)                                 :: PI
-  integer                                   :: step, limit, func_case
-  real(dpk), parameter                      :: asymplim = 3.27E4
-  real(dpk), parameter                      :: asymplim1 = 100
-  character(len=30)                         :: dummy
-  real :: start_time, end_time, elapsed_time
-
- call cpu_time(start_time)
-
 
 !!$ List of functions: (func_case = X)
 !!$-----------------------------------------------------------
@@ -62,39 +25,174 @@ PROGRAM root_finder
 !!$ X = 101  :: Test kernel 1 (zeros)
 !!$ X = -101 :: Test kernel 1 (poles)
 
-  call readdata                          !! Reads the input file
 
+
+  USE bessel_utils
+  USE omp_lib
+  USE io_utils
+
+  IMPLICIT none
+  
+  integer, parameter                        :: dpk = kind(1.0d0) !! Double precision kind
+  integer                                   :: Nx, Ny !! Mesh points
+  real(dpk)                                 :: Xmin, Xmax, Ymin, Ymax !! Search box
+  real(dpk)                                 :: Xm1, Xm2, Xmid
+  real(dpk), allocatable, dimension(:)      :: X, Y !! ''
+  integer                                   :: Nzero, Nzero_incident !! Computed zeros
+  complex(dpk), allocatable, dimension(:,:) :: zero_activity !! Records all the activity over (X,Y)
+  complex(dpk), allocatable, dimension(:)   :: zerolist !! Lists only the zeros
+  complex(dpk), allocatable, dimension(:)   :: checkzero !! Checks if it's really one
+  real(dpk), allocatable, dimension(:,:)    :: alpha, alphap !! Real wave nos for the inc case
+  real(dpk)                                 :: delta !! Derivative step size
+  integer                                   :: MAX_ITE !! Max iterations in N-R scheme
+  integer                                   :: MAX_ZERO !! Max estimated zeros
+  real(dpk)                                 :: ZERO_ACC !! The accuracy in finding zeros
+  real(dpk)                                 :: ZERO_PREC !! The precision in finding zeros
+  integer                                   :: prec !! nag_bessel precision digits
+  real(dpk)                                 :: M1, M2, M3, h
+  real(dpk)                                 :: omega_start,omega_end,d_omega
+  complex(dpk)                              :: omega
+  real(dpk)                                 :: azim_mode
+  real(dpk)                                 :: del  !! phase angle in degrees
+  real(dpk)                                 :: kap_T  !! sqrt(T1/T0)
+  real(dpk)                                 :: kap_rho  !! rho1/rho0
+  real(dpk)                                 :: PI
+  integer                                   :: step, limit,func_case,St_flag,num_of_frequencies
+  real(dpk), parameter                      :: asymplim = 3.27E4
+  real(dpk), parameter                      :: asymplim1 = 100
+  character(len=256)                        :: dummy, file_name, data_file_name, plus_data_file_name,&
+                                                         omega_real_str, omega_imag_str, azim_mode_str
+
+  real :: start_time, end_time, elapsed_time
+  integer :: thread_id, num_threads, chunk
+  integer :: start_idx, end_idx, file_ID, data_file_ID, plus_data_file_ID,freq_idx
+  integer :: file_ID_local, data_file_ID_local
+  integer :: ierr
+ 
+  call cpu_time(start_time)
+
+  call readdata                          !! Reads the input file
+  call create_directory('./log')
+  call create_directory('./DataDump')
+   
   call mesh                              !! The grid. Make it fine enough to detect all the zeros
 
-  IF(step .NE. 0) CALL teststep(delta,omega)  !! Use it to find an optimum stepsize. Takes a lot of
-                                              !! time for a fine mesh
+  !$omp parallel  &
+  !$omp&  private(freq_idx,thread_id,num_threads, &
+  !$omp&          chunk,start_idx,end_idx,file_ID,data_file_ID,file_name,data_file_name, &
+  !$omp&          omega,omega_real_str,omega_imag_str,azim_mode_str,Nzero,zerolist,checkzero,zero_activity, &
+  !$omp&          alpha,alphap,Nzero_incident,plus_data_file_name,plus_data_file_ID, file_ID_local, &
+  !$omp&          data_file_ID_local)
 
-  call limitcase                         !! Prints the limiting values for instability zeros/poles
+
+   block 
+     thread_id = omp_get_thread_num()
+     num_threads = omp_get_num_threads()
+     chunk = num_of_frequencies / num_threads
+     start_idx = thread_id * chunk + 1
+     end_idx = (thread_id + 1) * chunk
+
+     if (thread_id == num_threads - 1) end_idx = num_of_frequencies
+
+     do freq_idx = start_idx, end_idx
+   
+        omega = omega_start + d_omega*( freq_idx - 1 )
+        omega = ABS(omega)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
+
+        if (St_flag == 1) then
+            write(omega_real_str, '(F10.3)') REAL(omega/(PI*M1))
+            write(omega_imag_str, '(F10.3)') AIMAG(omega/(PI*M1))
+        else 
+            write(omega_real_str, '(F10.3)') REAL(omega)
+            write(omega_imag_str, '(F10.3)') AIMAG(omega)
+        end if
+         
+        write(azim_mode_str, '(F10.3)') azim_mode
+
+        write(file_name, '("./log/log_", I0, ".out")') freq_idx
+
+        if (func_case > 0 ) then
+           if (AIMAG(omega) == 0) then 
+               write(data_file_name, '("DataDump/zeroslist_",A,"_m_",A,".dat")') &
+                   trim(adjustl(omega_real_str)), trim(adjustl(azim_mode_str))
+           else 
+                write(data_file_name, '("DataDump/zeroslist_", A, "_i", A, "_m_", A,".dat")') &
+                   trim(adjustl(omega_real_str)),trim(adjustl(omega_imag_str)),trim(adjustl(azim_mode_str))
+ 
+           end if
+        else 
+           if (AIMAG(omega) == 0) then 
+               write(data_file_name, '("DataDump/poleslist_",A,"_m_",A,".dat")') &
+                   trim(adjustl(omega_real_str)), trim(adjustl(azim_mode_str))
+           else 
+                write(data_file_name, '("DataDump/poleslist_", A, "_i", A, "_m_", A,".dat")') &
+                   trim(adjustl(omega_real_str)),trim(adjustl(omega_imag_str)),trim(adjustl(azim_mode_str))
+ 
+           end if
+        end if 
+
+        
+        file_ID =  freq_idx + 1 
+        data_file_ID = 2*num_of_frequencies + freq_idx
+
+      !  open(file_ID,file=file_name,form='FORMATTED',status='UNKNOWN') 
+      !  open(data_file_ID,file=data_file_name,form='FORMATTED',status='UNKNOWN') 
+
+      open(newunit=file_ID, file=trim(file_name), form='FORMATTED', status='UNKNOWN',action='WRITE', iostat=ierr)
+      if (ierr /= 0 )  then
+         write(*,*) 'ERROR opening ', trim(file_name), ' iostat=', ierr
+         stop
+      end if
+
+      open(newunit=data_file_ID, file=trim(data_file_name), form='FORMATTED',status='UNKNOWN', action='WRITE', iostat=ierr)
+      if (ierr /= 0 ) then
+         write(*,*) 'ERROR opening ', trim(data_file_name), ' iostat=', ierr
+         close(file_ID)
+         stop
+      end if
+     
+      file_ID_local = file_ID
+      data_file_ID_local = data_file_ID
+ 
+      call findzero(omega,Nzero,zerolist,checkzero,zero_activity,file_ID_local)   !! The main subroutine
+
+        IF(func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
+            allocate(alpha(Nzero,3),alphap(Nzero,3))
+            CALL findzeroplus(omega,Nzero,Nzero_incident,zerolist,&
+                 checkzero,zero_activity,alpha,alphap,file_ID)
+        END IF
+
+        call printinfo(omega,Nzero,zerolist,checkzero,zero_activity,file_ID_local,data_file_ID_local)  !! Print & write data
+     
+        IF(func_case .EQ. 0 .OR. func_case .EQ. 100 .AND. Nzero_incident > 0 ) THEN
+            write(plus_data_file_name, '("DataDump/poleslist_plus_", A,"_m_", A,".dat")') &
+                                            trim(adjustl(omega_real_str)), trim(adjustl(azim_mode_str))
 
 
-  call findzero(omega,Nzero,zerolist,checkzero,zero)   !! The main subroutine
+            plus_data_file_ID =   4*num_of_frequencies + freq_idx
 
-  IF(func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
+            open(plus_data_file_ID,file=plus_data_file_name,form='FORMATTED',status='UNKNOWN')
 
-     allocate(alpha(Nzero,3),alphap(Nzero,3))
-     CALL findzeroplus(omega,Nzero,Nzero_inc,zerolist,checkzero,zero,alpha,alphap)  
-                                                       !! For inc waves
-  END IF
+            CALL printinfoplus(omega,Nzero,Nzero_incident,&
+                 alpha,alphap,file_ID,plus_data_file_ID)
 
-  call printinfo(omega,Nzero,zerolist,checkzero,zero)  !! Print & write data
+            close(plus_data_file_ID)
 
-  IF(func_case .EQ. 0 .OR. func_case .EQ. 100) &
-       CALL printinfoplus(omega,Nzero,Nzero_inc,alpha,alphap)   
-                                                       !! For inc waves
+        END IF
 
-  call cpu_time(end_time)
-  elapsed_time = end_time - start_time
-
-  print *, 'Elapsed CPU time (seconds):', elapsed_time
+        close(file_ID)
+        close(data_file_ID)
+     end do
+    end block
+   !$omp end parallel
+ 
+   call cpu_time(end_time)
+  
+   elapsed_time = end_time - start_time
+   print *, 'Elapsed CPU time (seconds):', elapsed_time
 
 
 CONTAINS
-
 
   SUBROUTINE readdata
 
@@ -110,18 +208,17 @@ CONTAINS
       print '(A, I5, A)', ' func_case = (', func_case, ')'
 
 
-      read(10,*) M1,        dummy
-      read(10,*) M2,        dummy
-      read(10,*) M3,        dummy
+      read(10,*) M1,dummy
+      read(10,*) M2,dummy
+      read(10,*) M3,dummy
       print '(A, F8.4, ", ", F8.4, ", ", F8.4, A)', &
                    ' (M1, M2, M3) = (', M1, M2, M3, ')'
 
-      read(10,*) h,         dummy
-      read(10,*) w0,        dummy
-      read(10,*) del,       dummy
-      read(10,*) m,         dummy
-      print '(A, F8.4, ", ", F8.4, ", ", F8.4, ", ", F8.4,A)', &
-                   ' (h, w0, del, m) = (', h, w0, del, m, ')'
+                           read(10,*) h,dummy
+      read(10,*) del,dummy
+      read(10,*) azim_mode,dummy
+      print '(A, F8.4, ", ", F8.4, ", ", F8.4,A)', &
+                   ' (h,del, azim_mode) = (', h, del, azim_mode, ')'
 
       read(10,*) kap_T, dummy           
       read(10,*) kap_rho, dummy           
@@ -171,10 +268,39 @@ CONTAINS
       print '(A, I5, ", ", I5, ", ", E12.4, ", ", I5,A)', &
                    ' (prec, step, delta, limit) = (', prec, step, delta, limit, ')'
 
+      read(10,*) St_flag,dummy
+      read(10,*) omega_start,dummy
+      read(10,*) omega_end,dummy
+
+      if (St_flag == 1 ) then
+          omega_start = PI*M1*omega_start
+          omega_end   = PI*M1*omega_end
+      end if
+
+      read(10,*) num_of_frequencies,dummy
+
+      print '(A, I5,A)', &
+                   ' (number of frequencies) = (', num_of_frequencies, ')'
+
+
+      if (num_of_frequencies == 1) then
+         d_omega = 0.0
+      else
+         d_omega = (omega_end - omega_start)/(num_of_frequencies - 1)
+      end if
+      
+      if (St_flag == 1) then
+            print '(A, F8.4, ", ", F8.4, ", ", F12.4,A)', &
+                    ' (omega_start in St, omega_end in St, d_omega in St) = (',&
+                              omega_start/(PI*M1), omega_end/(PI*M1), d_omega/(PI*M1), ')'
+      else
+            print '(A, F8.4, ", ", F8.4, ", ", F12.4,A)', &
+                  '(omega_start (helm. no) , omega_end (helm. no) , d_omega (helm. no) ) = (',&
+                                                        omega_start, omega_end, d_omega, ')'
+      end if
 
      close(10)
 
-     omega = ABS(w0)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*del*PI/180)
 
      IF(func_case .EQ. 0 .OR. func_case .EQ. 100) THEN
         Ny = 2
@@ -203,103 +329,103 @@ CONTAINS
         Ymax = 0.
      END IF
 
-     ALLOCATE(zero(Nx,Ny))
+     ALLOCATE(zero_activity(Nx,Ny))
      ALLOCATE(zerolist(MAX_ZERO))
      ALLOCATE(checkzero(MAX_ZERO))
 
     END SUBROUTINE readdata
 
-  SUBROUTINE limitcase
-
-    complex(dpk)    :: sz1, sz2, sp1, beta
-
-    IF(limit .NE. 0) THEN
-
-       sz1 = 1._dpk/M1
-
-       sz2 = 1._dpk/M2
-       
-       beta = SQRT((1._dpk - h**2)/h**2)
-
-       sp1 = 1._dpk/(M2**2 + (beta*M1)**2)*(M2**2 + beta**2*M1 - CMPLX(0._dpk,1._dpk,kind=dpk)* &
-            beta*(M1 - M2))
-
-       print*,'Low frequency and low Mach no limits:'
-
-       write(*,'(/A4,F15.10,1X,A1,1X,F15.10,A1)')'sz1:',REAL(sz1),'+',AIMAG(sz1),'i'
-       write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1)')'sz2:',REAL(sz2),'+',AIMAG(sz2),'i'
-       write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1/)')'sp1:',REAL(sp1),'+',AIMAG(sp1),'i'
-
-    END IF
-
-  END SUBROUTINE limitcase
-
-
-  SUBROUTINE teststep(hopt,w)
-
-!***! This subroutine can be used to find an optimum stepsize for the numerical
-!***! derivative. It works by testing step sizes in the range (hmin,hmax) over
-!***! the specified grid (X,Y) and then comparzerolisto!***! Two such error measures are used, viz., max_error and error_index. The  
-!***! former is just the maximum error made over (X,Y) for a given h. The latter
-!***! one is, although, supposed to be more useful since it measures how 'deep'
-!***! the tableau in Ridders' scheme is traversed for a given h. Early exit from 
-!***! the tableau would generally indicate poor extrapolation.
-
-    real(dpk), parameter                  :: hmin = 0.01_dpk, hmax = 10._dpk, dh = 0.01_dpk
-    integer                               :: Nh
-    real(dpk), allocatable, dimension(:)  :: H
-    real(dpk)                             :: hopt
-    real(dpk), dimension(Nx,Ny)           :: error, ierror
-    complex(dpk)                          :: Z, w
-    complex(dpk), dimension(Nx,Ny)        :: testfun
-    real(dpk), allocatable, dimension(:)  :: max_error
-    integer, allocatable, dimension(:)    :: error_index
-    integer, dimension(1)                 :: imin
-    integer                               :: i, j, k, optindex
-
-    Nh = (hmax - hmin)/dh + 1
-    
-    allocate(H(Nh))
-    allocate(max_error(Nh))
-    allocate(error_index(Nh))
-    
-    H(1) = hmin
-    
-    do i = 2, Nh
-       H(i) = H(i-1) + dh
-    end do
-    
-    do k = 1, Nh
-       do i = 1, Nx
-          do j = 1, Ny
-             Z = CMPLX(X(i),Y(j),kind=dpk)
-             testfun(i,j) = dfun(Z,w,H(k),error(i,j),ierror(i,j))
-          end do
-       end do
-       
-       max_error(k) = MAXVAL(error)
-       error_index(k) = INT(SUM(ierror))
-       
-    end do
-    
-    imin = MAXLOC(error_index(1:Nh))
-    optindex = imin(1)
-
-!!$    if (max_error(optindex) > 10.) then
-!!$       imin = MINLOC(max_error(1:Nh))
-!!$       optindex = imin(1)
-!!$    end if
-
-    hopt = H(optindex)
-
-    write(*,'(/A25,F6.2/)')'Optimum step size:',hopt
-    write(*,'(A25,F15.10/)')'Maximum error value:',max_error(optindex)
-    write(*,'(A25,I5/)')'Error index:',error_index(optindex)
-
-  END SUBROUTINE teststep
-    
-
-  SUBROUTINE findzero(w,Nz,zl,cz,zz)
+!  SUBROUTINE limitcase
+!
+!    complex(dpk)    :: sz1, sz2, sp1, beta
+!
+!    IF(limit .NE. 0) THEN
+!
+!       sz1 = 1._dpk/M1
+!
+!       sz2 = 1._dpk/M2
+!       
+!       beta = SQRT((1._dpk - h**2)/h**2)
+!
+!       sp1 = 1._dpk/(M2**2 + (beta*M1)**2)*(M2**2 + beta**2*M1 - CMPLX(0._dpk,1._dpk,kind=dpk)* &
+!            beta*(M1 - M2))
+!
+!       print*,'Low frequency and low Mach no limits:'
+!
+!       write(*,'(/A4,F15.10,1X,A1,1X,F15.10,A1)')'sz1:',REAL(sz1),'+',AIMAG(sz1),'i'
+!       write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1)')'sz2:',REAL(sz2),'+',AIMAG(sz2),'i'
+!       write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1/)')'sp1:',REAL(sp1),'+',AIMAG(sp1),'i'
+!
+!    END IF
+!
+!  END SUBROUTINE limitcase
+!
+!
+!  SUBROUTINE teststep(hopt,w)
+!
+!!***! This subroutine can be used to find an optimum stepsize for the numerical
+!!***! derivative. It works by testing step sizes in the range (hmin,hmax) over
+!!***! the specified grid (X,Y) and then comparzerolisto!***! Two such error measures are used, viz., max_error and error_index. The  
+!!***! former is just the maximum error made over (X,Y) for a given h. The latter
+!!***! one is, although, supposed to be more useful since it measures how 'deep'
+!!***! the tableau in Ridders' scheme is traversed for a given h. Early exit from 
+!!***! the tableau would generally indicate poor extrapolation.
+!
+!    real(dpk), parameter                  :: hmin = 0.01_dpk, hmax = 10._dpk, dh = 0.01_dpk
+!    integer                               :: Nh
+!    real(dpk), allocatable, dimension(:)  :: H
+!    real(dpk)                             :: hopt
+!    real(dpk), dimension(Nx,Ny)           :: error, ierror
+!    complex(dpk)                          :: Z, w
+!    complex(dpk), dimension(Nx,Ny)        :: testfun
+!    real(dpk), allocatable, dimension(:)  :: max_error
+!    integer, allocatable, dimension(:)    :: error_index
+!    integer, dimension(1)                 :: imin
+!    integer                               :: i, j, k, optindex
+!
+!    Nh = (hmax - hmin)/dh + 1
+!    
+!    allocate(H(Nh))
+!    allocate(max_error(Nh))
+!    allocate(error_index(Nh))
+!    
+!    H(1) = hmin
+!    
+!    do i = 2, Nh
+!       H(i) = H(i-1) + dh
+!    end do
+!    
+!    do k = 1, Nh
+!       do i = 1, Nx
+!          do j = 1, Ny
+!             Z = CMPLX(X(i),Y(j),kind=dpk)
+!             testfun(i,j) = dfun(Z,w,H(k),error(i,j),ierror(i,j))
+!          end do
+!       end do
+!       
+!       max_error(k) = MAXVAL(error)
+!       error_index(k) = INT(SUM(ierror))
+!       
+!    end do
+!    
+!    imin = MAXLOC(error_index(1:Nh))
+!    optindex = imin(1)
+!
+!!!$    if (max_error(optindex) > 10.) then
+!!!$       imin = MINLOC(max_error(1:Nh))
+!!!$       optindex = imin(1)
+!!!$    end if
+!
+!    hopt = H(optindex)
+!
+!    write(*,'(/A25,F6.2/)')'Optimum step size:',hopt
+!    write(*,'(A25,F15.10/)')'Maximum error value:',max_error(optindex)
+!    write(*,'(A25,I5/)')'Error index:',error_index(optindex)
+!
+!  END SUBROUTINE teststep
+!    
+!
+  SUBROUTINE findzero(w,Nz,zl,cz,zz,file_ID)
 
 !***! The main subroutine that finds the zeros. It actually calls the Newton-Raphson
 !***! method function 'newt' to find the roots. It then collects the zeros and
@@ -312,7 +438,7 @@ CONTAINS
     real(dpk)                                  :: zeror, zeroi
     integer                                    :: Nz, grid_count,total_grid_points
     character(10)                              :: zflag
-    integer                                    :: i, j, k
+    integer                                    :: i, j, k, file_ID
 
     zl(:) = (0.,0.)
     Nz = 0
@@ -322,7 +448,7 @@ CONTAINS
     do i = 1, Nx
        do j = 1, Ny
           Z = CMPLX(X(i),Y(j),kind=dpk)
-          zz(i,j) = newt(Z,w,zflag,grid_count,total_grid_points)
+          zz(i,j) = newt(Z,w,zflag,grid_count,total_grid_points, file_ID)
           
           if (zflag == 'green') then
              zeror = REAL(zz(i,j))
@@ -346,20 +472,20 @@ CONTAINS
           end if
 
           if (zflag == 'green') then
-             if (func_case .GE. 0) print*, "A new zero found!"
-             if (func_case .LT. 0) print*, "A new pole found!"
+             if (func_case .GE. 0) write(file_ID, *) "A new zero found!"
+             if (func_case .LT. 0) write(file_ID, *) "A new pole found!"
              Nz = Nz + 1
              zl(Nz) = zz(i,j)
              cz(Nz) = check
              
-             write(*,'(A4,F15.10,1X,A1,1X,F15.10,A1)')'at:',&
+             write(file_ID,'(A4,F15.10,1X,A1,1X,F15.10,A1)')'at:',&
                   REAL(zz(i,j)),'+',AIMAG(zz(i,j)),'i'
 
              if (func_case .GE. 0) then
-                write(*,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@zero:',&
+                write(file_ID,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@zero:',&
                      REAL(check),'+',AIMAG(check),'i'
              else
-                write(*,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@pole:',&
+                write(file_ID,'(A11,E16.8,1X,A1,1X,E16.8,A1)')'func@pole:',&
                      REAL(check),'+',AIMAG(check),'i'
              end if
           end if
@@ -381,7 +507,7 @@ CONTAINS
   END SUBROUTINE findzero
 
 
-  SUBROUTINE findzeroplus(w,Nz,Nzi,zl,cz,zz,al,alp)
+SUBROUTINE findzeroplus(w,Nz,Nzi,zl,cz,zz,al,alp,file_ID)
 
     complex(dpk)                               :: w, wdel
     real(dpk), dimension(Nz,3)                 :: al, alp
@@ -389,7 +515,7 @@ CONTAINS
     complex(dpk), dimension(MAX_ZERO)          :: zl, cz, zl1, cz1, zl2, cz2
     complex(dpk)                               :: Z, a, check
     real(dpk)                                  :: zeror, zeroi, factor, dwdmu, temp, temp1, temp2
-    integer                                    :: Nz, Nzi, zerocount
+    integer                                    :: Nz, Nzi, zerocount, file_ID
     character(10)                              :: zflag
     integer                                    :: i, j, k
     
@@ -402,8 +528,8 @@ CONTAINS
        al(i,3) = w*sqrt(kap_T**2*(1._dpk - REAL(zl(i))*M2)**2 - REAL(zl(i))**2)
     end do
 
-    CALL findzero(w+wdel,Nz,zl1,cz1,zz1)
-    CALL findzero(w-wdel,Nz,zl2,cz2,zz2)
+    CALL findzero(w+wdel,Nz,zl1,cz1,zz1,file_ID)
+    CALL findzero(w-wdel,Nz,zl2,cz2,zz2,file_ID)
 
     zerocount = 0
     do i = 1, Nz
@@ -446,13 +572,13 @@ CONTAINS
   END SUBROUTINE findzeroplus
 
 
-  SUBROUTINE printinfo(w,Nz,zl,cz,zz)
+  SUBROUTINE printinfo(w,Nz,zl,cz,zz,file_ID,data_file_ID)
 
     complex(dpk)                               :: w
     complex(dpk), dimension(Nx,Ny)             :: zz
     complex(dpk), dimension(MAX_ZERO)          :: zl, cz
     integer                                    :: Nz
-    integer                                    :: i, j
+    integer                                    :: i, j, file_ID, data_file_ID
     character(len=200)                         :: file_name
 
     if (Nz == 0) then
@@ -466,73 +592,54 @@ CONTAINS
           if (func_case .GE. 0) then
 
              if(M1 > 1) then
-                write(*,'(/A10)') 'Limits:-->'
-                write(*,'(A1,F6.3,A1,F6.3,A1,1X,A3,1X,A1,F6.3,A1,F6.3,A1)') '[',Xmin,',',Xm1,']','AND', &
+                write(file_ID,'(/A10)') 'Limits:-->'
+                write(file_ID,'(A1,F6.3,A1,F6.3,A1,1X,A3,1X,A1,F6.3,A1,F6.3,A1)') '[',Xmin,',',Xm1,']','AND', &
                      '[',Xm2,',',Xmax,']'
              end if
 
-             write(*,'(/A44)')'--------------------------------------------'
-             write(*,'(A44)')'              Summary of Zeros              '
-             write(*,'(A44)')'--------------------------------------------'
+             write(file_ID,'(/A44)')'--------------------------------------------'
+             write(file_ID,'(A44)')'              Summary of Zeros              '
+             write(file_ID,'(A44)')'--------------------------------------------'
              do i = 1, Nz
-                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
+                write(file_ID,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
-             write(*,'(A44/)')'--------------------------------------------'
-
-             if (del .EQ. 0) then              
-               write(file_name, '("zerolist_w0_", F0.3, ".dat")') real(w)  
-             else if (del .GT. 0) then 
-               write(file_name, '("zerolist_w0_", F0.3,"_del_",F5.3, ".dat")') real(w), del  
-             end if
-
-
-             open(10,file=file_name,form='FORMATTED')
-             write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-             write(10,'(A2,2F15.5)') '#',w
+             write(file_ID,'(A44/)')'--------------------------------------------'
+             
+             write(data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+             write(data_file_ID,'(A2,2F15.5)') '#',w
              if (M1 < 1) then
-                write(10,'(A2,2F10.5)') '#',Xmin, Xmax
+                write(data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
              else
-                write(10,'(A2,4F10.5)') '#',Xmin, Xm1, Xm2, Xmax
+                write(data_file_ID,'(A2,4F10.5)') '#',Xmin, Xm1, Xm2, Xmax
              end if
-             write(10,'(A2,2F10.5)') '#',Ymin, Ymax
+             write(data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
              do i = 1, Nz
-                write(10,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
+                write(data_file_ID,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
              end do
-             close(10)
 
           else
 
-             write(*,'(/A44)')'--------------------------------------------'
-             write(*,'(A44)')'              Summary of Poles              '
-             write(*,'(A44)')'--------------------------------------------'
-             do i = 1, Nz
-                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
+             write(file_ID,'(/A44)')'--------------------------------------------'
+             write(file_ID,'(A44)')'              Summary of Poles              '
+             write(file_ID,'(A44)')'--------------------------------------------'
+            do i = 1, Nz
+                write(file_ID,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
-             write(*,'(A44/)')'--------------------------------------------'
+             write(file_ID,'(A44/)')'--------------------------------------------'
            
-             if (del .EQ. 0) then
-               write(file_name, '("polelist_w0_", F0.3, ".dat")') real(w)
-             else if (del .GT. 0) then
-               write(file_name, '("polelist_w0_", F0.3,"_del_", F5.3, ".dat")') real(w), del
-             end if
-
-             open(10,file=file_name,form='FORMATTED')
-
-             !open(10,file='polelist.dat',form='FORMATTED')
-             write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-             write(10,'(A2,2F15.5)') '#',w
+             write(data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+             write(data_file_ID,'(A2,2F15.5)') '#',w
              if (M1 < 1) then
-                write(10,'(A2,2F10.5)') '#',Xmin, Xmax
+                write(data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
              else
-                write(10,'(A2,4F10.5)') '#',Xmin, Xm1, Xm2, Xmax
+                write(data_file_ID,'(A2,4F10.5)') '#',Xmin, Xm1, Xm2, Xmax
              end if
-             write(10,'(A2,2F10.5)') '#',Ymin, Ymax
+             write(data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
              do i = 1, Nz
-                write(10,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
+                write(data_file_ID,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
              end do
-             close(10)
 
           end if
 
@@ -540,62 +647,42 @@ CONTAINS
 
           if (func_case .GE. 0) then
 
-             write(*,'(/A44)')'--------------------------------------------'
-             write(*,'(A44)')'              Summary of Zeros              '
-             write(*,'(A44)')'--------------------------------------------'
+             write(file_ID,'(/A44)')'--------------------------------------------'
+             write(file_ID,'(A44)')'              Summary of Zeros              '
+             write(file_ID,'(A44)')'--------------------------------------------'
              do i = 1, Nz
-                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
+                write(file_ID,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'ZERO',i,':',&
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
-             write(*,'(A44/)')'--------------------------------------------'
+             write(file_ID,'(A44/)')'--------------------------------------------'
 
-             !open(10,file='zerolist.dat',form='FORMATTED')
 
-             if (del .EQ. 0) then              
-               write(file_name, '("zerolist_w0_", F0.3, ".dat")') real(w)  
-             else if (del .GT. 0) then 
-               write(file_name, '("zerolist_w0_", F0.3,"_del_",F5.3, ".dat")') real(w), del  
-             end if
-
-             open(10,file=file_name,form='FORMATTED')
-
-             write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-             write(10,'(A2,2F15.5)') '#',w
-             write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-             write(10,'(A2,2F10.5)') '#',Ymin, Ymax
+             write(data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+             write(data_file_ID,'(A2,2F15.5)') '#',w
+             write(data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+             write(data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
              do i = 1, Nz
-                write(10,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
+                write(data_file_ID,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
              end do
-             close(10)
 
           else
 
-             write(*,'(/A44)')'--------------------------------------------'
-             write(*,'(A44)')'              Summary of Poles              '
-             write(*,'(A44)')'--------------------------------------------'
+             write(file_ID,'(/A44)')'--------------------------------------------'
+             write(file_ID,'(A44)')'              Summary of Poles              '
+             write(file_ID,'(A44)')'--------------------------------------------'
              do i = 1, Nz
-                write(*,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
+                write(file_ID,'(A5,I4,A1,F15.10,1X,A1,1X,F15.10,A1)')'POLE',i,':',&
                      REAL(zl(i)),'+',AIMAG(zl(i)),'i'
              end do
-             write(*,'(A44/)')'--------------------------------------------'
+             write(file_ID,'(A44/)')'--------------------------------------------'
              
-             if (del .EQ. 0) then
-               write(file_name, '("polelist_w0_", F0.3, ".dat")') real(w)
-             else if (del .GT. 0) then
-               write(file_name, '("polelist_w0_", F0.3,"_del_",F5.3, ".dat")') real(w), del
-             end if
-
-             open(10,file=file_name,form='FORMATTED')
-
-             !open(10,file='polelist.dat',form='FORMATTED')
-             write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-             write(10,'(A2,2F15.5)') '#',w
-             write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-             write(10,'(A2,2F10.5)') '#',Ymin, Ymax
+             write(data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+             write(data_file_ID,'(A2,2F15.5)') '#',w
+             write(data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+             write(data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
              do i = 1, Nz
-                write(10,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
+                write(data_file_ID,'(I5,2F20.10,2X,E16.8,2X,E16.8)') i,zl(i),cz(i)
              end do
-             close(10)
 
           end if
 
@@ -603,24 +690,25 @@ CONTAINS
 
     end if
     
-    open(10,file='log.dat',form='FORMATTED')
-    do i = 1, Nx
-       do j = 1, Ny
-          write(10,'(4F20.10)') X(i),Y(j),zz(i,j)
-       end do
-    end do
-    close(10)
+   ! open(10,file='log.out',form='FORMATTED')
+   ! do i = 1, Nx
+    !   do j = 1, Ny
+    !      write(10,'(4F20.10)') X(i),Y(j),zz(i,j)
+    !   end do
+   ! end do
+   ! close(10)
 
 
   END SUBROUTINE printinfo
 
 
-  SUBROUTINE printinfoplus(w,Nz,Nzi,al,alp)
+  SUBROUTINE printinfoplus(w,Nz,Nzi,al,alp,file_ID,plus_data_file_ID)
 
     real(dpk), dimension(Nz,3)                 :: al, alp
     complex(dpk)                               :: w
     integer                                    :: Nz, Nzi
     integer                                    :: i, j
+    integer                                    :: file_ID, plus_data_file_ID
     character(len=200)                         :: file_name
     if (Nz == 0) then
 
@@ -628,53 +716,49 @@ CONTAINS
 
     else
 
-       write(*,'(/A52)')'----------------------------------------------------'
-       write(*,'(A52)')'   n         mu            alpha            beta    '
-       write(*,'(A52)')'----------------------------------------------------'
+       write(file_ID,'(/A52)')'----------------------------------------------------'
+       write(file_ID,'(A52)')'   n         mu            alpha            beta    '
+       write(file_ID,'(A52)')'----------------------------------------------------'
        do i = 1, Nz
-          write(*,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)') i,al(i,1),al(i,2),al(i,3)
+          write(file_ID,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)') i,al(i,1),al(i,2),al(i,3)
        end do
-       write(*,'(A52/)')'-----------------------------------------------------'
+       write(file_ID,'(A52/)')'-----------------------------------------------------'
 
-       write(file_name, '("zerolist_", F0.3, ".dat")') real(w)
-       open(10,file=file_name,form='FORMATTED')
-
-     !  open(10,file='zerolist.dat',form='FORMATTED')
-       write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-       write(10,'(A2,2F15.5)') '#',w
-       write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-       write(10,'(A2,2F10.5)') '#',Ymin, Ymax
+       write(file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+       write(file_ID,'(A2,2F15.5)') '#',w
+       write(file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+       write(file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
        do i = 1, Nz
-          write(10,'(I5,3F20.10,2X)') i,al(i,1),al(i,2),al(i,3)
+          write(file_ID,'(I5,3F20.10,2X)') i,al(i,1),al(i,2),al(i,3)
        end do
        close(10)
 
-       print*,''
        if (func_case .EQ. 0) then
-          print*,'Considering only the +Z (RIGHT) moving waves.....'
+          write(file_ID,*)'Considering only the +Z (RIGHT) moving waves.....'
        else
-          print*,'Considering only the -Z (LEFT) moving waves......'
+          write(file_ID,*) 'Considering only the -Z (LEFT) moving waves......'
        end if
 
-       write(*,'(/A52)')'----------------------------------------------------'
-       write(*,'(A52)')'   n         mu            alpha            beta    '
-       write(*,'(A52)')'----------------------------------------------------'
+       write(file_ID,'(/A52)')'----------------------------------------------------'
+       write(file_ID,'(A52)')'   n         mu            alpha            beta    '
+       write(file_ID,'(A52)')'----------------------------------------------------'
        do i = 1, Nzi
-          write(*,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)')i,alp(i,1),alp(i,2),alp(i,3)
+          write(file_ID,'(I4,1X,F15.10,1X,F15.10,1X,F15.10)')i,alp(i,1),alp(i,2),alp(i,3)
        end do
-       write(*,'(A52/)')'-----------------------------------------------------'
+       write(file_ID,'(A52/)')'-----------------------------------------------------'
 
-       if (func_case .EQ. 0) then
-          open(10,file='incident_waves.dat',form='FORMATTED')
-       else
-          open(10,file='reflected_waves.dat',form='FORMATTED')
-       end if
-       write(10,'(A2,5F10.5)') '#',M1, M2, M3, m, h
-       write(10,'(A2,2F15.5)') '#',w
-       write(10,'(A2,2F10.5)') '#',Xmin, Xmax
-       write(10,'(A2,2F10.5)') '#',Ymin, Ymax
+      ! if (func_case .EQ. 0) then
+      !    open(10,file='incident_waves.out',form='FORMATTED')
+      ! else
+      !    open(10,file='reflected_waves.out',form='FORMATTED')
+      ! end if
+
+       write(plus_data_file_ID,'(A2,5F10.5)') '#',M1, M2, M3, azim_mode, h
+       write(plus_data_file_ID,'(A2,2F15.5)') '#',w
+       write(plus_data_file_ID,'(A2,2F10.5)') '#',Xmin, Xmax
+       write(plus_data_file_ID,'(A2,2F10.5)') '#',Ymin, Ymax
        do i = 1, Nzi
-          write(10,'(I5,3F20.10,2X)') i,alp(i,1),alp(i,2),alp(i,3)
+          write(plus_data_file_ID,'(I5,3F20.10,2X)') i,alp(i,1),alp(i,2),alp(i,3)
        end do
        close(10)
 
@@ -682,43 +766,40 @@ CONTAINS
 
 
   END SUBROUTINE printinfoplus
-
-  
+!
+!  
   FUNCTION fun(z,w)
 
     !***! This subroutine specifies the function.
 
     complex(dpk)              :: z, fun, w
-    complex(dpk)              :: l1, l2, l3, lz, F1n, F1d, F2n, F2d, F1s, F2s, F1, F2
+    complex(dpk)              :: lambda1, lambda2, l3, lz, F1n, F1d, F2n, F2d, F1s, F2s, F1, F2
     complex(dpk)              :: Rnz, Rdz, Rz, R1nz, R1dz, R1z, R2nz, R2dz, R2z
 
 
-    l1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
-    l2 = sqrt(1._dpk*kap_T - z*(kap_T*M2+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M2-1._dpk))
-  
-   ! l1 = compute_lambda_0_2pi(z,1/(M1-1._dpk),1/(M1 + 1._dpk))
-   ! l2 = compute_lambda_0_2pi(z,kap_T/(kap_T*M2-1._dpk),kap_T/(kap_T*M2+1._dpk)) 
-  
+    lambda1 = sqrt(1._dpk - z*(M1+1._dpk))*sqrt(1._dpk - z*(M1-1._dpk))
+    lambda2 = sqrt(1._dpk*kap_T - z*(kap_T*M2+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M2-1._dpk))
+
     SELECT CASE (func_case)
 
     CASE (0)
 
 !!$!! Samanta & Freund, JFM, 2008 (Acoustic Incident Waves)
 
-       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
+       lambda1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+       lambda2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
 
-       F1n = dbessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,m,1)*dbessj(l2,m,1)* &
-            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+       F1n = dbessj(h*lambda2,azim_mode,1)*dhank1(lambda2,azim_mode,1)*EXP(ABS(AIMAG(h*lambda2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2) - dhank1(h*lambda2,azim_mode,1)*dbessj(lambda2,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*lambda2)
 
-       F1 = l2*(1._dpk - z*M1)**2*bessj(h*l1,m,1)*EXP(ABS(AIMAG(h*l1)))*F1n
+       F1 = lambda2*(1._dpk - z*M1)**2*bessj(h*lambda1,azim_mode,1)*EXP(ABS(AIMAG(h*lambda1)))*F1n
 
-       F2n = bessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - hank1(h*l2,m,1)*dbessj(l2,m,1)* &
-            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+       F2n = bessj(h*lambda2,azim_mode,1)*dhank1(lambda2,azim_mode,1)*EXP(ABS(AIMAG(h*lambda2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2) - hank1(h*lambda2,azim_mode,1)*dbessj(lambda2,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*lambda2)
 
-       F2 = l1*(1._dpk - z*M2)**2*dbessj(h*l1,m,1)*EXP(ABS(AIMAG(h*l1)))*F2n
+       F2 = lambda1*(1._dpk - z*M2)**2*dbessj(h*lambda1,azim_mode,1)*EXP(ABS(AIMAG(h*lambda1)))*F2n
 
        fun = F1 - F2
 
@@ -726,20 +807,20 @@ CONTAINS
 
 !!$!! Samanta & Freund, JFM, 2008 (Acoustic Reflected Waves)
 
-       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
-       l2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
+       lambda1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+       lambda2 = w*sqrt(kap_T**2*(1._dpk - z*M2)**2 - z**2)
 
-       F1n = dbessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - dhank1(h*l2,m,1)*dbessj(l2,m,1)* &
-            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+       F1n = dbessj(h*lambda2,azim_mode,1)*dhank1(lambda2,azim_mode,1)*EXP(ABS(AIMAG(h*lambda2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2) - dhank1(h*lambda2,azim_mode,1)*dbessj(lambda2,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*lambda2)
 
-       F1 = l2*(1._dpk - z*M1)**2*bessj(h*l1,m,1)*EXP(ABS(AIMAG(h*l1)))*F1n
+       F1 = lambda2*(1._dpk - z*M1)**2*bessj(h*lambda1,azim_mode,1)*EXP(ABS(AIMAG(h*lambda1)))*F1n
 
-       F2n = bessj(h*l2,m,1)*dhank1(l2,m,1)*EXP(ABS(AIMAG(h*l2)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2) - hank1(h*l2,m,1)*dbessj(l2,m,1)* &
-            EXP(ABS(AIMAG(l2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*l2)
+       F2n = bessj(h*lambda2,azim_mode,1)*dhank1(lambda2,azim_mode,1)*EXP(ABS(AIMAG(h*lambda2)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2) - hank1(h*lambda2,azim_mode,1)*dbessj(lambda2,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2)) + CMPLX(0._dpk,1._dpk,kind=dpk)*h*lambda2)
 
-       F2 = l1*(1._dpk - z*M2)**2*dbessj(h*l1,m,1)*EXP(ABS(AIMAG(h*l1)))*F2n
+       F2 = lambda1*(1._dpk - z*M2)**2*dbessj(h*lambda1,azim_mode,1)*EXP(ABS(AIMAG(h*lambda1)))*F2n
 
        fun = F1 - F2
 
@@ -747,9 +828,9 @@ CONTAINS
 
 !!$!! Hollow duct incident waves
 
-       l1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
+       lambda1 = w*sqrt((1._dpk - z*M1)**2 - z**2)
 
-       F1n = dbessj(l1,m,1)*EXP(ABS(AIMAG(l1)))
+       F1n = dbessj(lambda1,azim_mode,1)*EXP(ABS(AIMAG(lambda1)))
 
        fun = F1n
 
@@ -757,55 +838,57 @@ CONTAINS
 
 !!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the zeros)
 
-       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
+       lz = kap_rho*lambda2/lambda1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
        l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
 
-       if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
-            (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
-            (ABS(l1*w*h) < asymplim .AND. ABS(AIMAG(l1*w*h)) < asymplim1)) then
+       if ((ABS(lambda2*w) < asymplim .AND. ABS(AIMAG(lambda2*w)) < asymplim1) .AND. &
+            (ABS(lambda2*w*h) < asymplim .AND. ABS(AIMAG(lambda2*w*h)) < asymplim1) .AND. &
+            (ABS(lambda1*w*h) < asymplim .AND. ABS(AIMAG(lambda1*w*h)) < asymplim1)) then
       
-          Rdz = (lz*bessj(l1*w*h,m,1)*dhank1(l2*w*h,m,1) - hank1(l2*w*h,m,1)*dbessj(l1*w*h,m,1))* &
-               EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-          Rnz = (bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - lz*bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
-               EXP(ABS(AIMAG(l2*w*h)))
+          Rdz = (lz*bessj(lambda1*w*h,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1) -&
+                       hank1(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1))* &
+                       EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
+          Rnz = (bessj(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1) - &
+                      lz*bessj(lambda1*w*h,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1))* &
+                         EXP(ABS(AIMAG(lambda2*w*h)))
 
-!!$              Rnz = lz*bessj(l1*w*h,m,0)*dhank1(l2*w*h,m,0) - hank1(l2*w*h,m,0)*dbessj(l1*w*h,m,0)
-!!$              Rdz = bessj(l2*w*h,m,0)*dbessj(l1*w*h,m,0) - lz*bessj(l1*w*h,m,0)*dbessj(l2*w*h,m,0)
+!!$              Rnz = lz*bessj(lambda1*w*h,azim_mode,0)*dhank1(lambda2*w*h,azim_mode,0) - hank1(lambda2*w*h,azim_mode,0)*dbessj(lambda1*w*h,azim_mode,0)
+!!$              Rdz = bessj(lambda2*w*h,azim_mode,0)*dbessj(lambda1*w*h,azim_mode,0) - lz*bessj(lambda1*w*h,azim_mode,0)*dbessj(lambda2*w*h,azim_mode,0)
 
           Rz = Rnz/Rdz
           
-          F1n = Rz*hank1(l2*w,m,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + bessj(l2*w,m,1)* &
-               EXP(ABS(AIMAG(l2*w)))
-          F1d = Rz*dhank1(l2*w,m,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + dbessj(l2*w,m,1)* &
-               EXP(ABS(AIMAG(l2*w)))
+          F1n = Rz*hank1(lambda2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) + bessj(lambda2*w,azim_mode,1)* &
+               EXP(ABS(AIMAG(lambda2*w)))
+          F1d = Rz*dhank1(lambda2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) + dbessj(lambda2*w,azim_mode,1)* &
+               EXP(ABS(AIMAG(lambda2*w)))
 
-!!$              F1n = hank1(l2*w,m,0) + Rz*bessj(l2*w,m,0)
-!!$              F1d = dhank1(l2*w,m,0) + Rz*dbessj(l2*w,m,0)
+!!$              F1n = hank1(lambda2*w,azim_mode,0) + Rz*bessj(lambda2*w,azim_mode,0)
+!!$              F1d = dhank1(lambda2*w,azim_mode,0) + Rz*dbessj(lambda2*w,azim_mode,0)
           
-          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*F1n/F1d
 
        else
 
-          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*CMPLX(0._dpk,1._dpk,kind=dpk)
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*CMPLX(0._dpk,1._dpk,kind=dpk)
 
        end if
 
        if (ABS(l3*w) < asymplim .AND. ABS(AIMAG(l3*w)) < asymplim1) then
        
-          F2n = hank1(l3*w,m,1)
-          F2d = dhank1(l3*w,m,1)
+          F2n = hank1(l3*w,azim_mode,1)
+          F2d = dhank1(l3*w,azim_mode,1)
 
-!!$              F2n = hank1(l3*w,m,0)
-!!$              F2d = dhank1(l3*w,m,0)
+!!$              F2n = hank1(l3*w,azim_mode,0)
+!!$              F2d = dhank1(l3*w,azim_mode,0)
 
           F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
 
        else
 
           F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*(8._dpk*l3*w + &
-            4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*m*m - &
+            4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
             CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*w - &
-            4._dpk*m*m - 3._dpk)
+            4._dpk*azim_mode*azim_mode - 3._dpk)
 
        end if
       
@@ -815,55 +898,59 @@ CONTAINS
        
 !!$!! Samanta & Freund, JFM, 2008 (3.22) (computes the poles)
 
-       lz = kap_rho*l2/l1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
+       lz = kap_rho*lambda2/lambda1*(1._dpk-z*M1)*(1._dpk-z*M1)/((1._dpk-z*M2)*(1._dpk-z*M2))
        l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
 
-       if ((ABS(l2*w) < asymplim .AND. ABS(AIMAG(l2*w)) < asymplim1) .AND. &
-            (ABS(l2*w*h) < asymplim .AND. ABS(AIMAG(l2*w*h)) < asymplim1) .AND. &
-            (ABS(l1*w*h) < asymplim .AND. ABS(AIMAG(l1*w*h)) < asymplim1)) then
+       if ((ABS(lambda2*w) < asymplim .AND. ABS(AIMAG(lambda2*w)) < asymplim1) .AND. &
+            (ABS(lambda2*w*h) < asymplim .AND. ABS(AIMAG(lambda2*w*h)) < asymplim1) .AND. &
+            (ABS(lambda1*w*h) < asymplim .AND. ABS(AIMAG(lambda1*w*h)) < asymplim1)) then
        
-          Rdz = (lz*bessj(l1*w*h,m,1)*dhank1(l2*w*h,m,1) - hank1(l2*w*h,m,1)*dbessj(l1*w*h,m,1))* &
-               EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-          Rnz = (bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - lz*bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
-               EXP(ABS(AIMAG(l2*w*h)))
+          Rdz = (lz*bessj(lambda1*w*h,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1) - &
+                             hank1(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1))* &
+                             EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
+          Rnz = (bessj(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1) -&
+                             lz*bessj(lambda1*w*h,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1))* &
+                              EXP(ABS(AIMAG(lambda2*w*h)))
        
-          !    Rnz = lz*bessj(l1*w*h,m,0)*dhank1(l2*w*h,m,0) - hank1(l2*w*h,m,0)*dbessj(l1*w*h,m,0)
-          !    Rdz = bessj(l2*w*h,m,0)*dbessj(l1*w*h,m,0) - lz*bessj(l1*w*h,m,0)*dbessj(l2*w*h,m,0)
+          !    Rnz = lz*bessj(lambda1*w*h,azim_mode,0)*dhank1(lambda2*w*h,azim_mode,0) - hank1(lambda2*w*h,azim_mode,0)*dbessj(lambda1*w*h,azim_mode,0)
+          !    Rdz = bessj(lambda2*w*h,azim_mode,0)*dbessj(lambda1*w*h,azim_mode,0) - lz*bessj(lambda1*w*h,azim_mode,0)*dbessj(lambda2*w*h,azim_mode,0)
        
           Rz = Rnz/Rdz
        
-          F1n = Rz*hank1(l2*w,m,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + bessj(l2*w,m,1)* &
-               EXP(ABS(AIMAG(l2*w)))
-          F1d = Rz*dhank1(l2*w,m,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) + dbessj(l2*w,m,1)* &
-               EXP(ABS(AIMAG(l2*w)))
+          F1n = Rz*hank1(lambda2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) + &
+                                                                    bessj(lambda2*w,azim_mode,1)* &
+                                                                    EXP(ABS(AIMAG(lambda2*w)))
+          F1d = Rz*dhank1(lambda2*w,azim_mode,1)*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) + &
+                                                                 dbessj(lambda2*w,azim_mode,1)* &
+                                                                     EXP(ABS(AIMAG(lambda2*w)))
        
-          !    F1n = hank1(l2*w,m,0) + Rz*bessj(l2*w,m,0)
-          !    F1d = dhank1(l2*w,m,0) + Rz*dbessj(l2*w,m,0)
+          !    F1n = hank1(lambda2*w,azim_mode,0) + Rz*bessj(lambda2*w,azim_mode,0)
+          !    F1d = dhank1(lambda2*w,azim_mode,0) + Rz*dbessj(lambda2*w,azim_mode,0)
        
-          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*F1n/F1d
 
        else
 
-          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*CMPLX(0._dpk,1._dpk,kind=dpk)
+          F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*CMPLX(0._dpk,1._dpk,kind=dpk)
 
        end if
 
        if (ABS(l3*w) < asymplim .AND. ABS(AIMAG(l3*w)) < asymplim1) then
        
-          F2n = hank1(l3*w,m,1)
-          F2d = dhank1(l3*w,m,1)
+          F2n = hank1(l3*w,azim_mode,1)
+          F2d = dhank1(l3*w,azim_mode,1)
        
-          !    F2n = hank1(l3*w,m,0)
-          !    F2d = dhank1(l3*w,m,0)
+          !    F2n = hank1(l3*w,azim_mode,0)
+          !    F2d = dhank1(l3*w,azim_mode,0)
        
           F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
 
        else
 
           F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*(8._dpk*l3*w + &
-               4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*m*m - &
+               4._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*azim_mode*azim_mode - &
                CMPLX(0._dpk,1._dpk,kind=dpk))/(8._dpk*CMPLX(0._dpk,1._dpk,kind=dpk)*l3*w - &
-               4._dpk*m*m - 3._dpk)
+               4._dpk*azim_mode*azim_mode - 3._dpk)
 
        end if
        
@@ -874,21 +961,21 @@ CONTAINS
 
 !!$ Gabard & Astley, JFM, 2006 (compute the zeros)
 
-       F1n = dhank1(l1*w*h,m,1)*bessj(l1*w,m,1)*EXP(ABS(AIMAG(l1*w))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,m,1)*hank1(l1*w,m,1)* &
-            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
-       F1d = dhank1(l1*w*h,m,1)*dbessj(l1*w,m,1)*EXP(ABS(AIMAG(l1*w))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,m,1)*dhank1(l1*w,m,1)* &
-            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
+       F1n = dhank1(lambda1*w*h,azim_mode,1)*bessj(lambda1*w,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w*h) - dbessj(lambda1*w*h,azim_mode,1)*hank1(lambda1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w)
+       F1d = dhank1(lambda1*w*h,azim_mode,1)*dbessj(lambda1*w,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w*h) - dbessj(lambda1*w*h,azim_mode,1)*dhank1(lambda1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w)
        F1s = F1n/F1d
 
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*lambda2*F1s
        
-       F2n = hank1(l2*w,m,1)
-       F2d = dhank1(l2*w,m,1)
+       F2n = hank1(lambda2*w,azim_mode,1)
+       F2d = dhank1(lambda2*w,azim_mode,1)
        F2s = F2n/F2d
 
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*lambda1*F2s
        
        fun = F1 - F2
 
@@ -896,21 +983,21 @@ CONTAINS
 
 !!$ Gabard & Astley, JFM, 2006 (compute the poles)
 
-       F1n = dhank1(l1*w*h,m,1)*bessj(l1*w,m,1)*EXP(ABS(AIMAG(l1*w))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,m,1)*hank1(l1*w,m,1)* &
-            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
-       F1d = dhank1(l1*w*h,m,1)*dbessj(l1*w,m,1)*EXP(ABS(AIMAG(l1*w))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w*h) - dbessj(l1*w*h,m,1)*dhank1(l1*w,m,1)* &
-            EXP(ABS(AIMAG(l1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*l1*w)
+       F1n = dhank1(lambda1*w*h,azim_mode,1)*bessj(lambda1*w,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w*h) - dbessj(lambda1*w*h,azim_mode,1)*hank1(lambda1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w)
+       F1d = dhank1(lambda1*w*h,azim_mode,1)*dbessj(lambda1*w,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w*h) - dbessj(lambda1*w*h,azim_mode,1)*dhank1(lambda1*w,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda1*w*h))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda1*w)
        F1s = F1n/F1d
 
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*lambda2*F1s
        
-       F2n = hank1(l2*w,m,1)
-       F2d = dhank1(l2*w,m,1)
+       F2n = hank1(lambda2*w,azim_mode,1)
+       F2d = dhank1(lambda2*w,azim_mode,1)
        F2s = F2n/F2d
 
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*lambda1*F2s
        
        fun = F1 - F2
        fun = 1._dpk/fun
@@ -919,25 +1006,27 @@ CONTAINS
 
 !! Taylor et al, JSV, 1993 (zeros)
 
-       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
+       lz = kap_rho*lambda1/lambda2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
        l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
        
-       Rnz = (lz*bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
-            EXP(ABS(AIMAG(l2*w*h)))
-       Rdz = (bessj(l1*w*h,m,1)*dhank2(l2*w*h,m,1) - lz*dbessj(l1*w*h,m,1)*hank2(l2*w*h,m,1))* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       Rnz = (lz*bessj(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1) - &
+                                      bessj(lambda1*w*h,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1))* &
+                                      EXP(ABS(AIMAG(lambda2*w*h)))
+       Rdz = (bessj(lambda1*w*h,azim_mode,1)*dhank2(lambda2*w*h,azim_mode,1) - &
+                lz*dbessj(lambda1*w*h,azim_mode,1)*hank2(lambda2*w*h,azim_mode,1))* &
+                 EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
 
        Rz = Rnz/Rdz
        
-       F1n = bessj(l2*w,m,1)*EXP(ABS(AIMAG(l2*w))) + Rz*hank2(l2*w,m,1)* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
-       F1d = dbessj(l2*w,m,1)*EXP(ABS(AIMAG(l2*w))) + Rz*dhank2(l2*w,m,1)* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
+       F1n = bessj(lambda2*w,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w))) + Rz*hank2(lambda2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)
+       F1d = dbessj(lambda2*w,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w))) + Rz*dhank2(lambda2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)
 
-       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*F1n/F1d
        
-       F2n = hank2(l3*w,m,1)
-       F2d = dhank2(l3*w,m,1)
+       F2n = hank2(l3*w,azim_mode,1)
+       F2d = dhank2(l3*w,azim_mode,1)
        F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
        
        fun = w*(F1 - F2)
@@ -946,25 +1035,27 @@ CONTAINS
 
 !! Taylor et al, JSV, 1993 (poles)
 
-       lz = kap_rho*l1/l2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
+       lz = kap_rho*lambda1/lambda2*(1._dpk-z*M2)*(1._dpk-z*M2)/((1._dpk-z*M1)*(1._dpk-z*M1))
        l3 = sqrt(1._dpk*kap_T - z*(kap_T*M3+1._dpk))*sqrt(1._dpk*kap_T - z*(kap_T*M3-1._dpk))
        
-       Rnz = (lz*bessj(l2*w*h,m,1)*dbessj(l1*w*h,m,1) - bessj(l1*w*h,m,1)*dbessj(l2*w*h,m,1))* &
-            EXP(ABS(AIMAG(l2*w*h)))
-       Rdz = (bessj(l1*w*h,m,1)*dhank2(l2*w*h,m,1) - lz*dbessj(l1*w*h,m,1)*hank2(l2*w*h,m,1))* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       Rnz = (lz*bessj(lambda2*w*h,azim_mode,1)*dbessj(lambda1*w*h,azim_mode,1) - &
+                                 bessj(lambda1*w*h,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1))* &
+                                 EXP(ABS(AIMAG(lambda2*w*h)))
+       Rdz = (bessj(lambda1*w*h,azim_mode,1)*dhank2(lambda2*w*h,azim_mode,1) - &
+                              lz*dbessj(lambda1*w*h,azim_mode,1)*hank2(lambda2*w*h,azim_mode,1))* &
+                               EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
 
        Rz = Rnz/Rdz
        
-       F1n = bessj(l2*w,m,1)*EXP(ABS(AIMAG(l2*w))) + Rz*hank2(l2*w,m,1)* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
-       F1d = dbessj(l2*w,m,1)*EXP(ABS(AIMAG(l2*w))) + Rz*dhank2(l2*w,m,1)* &
-            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)
+       F1n = bessj(lambda2*w,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w))) + Rz*hank2(lambda2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)
+       F1d = dbessj(lambda2*w,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w))) + Rz*dhank2(lambda2*w,azim_mode,1)* &
+            EXP(-CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)
 
-       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/l2*F1n/F1d
+       F1 = (1._dpk-z*M2)*(1._dpk-z*M2)/lambda2*F1n/F1d
        
-       F2n = hank2(l3*w,m,1)
-       F2d = dhank2(l3*w,m,1)
+       F2n = hank2(l3*w,azim_mode,1)
+       F2d = dhank2(l3*w,azim_mode,1)
        F2 = (1._dpk-z*M3)*(1._dpk-z*M3)/l3*F2n/F2d
        
        fun = w*(F1 - F2)
@@ -974,21 +1065,21 @@ CONTAINS
 
 !!$ Samanta & Freund, JFM, 2008 (4.10) (zeros)
 
-       F1n = bessj(l1*w*h,m,1)
-       F1d = dbessj(l1*w*h,m,1)
+       F1n = bessj(lambda1*w*h,azim_mode,1)
+       F1d = dbessj(lambda1*w*h,azim_mode,1)
        F1s = F1n/F1d
 
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/lambda1*F1s
 
-       F2n = dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
-            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-       F2d = dhank1(l2*w,m,1)*dbessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*dhank1(l2*w*h,m,1)* &
-            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       F2n = dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
+       F2d = dhank1(lambda2*w,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
        F2s = F2n/F2d
        
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/l2*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/lambda2*F2s
        
        fun = w*(F1 - F2)
 
@@ -996,58 +1087,58 @@ CONTAINS
 
 !!$ Samanta & Freund, JFM, 2008 (4.10) (poles)
 
-       F1n = bessj(l1*w*h,m,1)
-       F1d = dbessj(l1*w*h,m,1)
+       F1n = bessj(lambda1*w*h,azim_mode,1)
+       F1d = dbessj(lambda1*w*h,azim_mode,1)
        F1s = F1n/F1d
 
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/l1*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)/lambda1*F1s
 
-       F2n = dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
-            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
-       F2d = dhank1(l2*w,m,1)*dbessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*dhank1(l2*w*h,m,1)* &
-            EXP(ABS(AIMAG(l2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h)
+       F2n = dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
+       F2d = dhank1(lambda2*w,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w))+CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h)
        F2s = F2n/F2d
        
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/l2*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)/lambda2*F2s
        
-       fun = w*(F1 - F2)
+       fun = (F1 - F2)
        fun = 1._dpk/fun
 
     CASE (11)
 
 !!$ Munt's Duct (zeros)
 
-       F1n = bessj(l1*w,m,1)
-       F1d = dbessj(l1*w,m,1)
+       F1n = bessj(lambda1*w,azim_mode,1)
+       F1d = dbessj(lambda1*w,azim_mode,1)
        F1s = F1n/F1d
        
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*F1s/lambda1
        
-       F2n = hank1(l2*w,m,1)
-       F2d = dhank1(l2*w,m,1)
+       F2n = hank1(lambda2*w,azim_mode,1)
+       F2d = dhank1(lambda2*w,azim_mode,1)
        F2s = F2n/F2d
        
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*F2s/lambda2
        
-       fun = F1 - F2
+       fun = (F1 - F2)
 
     CASE (-11)
 
 !!$ Munt's Duct (poles)
 
-       F1n = bessj(l1*w,m,1)
-       F1d = dbessj(l1*w,m,1)
+       F1n = bessj(lambda1*w,azim_mode,1)
+       F1d = dbessj(lambda1*w,azim_mode,1)
        F1s = F1n/F1d
        
-       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*l2*F1s
+       F1 = kap_rho*(1._dpk - z*M1)*(1._dpk - z*M1)*lambda2*F1s
        
-       F2n = hank1(l2*w,m,1)
-       F2d = dhank1(l2*w,m,1)
+       F2n = hank1(lambda2*w,azim_mode,1)
+       F2d = dhank1(lambda2*w,azim_mode,1)
        F2s = F2n/F2d
        
-       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*l1*F2s
+       F2 = (1._dpk - z*M2)*(1._dpk - z*M2)*lambda1*F2s
        
        fun = F1 - F2
        fun = 1._dpk/fun
@@ -1057,22 +1148,22 @@ CONTAINS
 
 !! Test functions: Supersonic kernel (2nd part)  ! No density ratio
 
-       F1s = dbessj(l1*w*h,m,1)*EXP(ABS(AIMAG(l1*w*h)))
-       F2s = bessj(l1*w*h,m,1)*EXP(ABS(AIMAG(l1*w*h)))
+       F1s = dbessj(lambda1*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w*h)))
+       F2s = bessj(lambda1*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w*h)))
 
-       F1n = (dhank1(l2*w,m,1)*bessj(l2*w,m,1) - &
-            dbessj(l2*w,m,1)*hank1(l2*w,m,1))*EXP(ABS(AIMAG(l2*w)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)  ! this term has no zeros; do not include
+       F1n = (dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w,azim_mode,1) - &
+            dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w,azim_mode,1))*EXP(ABS(AIMAG(lambda2*w)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)  ! this term has no zeros; do not include
 
        F1 = F1s
 
-       F1d = lz*F2s*(dhank1(l2*w,m,1)*dbessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*dhank1(l2*w*h,m,1)* &
-            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       F1d = lz*F2s*(dhank1(lambda2*w,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h))
        
-       F2d = F1s*(dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
-            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       F2d = F1s*(dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h))
 
        F2 = F1d - F2d
        
@@ -1082,22 +1173,22 @@ CONTAINS
 
 !! Test functions: Supersonic kernel (2nd part)  ! No density ratio
 
-       F1s = dbessj(l1*w*h,m,1)*EXP(ABS(AIMAG(l1*w*h)))
-       F2s = bessj(l1*w*h,m,1)*EXP(ABS(AIMAG(l1*w*h)))
+       F1s = dbessj(lambda1*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w*h)))
+       F2s = bessj(lambda1*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda1*w*h)))
 
-       F1n = (dhank1(l2*w,m,1)*bessj(l2*w,m,1) - &
-            dbessj(l2*w,m,1)*hank1(l2*w,m,1))*EXP(ABS(AIMAG(l2*w)) + &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w)  ! this term has no zeros; do not include
+       F1n = (dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w,azim_mode,1) - &
+            dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w,azim_mode,1))*EXP(ABS(AIMAG(lambda2*w)) + &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w)  ! this term has no zeros; do not include
 
        F1 = F1s
 
-       F1d = lz*F2s*(dhank1(l2*w,m,1)*dbessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*dhank1(l2*w*h,m,1)* &
-            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       F1d = lz*F2s*(dhank1(lambda2*w,azim_mode,1)*dbessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*dhank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h))
 
-       F2d = F1s*(dhank1(l2*w,m,1)*bessj(l2*w*h,m,1)*EXP(ABS(AIMAG(l2*w*h))+ &
-            CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w) - dbessj(l2*w,m,1)*hank1(l2*w*h,m,1)* &
-            EXP(ABS(AIMAG(l2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*l2*w*h))
+       F2d = F1s*(dhank1(lambda2*w,azim_mode,1)*bessj(lambda2*w*h,azim_mode,1)*EXP(ABS(AIMAG(lambda2*w*h))+ &
+            CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w) - dbessj(lambda2*w,azim_mode,1)*hank1(lambda2*w*h,azim_mode,1)* &
+            EXP(ABS(AIMAG(lambda2*w)) + CMPLX(0._dpk,1._dpk,kind=dpk)*lambda2*w*h))
        
        F2 = F1d - F2d
        
@@ -1112,8 +1203,8 @@ CONTAINS
 
 
   END FUNCTION fun
-
-
+!
+!
   FUNCTION dfun(z,w,h,err,Nt)
 
 !***! Computes the numerical derivative using the Ridders' method (Adv. Eng. Software.,
@@ -1240,21 +1331,21 @@ CONTAINS
 
     end if
 
-    open(20,file='mesh.x')
+    open(20,file='./DataDump/mesh.x')
     do i = 1, Nx
        write(20,'(I10,2X,F20.10)') i, X(i)
     end do
     close(20)
     
-    open(20,file='mesh.y')
+    open(20,file='./DataDump/mesh.y')
     do i = 1, Ny
        write(20,'(I10,2X,F20.10)') i, Y(i)
     end do
     
   END SUBROUTINE mesh
 
-
-  FUNCTION newt(gz,w,flg,grid_count,total_grid_points)
+!
+  FUNCTION newt(gz,w,flg,grid_count,total_grid_points,file_ID)
 
 !***! The Newton-Raphson routine for complex functions using derivatives. The
 !***! algorithm removes zeros from the function as soon as it is found, thereby
@@ -1266,7 +1357,7 @@ CONTAINS
     real(dpk)          :: newtr, newti
     real(dpk)          :: err1, err2
     character(10)      :: flg
-    integer            :: i, j, k, grid_count, total_grid_points
+    integer            :: i, j, k, grid_count, total_grid_points, file_ID
 
 
     newt = gz
@@ -1284,7 +1375,7 @@ CONTAINS
        if(newtr > Xmax+ZERO_ACC/10 .OR. newtr < Xmin-ZERO_ACC/10 .OR. &
             newti > Ymax+ZERO_ACC/10 .OR. newti < Ymin-ZERO_ACC/10) then
            
-             print *, grid_count, "/", total_grid_points, " Jumped out of bounds"
+            ! write(file_ID,*) grid_count, "/", total_grid_points, " Jumped out of bounds"
            RETURN
        end if
 
@@ -1295,63 +1386,11 @@ CONTAINS
 
     end do
              
-    print *, grid_count, "/", total_grid_points, " WARNING: Max Iterations Exceeded!"
+  !  write(file_ID,*) grid_count, "/", total_grid_points, " WARNING: Max Iterations Exceeded!"
 
 
   END FUNCTION newt
 
-
-  FUNCTION compute_lambda(zeta,s1,s2)  result(w)
-
-    complex(dpk) :: zeta
-    complex(dpk) :: w
-    real(dpk)    :: r1, r2, theta1, theta2, x1, y1, x2, y2
-    real(dpk)    :: s1, s2
-
-    r1 = ABS(zeta-s1)
-    x1 = REAL(zeta-s1)
-    y1 = AIMAG(zeta-s1)
-    theta1 = ATAN2(y1, x1)
-    if (theta1 < 0._dpk) theta1 = theta1 + 2._dpk * ACOS(-1._dpk)
-
-    r2 = ABS(zeta-s2)
-    x2 = REAL(zeta-s2)
-    y2 = AIMAG(zeta-s2)
-    theta2 = ATAN2(y2, x2)
-    if (theta2 < 0._dpk) theta2 = theta2 + 2._dpk * ACOS(-1._dpk)
-
-    w =  CMPLX(COS(0.5*(theta1 + theta2)) , SIN(0.5*(theta1 + theta2)),kind=dpk)
-    w =  w*SQRT(r1*r2/(ABS(s1)*ABS(s2)))
-
- END FUNCTION compute_lambda
-
-FUNCTION compute_lambda_0_2pi(zeta,s1,s2)  result(w)
-
-    complex(dpk) :: zeta
-    complex(dpk) :: w
-    real(dpk)    :: r1, r2, theta1, theta2, x1, y1, x2, y2
-    real(dpk)    :: s1, s2, PI
-
-    PI = 4._dpk*ATAN(1._dpk)
-
-    r1 = ABS(zeta-s1)
-    x1 = REAL(zeta-s1)
-    y1 = AIMAG(zeta-s1)
-    theta1 = ATAN2(y1, x1)
-    if (theta1 < 0._dpk) theta1 = theta1 + 2._dpk * PI
-
-    r2 = ABS(zeta-s2)
-    x2 = REAL(zeta-s2)
-    y2 = AIMAG(zeta-s2)
-    theta2 = ATAN2(y2, x2)
-    if (theta2 < 0._dpk) theta2 = theta2 + 2._dpk * PI
-
-    w =   SQRT(1._dpk -(zeta/s2))
-    w =   w* CMPLX(COS(0.5*(theta1)) , SIN(0.5*(theta1)),kind=dpk)
-    w =   w*SQRT(r1/(ABS(s1)))
-    w =   w*CMPLX(0,1._dpk,kind=dpk)
-
- END FUNCTION compute_lambda_0_2pi
-
+!
 
 END PROGRAM root_finder

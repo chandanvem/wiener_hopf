@@ -140,6 +140,16 @@ Module user_defined_IFT
     write(1) ((REAL(totpressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
     close(1)   
 
+    open(1,file='pressure_imag.out',form='UNFORMATTED')
+    write(1) input_data%Nmeshz,input_data%Nmeshr,1
+    write(1) ((AIMAG(totpressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+    close(1)   
+
+    open(1,file='pressure_abs.out',form='UNFORMATTED')
+    write(1) input_data%Nmeshz,input_data%Nmeshr,1
+    write(1) ((ABS(totpressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+    close(1)   
+
     open(1,file='incident.out',form='UNFORMATTED')
     write(1) input_data%Nmeshz,input_data%Nmeshr,1
     write(1) ((REAL(inc_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
@@ -150,16 +160,48 @@ Module user_defined_IFT
     write(1) ((REAL(acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
     close(1)   
 
+    open(1,file='acousticpr_imag.out',form='UNFORMATTED')
+    write(1) input_data%Nmeshz,input_data%Nmeshr,1
+    write(1) ((AIMAG(acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+    close(1)   
+
+    open(1,file='acousticpr_abs.out',form='UNFORMATTED')
+    write(1) input_data%Nmeshz,input_data%Nmeshr,1
+    write(1) ((ABS(acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+    close(1)   
+
+
     if (input_data%solution_mode == 'guided_jet') then
        open(1,file='GJ_comp_pressure.out',form='UNFORMATTED')
        write(1) input_data%Nmeshz,input_data%Nmeshr,1
        write(1) ((REAL(GJ_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
        close(1)   
 
+       open(1,file='GJ_comp_pressure_imag.out',form='UNFORMATTED')
+       write(1) input_data%Nmeshz,input_data%Nmeshr,1
+       write(1) ((AIMAG(GJ_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+       close(1)   
+
+       open(1,file='GJ_comp_pressure_abs.out',form='UNFORMATTED')
+       write(1) input_data%Nmeshz,input_data%Nmeshr,1
+       write(1) ((ABS(GJ_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+       close(1)   
+
        open(1,file='GJ_plus_acous_comp_pressure.out',form='UNFORMATTED')
        write(1) input_data%Nmeshz,input_data%Nmeshr,1
        write(1) ((REAL(GJ_plus_acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
        close(1)   
+
+       open(1,file='GJ_plus_acous_comp_pressure_imag.out',form='UNFORMATTED')
+       write(1) input_data%Nmeshz,input_data%Nmeshr,1
+       write(1) ((AIMAG(GJ_plus_acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+       close(1)   
+
+       open(1,file='GJ_plus_acous_comp_pressure_abs.out',form='UNFORMATTED')
+       write(1) input_data%Nmeshz,input_data%Nmeshr,1
+       write(1) ((ABS(GJ_plus_acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+       close(1)   
+
 
     end if
 
@@ -174,11 +216,6 @@ Module user_defined_IFT
     write(1) input_data%Nmeshz,input_data%Nmeshr,totpressure
     close(1)   
 
-    open(1,file='acousprdata.out',form='UNFORMATTED')
-    write(1) input_data%Nmeshz,input_data%Nmeshr,acoustic_comp_pressure
-    close(1)   
-    
-      
     END SUBROUTINE computeift
 
 end module user_defined_IFT

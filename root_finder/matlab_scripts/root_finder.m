@@ -28,7 +28,7 @@ k_T = sqrt(1);
 M_j = 0.9;
 M_o = 1e-10;
 
-delta_degrees = 0.001;
+delta_degrees = 0.00;
 
 St_list = 0.1:0.01:2.0;
 St_min = St_list(1);
