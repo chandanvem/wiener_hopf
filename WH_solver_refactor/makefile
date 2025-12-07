@@ -6,6 +6,7 @@ IO_UTILS_DIR	     = ./io_utils
 INPUT_PARAMS_DIR     = ./input_param_utils
 CONTOUR_UTILS_DIR    = ./contour_utils
 INTEGRAL_UTILS_DIR   = ./integral_utils
+FARFIELD_UTILS_DIR   = ./farfield_utils
 USER_DEFINED_FUNCS   = ./user_defined_functions_subsonic
 
 OBJS = bessel_functions_toms.o \
@@ -23,6 +24,7 @@ OBJS = bessel_functions_toms.o \
        user_defined_precompute.o \
        user_defined_fplus.o \
        user_defined_IFT.o \
+	user_defined_farfield.o \
        fplus_utils.o \
        main.o
 
@@ -75,6 +77,10 @@ IFT_integral_utils.o: $(INTEGRAL_UTILS_DIR)/IFT_integral_utils.f90 \
 			 contour_generate_utils.o contour_init_utils.o input_param_utils.o user_defined_functions.o
 	$(FC) $(FLAGS) -c $<
 
+farfield_utils.o: $(FARFIELD_UTILS_DIR)/farfield_utils.f90 \
+			 contour_generate_utils.o contour_init_utils.o input_param_utils.o user_defined_functions.o
+	$(FC) $(FLAGS) -c $<
+
 user_defined_precompute.o: $(USER_DEFINED_FUNCS)/user_defined_precompute.f90 \
 			   contour_generate_utils.o contour_init_utils.o input_param_utils.o kernel_integral_utils.o \
 			   user_defined_functions.o
@@ -90,6 +96,11 @@ user_defined_IFT.o: $(USER_DEFINED_FUNCS)/user_defined_IFT.f90 \
 			   IFT_integral_utils.o user_defined_functions.o
 	$(FC) $(FLAGS) -c $<
 
+user_defined_farfield.o: $(USER_DEFINED_FUNCS)/user_defined_farfield.f90 \
+			   contour_generate_utils.o contour_init_utils.o input_param_utils.o kernel_integral_utils.o \
+			   IFT_integral_utils.o user_defined_functions.o
+	$(FC) $(FLAGS) -c $<
+
 fplus_utils.o: $(INTEGRAL_UTILS_DIR)/fplus_utils.f90 \
 			 contour_generate_utils.o contour_init_utils.o input_param_utils.o user_defined_functions.o \
 			 user_defined_fplus.o
@@ -99,7 +110,7 @@ fplus_utils.o: $(INTEGRAL_UTILS_DIR)/fplus_utils.f90 \
 main.o: main.f90 bessel_utils.o io_utils.o input_param_utils.o \
 	contour_init_utils.o contour_generate_utils.o kernel_integral_utils.o IFT_integral_utils.o\
 	user_defined_functions.o user_defined_incident_modes.o user_defined_precompute.o user_defined_fplus.o user_defined_IFT.o\
-        fplus_utils.o
+        user_defined_farfield.o fplus_utils.o
 
 	$(FC) $(FLAGS) -c main.f90
 

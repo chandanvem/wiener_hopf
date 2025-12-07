@@ -12,18 +12,20 @@ Module user_defined_farfield
 
   CONTAINS 
  
-  SUBROUTINE compute_directivity(phi_value,Dmn_value,input_data) result(Dmn_value)
+  SUBROUTINE compute_directivity(phi_value,Dmn_value,input_data, contour_data) 
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. Compute the asymptotic (steepest descent) directivity
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 
-    type(input_params_t)       :: input_data
-    real(dpk)                  :: phi_value, Dmn_value
+    type(input_params_t), intent(in)       :: input_data
+    type(contour_params_t), intent(in)     :: contour_data
+    real(dpk), intent(in)                  :: phi_value
+    real(dpk), intent(out)                 :: Dmn_value
     real(dpk)                  :: Theta_updated, Theta
     real(dpk)                  :: PI
     complex(dpk)               :: saddle_point, Dmn_num, Dmn_den
-    complex(dpk)               :: hank_arg_num, hank_arg_den
+    complex(dpk)               :: hank_arg, hank_arg_num, hank_arg_den
 
     PI = 4._dpk*ATAN(1.)
  
@@ -43,14 +45,14 @@ Module user_defined_farfield
     saddle_point =  saddle_point - input_data%kapT**2*input_data%M2
     saddle_point  = saddle_point/(1._dpk - (input_data%kapT**2)* (input_data%M2*input_data%M2))  ! stationary point
 
-    Dmn_num = (input_data%omega)*(1._dpk - ((saddle_point*input_data%M2)**2))
+    Dmn_num = (input_data%omega_r)*(1._dpk - ((saddle_point*input_data%M2)**2))
     Dmn_num = Dmn_num*get_fplus_value(saddle_point,input_data,contour_data) 
 
-    hank_arg_num = input_data%kapT*input_data%omega*SIN(phi_value)
+    hank_arg_num = input_data%kapT*input_data%omega_r*SIN(phi_value)
     hank_arg_den = SQRT(1._dpk - ((input_data%kapT*input_data%M2*SIN(phi_value))**2))
     hank_arg = hank_arg_num/hank_arg_den
       
-    Dmn_den = PI*dhank1(hank_arg,input_mode%azim_mode,1)*input_data%kapT*SIN(phi_value)
+    Dmn_den = PI*dhank1(hank_arg,input_data%azim_mode,1)*input_data%kapT*SIN(phi_value)
     
     Dmn_value = Dmn_num/Dmn_den
     Dmn_value = 20._dpk*LOG10(ABS(Dmn_value))

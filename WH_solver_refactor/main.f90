@@ -40,7 +40,7 @@ PROGRAM main
   else
 
     call meshgrid(input_data)
-    if (input_data%fplus_compute_restart == 'restart') then
+    if (input_data%fplus_compute_restart == 'compute_only_IFT') then
        print*,'solve: Reading from fplus.out'
        call read_fplus(input_data,contour_data)
     else
