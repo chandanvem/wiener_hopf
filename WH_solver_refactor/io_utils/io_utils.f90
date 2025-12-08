@@ -100,6 +100,14 @@ Module io_utils
       read(10,*) input_data%KH_zero_1
       print*, 'initialize:  KH_zero_1 (First instability zero) =', input_data%KH_zero_1
 
+      read(10,*) input_data%mu_plus
+
+      print*, '================== Non-incident vorticity mode ====================='
+      print*,''
+
+      print*, 'initialize:  mu for the incident mode=',input_data%mu_plus
+
+
       if (input_data%num_of_streams .EQ. 3) then
 
         read(10,*) input_data%KH_zero_2
@@ -120,7 +128,7 @@ Module io_utils
       PRINT '(A, E12.4, ", ", E12.4,A)', &
                      ' initialize: (offset, tol) = (', input_data%offset, input_data%tol, ')'
 
-       print*,''
+      print*,''
       print*,'','====== Mesh and contour parameters ======',''
       
       read(10,*) input_data%num_ker_pts_loop
@@ -148,6 +156,8 @@ Module io_utils
      
       else if (trim(input_data%near_far_field_mode) == 'far_field') then
          read(10,*) input_data%num_phi
+         print*,'initialize:  Number of farfield phi locations = ',input_data%num_phi
+
       end if
 
       print*,'=============================='

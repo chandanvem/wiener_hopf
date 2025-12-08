@@ -45,7 +45,7 @@ Module user_defined_farfield
     saddle_point =  saddle_point - input_data%kapT**2*input_data%M2
     saddle_point  = saddle_point/(1._dpk - (input_data%kapT**2)* (input_data%M2*input_data%M2))  ! stationary point
 
-    Dmn_num = (input_data%omega_r)*(1._dpk - ((saddle_point*input_data%M2)**2))
+    Dmn_num = (input_data%omega_r)*((1._dpk - (saddle_point*input_data%M2))**2)
     Dmn_num = Dmn_num*get_fplus_value(saddle_point,input_data,contour_data) 
 
     hank_arg_num = input_data%kapT*input_data%omega_r*SIN(phi_value)
