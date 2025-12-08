@@ -4,15 +4,18 @@ PROGRAM main
   USE io_utils
   USE contour_generate_utils
   USE contour_init_utils
-  USE omp_lib
   USE input_params
   USE kernel_integral_utils
   USE fplus_utils
   USE IFT_integral_utils
+  USE farfield_utils
   USE user_defined_precompute
-  USE user_defined_functions 
+  USE user_defined_functions
+  USE user_defined_farfield 
   USE user_defined_IFT 
   USE user_defined_fplus
+
+  USE omp_lib
 
   IMPLICIT none
 
@@ -20,7 +23,7 @@ PROGRAM main
   type(contour_params_t) :: contour_data
 
   integer :: start_time, end_time, clock_rate
-  real :: elapsed_time
+  real    :: elapsed_time
 
   call system_clock(start_time,clock_rate)
   
@@ -31,11 +34,13 @@ PROGRAM main
   
   call precompute(input_data,contour_data)
 !
-  if ((input_data%farswitch == 1) .OR. (input_data%farswitch == 2)) then
+  if ((input_data%near_far_field_mode == 'farfield')) then
 
     print*,''
-    print*,'solve: Near-field computation only:'
-    print*,'' 
+    print*,'solve: Computing far-field solution:'
+    print*,''
+    call init_farfield(input_data,contour_data)
+    call compute_farfield(input_data,contour_data)
 
   else
 

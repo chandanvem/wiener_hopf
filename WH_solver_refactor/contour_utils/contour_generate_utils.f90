@@ -309,15 +309,6 @@ Module contour_generate_utils
     end do
     close(20)
 
-    if (input_data%farswitch == 2) then
-       open(1,file='mesh_polar.out',form='UNFORMATTED')
-       write(1) input_data%Nphi,input_data%Nmeshr
-       write(1) ((input_data%phi(i),i=1,input_data%Nphi),j=1,input_data%Nmeshr),((input_data%R(j),&
-            i=1,input_data%Nphi),j=1,input_data%Nmeshr)
-       close(1)
-    end if
-
-
   END SUBROUTINE meshgrid
 
 end module contour_generate_utils

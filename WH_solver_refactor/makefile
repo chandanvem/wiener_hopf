@@ -18,6 +18,7 @@ OBJS = bessel_functions_toms.o \
        contour_generate_utils.o \
        kernel_integral_utils.o \
 	IFT_integral_utils.o \
+	farfield_utils.o\
        user_defined_functions.o \
        user_defined_incident_modes.o \
        user_defined_residue_functions.o \
@@ -77,10 +78,6 @@ IFT_integral_utils.o: $(INTEGRAL_UTILS_DIR)/IFT_integral_utils.f90 \
 			 contour_generate_utils.o contour_init_utils.o input_param_utils.o user_defined_functions.o
 	$(FC) $(FLAGS) -c $<
 
-farfield_utils.o: $(FARFIELD_UTILS_DIR)/farfield_utils.f90 \
-			 contour_generate_utils.o contour_init_utils.o input_param_utils.o user_defined_functions.o
-	$(FC) $(FLAGS) -c $<
-
 user_defined_precompute.o: $(USER_DEFINED_FUNCS)/user_defined_precompute.f90 \
 			   contour_generate_utils.o contour_init_utils.o input_param_utils.o kernel_integral_utils.o \
 			   user_defined_functions.o
@@ -106,10 +103,15 @@ fplus_utils.o: $(INTEGRAL_UTILS_DIR)/fplus_utils.f90 \
 			 user_defined_fplus.o
 	$(FC) $(FLAGS) -c $<
 
+farfield_utils.o: $(FARFIELD_UTILS_DIR)/farfield_utils.f90 \
+			 contour_generate_utils.o contour_init_utils.o input_param_utils.o user_defined_functions.o \
+			 user_defined_fplus.o user_defined_farfield.o
+	$(FC) $(FLAGS) -c $<
+
 
 main.o: main.f90 bessel_utils.o io_utils.o input_param_utils.o \
 	contour_init_utils.o contour_generate_utils.o kernel_integral_utils.o IFT_integral_utils.o\
-	user_defined_functions.o user_defined_incident_modes.o user_defined_precompute.o user_defined_fplus.o user_defined_IFT.o\
+	farfield_utils.o user_defined_functions.o user_defined_incident_modes.o user_defined_precompute.o user_defined_fplus.o user_defined_IFT.o\
         user_defined_farfield.o fplus_utils.o
 
 	$(FC) $(FLAGS) -c main.f90

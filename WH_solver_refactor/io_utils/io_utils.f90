@@ -48,18 +48,19 @@ Module io_utils
       type(input_params_t) :: input_data
       real(dpk)            :: PI, delr, deli
       integer              :: i
+
       !! the basic data file:
 
       PI = 4._dpk*ATAN(1.)
 
-      input_data%solution_mode='hard_duct_mode'
+      input_data%solution_mode = 'hard_duct_mode'
 
       open(10, file='input.list.p', status='old')
 
-      read(10,*) input_data%vortswitch  !! 1 = Use incident vorticity mode; 2 = First sup ins mode; Else = acoustic mode
-
-      PRINT '(A, I1, A)', &
-                    ' vortswitch = (', input_data%vortswitch, ')'
+      read(10,*) input_data%near_far_field_mode
+            if (trim(input_data%near_far_field_mode) .NE. 'far_field') then
+                input_data%near_far_field_mode = 'near_field'
+            end if 
 
       read(10,*) input_data%num_of_streams  !!
 
@@ -75,11 +76,6 @@ Module io_utils
                      ' (M1, M2) = (',input_data%M1, input_data%M2, ')'
       end if
  
-
-      if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
-         read(10,*) input_data%Zo  !! starting point of inc instability (-ve)
-      end if
-
       read(10,*) input_data%h
       
       read(10,*) input_data%St_flag
@@ -115,16 +111,6 @@ Module io_utils
        
       end if
 
-      if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
-                 read(10,*)input_data%mu0  !! upstream inc acoustic mode
-                 print*, 'initialize:  Incident Vorticity mode activated'
-      else
-                 read(10,*) input_data%mu_plus
-                 print*, '================== Non-incident vorticity mode ====================='
-                 print*,''
-                 print*, 'initialize:  mu for the incident mode =',input_data%mu_plus
-      end if
-
       read(10,*) input_data%offset  !! the offset between the two integration contours
       print*,'initialize:  Offset between the IFT and K split contours=', input_data%offset
 
@@ -134,51 +120,7 @@ Module io_utils
       PRINT '(A, E12.4, ", ", E12.4,A)', &
                      ' initialize: (offset, tol) = (', input_data%offset, input_data%tol, ')'
 
-
-      read(10,*) input_data%num_zeros_s1_s2  !! zeros needed to be removed from the kernel
-      PRINT '(A, I3, A)', &
-                     'initialize:  Number of zeros to be removed from kernel ', input_data%num_zeros_s1_s2
-
-
-      read(10,*) input_data%num_poles_s1_s2  !! poles needed to be removed from the kernel
-      PRINT '(A, I3, A)', &
-                     'initialize:  Number of poles to be removed from kernel ', input_data%num_poles_s1_s2
-
-
-      read(10,*) input_data%num_sup_zeros  !! supersonic zeros
-      PRINT '(A, I3, A)', &
-                     'initialize:  Number of supersonic zeros ', input_data%num_sup_zeros
-
-
-      read(10,*) input_data%num_sup_poles  !! supersonic poles
-      PRINT '(A, I3, A)', &
-                     'initialize:  Number of supersonic poles ', input_data%num_sup_poles
-
-      if (input_data%num_sup_zeros > 0) then
-          allocate(input_data%sup_zeros_list(input_data%num_sup_zeros))
-          do i = 1, input_data%num_sup_zeros
-            read(10,*) input_data%sup_zeros_list(i)
-            print*, input_data%sup_zeros_list(i)
-          end do
-      end if
-
-       if (input_data%num_sup_poles > 0) then
-          allocate(input_data%sup_poles_list(input_data%num_sup_poles))
-          do i = 1, input_data%num_sup_poles
-            !print*, i1
-            read(10,*) input_data%sup_poles_list(i)
-            print*, input_data%sup_poles_list(i)
-          end do
-      end if
-
-      if (input_data%vortswitch == 2) then
-         if (input_data%num_sup_poles == 0) then
-                    print*, "initialize:  For vortswitch mode 2, at least one upstream supersonic pole needed! Exiting..."
-                    STOP
-         end if
-      end if
-
-      print*,''
+       print*,''
       print*,'','====== Mesh and contour parameters ======',''
       
       read(10,*) input_data%num_ker_pts_loop
@@ -191,17 +133,22 @@ Module io_utils
       read(10,*) input_data%num_IFT_pts_loop
       print*,'initialize:  Number of IFT points in each loop num_IFT_pts_loop =', input_data%num_IFT_pts_loop
 
-      read(10,*) input_data%Rmin
-      read(10,*) input_data%Rmax
-      read(10,*) input_data%Zmin
-      read(10,*) input_data%Zmax
-     
-      read(10,*) input_data%Nmeshr
-      read(10,*) input_data%Nmeshz
+      if (trim(input_data%near_far_field_mode) == 'near_field') then
+          read(10,*) input_data%Rmin
+          read(10,*) input_data%Rmax
+          read(10,*) input_data%Zmin
+          read(10,*) input_data%Zmax
+         
+          read(10,*) input_data%Nmeshr
+          read(10,*) input_data%Nmeshz
 
-      print*,'initialize:  Dimensions of domain in R = [',input_data%Rmin,input_data%Rmax,']'  
-      print*,'initialize:  Dimensions of domain in Z = [',input_data%Zmin,input_data%Zmax,']' 
-      print*,'initialize:  Nr x Nz =',input_data%Nmeshr,'x',input_data%Nmeshz
+          print*,'initialize:  Dimensions of domain in R = [',input_data%Rmin,input_data%Rmax,']'  
+          print*,'initialize:  Dimensions of domain in Z = [',input_data%Zmin,input_data%Zmax,']' 
+          print*,'initialize:  Nr x Nz =',input_data%Nmeshr,'x',input_data%Nmeshz
+     
+      else if (trim(input_data%near_far_field_mode) == 'far_field') then
+         read(10,*) input_data%num_phi
+      end if
 
       print*,'=============================='
 
@@ -230,19 +177,6 @@ Module io_utils
          print*,'initialize:  Reflection mode: incident mode added'
       end if
   !!============================
-      read(10,*) input_data%farswitch  !! 1 = Far-field mode: compute directivity; 2 = 1 + nearfield of sup zeros in polar mode
-
-      if ((input_data%farswitch == 1) .OR. (input_data%farswitch == 2)) then
-         read(10,*) input_data%Nphi
-         allocate(input_data%cnanglei(input_data%num_sup_zeros + 2))
-      end if
-
-      if ((input_data%farswitch == 2) .AND. input_data%num_sup_zeros <= 0) then
-         print*, "For farswitch mode 2, non-zero number of supersonic zero needed! Exiting..."
-         STOP
-      end if
-
-  !!=====================================================
 
       read(10,*) input_data%fplus_compute_restart  
 
@@ -270,7 +204,7 @@ Module io_utils
   !! whether to compute velocity potential or pressure:
 
     if (input_data%prswitch == 0) then
-       if ((input_data%farswitch == 1) .OR. (input_data%farswitch == 2)) then
+       if (trim(input_data%near_far_field_mode) =='far_field') then
           print*,''
           print*,'initialize: Far-field is computed ONLY in pressure mode. Exiting...'
           STOP

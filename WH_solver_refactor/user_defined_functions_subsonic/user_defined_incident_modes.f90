@@ -48,20 +48,16 @@ Module user_defined_incident_modes
        stream_idx = 2
     end if
 
-    if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
-          print*,'Incident wave has to be an pipe mode of the nozzle  '
-          STOP
-    else
-       if (stream_idx == 1) then
+    if (stream_idx == 1) then
          psimn = bessj(input_data%alpha1*r,input_data%azim_mode,1)*EXP(ABS(AIMAG(input_data%alpha1*r)))
        
          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*(1._dpk - input_data%M1*input_data%mu_plus)* &
               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%mu_plus*z)
 
-       else
+     else
           psi0 = 0.
-       end if
     end if
+
   END FUNCTION compute_psi_incident_hard_duct_mode
 
  FUNCTION compute_psi_incident_guided_jet_mode(r,z,input_data) result(psi0)
@@ -84,16 +80,12 @@ Module user_defined_incident_modes
        stream_idx = 2
     end if
 
-    if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
-          print*,'Incident wave has to be an pipe mode of the nozzle  '
-          STOP
-    else
-       if (stream_idx == 1) then
+    if (stream_idx == 1) then
          psimn = bessj(input_data%alpha1*r,input_data%azim_mode,1)*EXP(ABS(AIMAG(input_data%alpha1*r)))
        
          psi0 = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*(1._dpk - input_data%M1*input_data%mu_plus)* &
               psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%mu_plus*z)
-       else
+    else
 
           f1 = ((1._dpk - (input_data%mu_plus*input_data%M1) )/(1._dpk -(input_data%mu_plus*input_data%M2))) &
                                                                  *bessj(input_data%alpha1,input_data%azim_mode,1)
@@ -106,7 +98,6 @@ Module user_defined_incident_modes
                  psimn*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%mu_plus*z)
 
     !      psi0 = 0.0
-       end if
 
     end if
   

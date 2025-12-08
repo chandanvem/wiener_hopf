@@ -140,45 +140,7 @@ Module contour_init_utils
 
       end if
 
-      if (input_data%num_sup_zeros .GT. 1) then
-        do i1 = 1, input_data%num_sup_zeros
-           call check_location_wrt_contour(input_data%sup_zeros_list(i1),i2,contour_data)
-           if (input_data%vortswitch .EQ. 0) then
-              if(i2 == 0) then
-                 print*,''
-                 print*,'initialize: Redefine the contour: The following supersonic zero is inside:'
-                 print*,input_data%sup_zeros_list(i1)
-              end if
-           else
-              if(i2 == 1) then
-                 print*,''
-                 print*,'initialize: Redefine the contour: The following supersonic zero is outside:'
-                 print*,input_data%sup_zeros_list(i1)
-              end if
-           end if
-        end do
-     end if
-
-    if (input_data%num_sup_poles .GT. 1) then
-      do i1 = 1, input_data%num_sup_poles
-         call check_location_wrt_contour(input_data%sup_poles_list(i1),i2,contour_data)
-         if (input_data%vortswitch .EQ. 0) then
-            if(i2 == 0) then
-               print*,''
-               print*,'initialize: Redefine the contour: The following supersonic pole is inside:'
-               print*,input_data%sup_poles_list(i1)
-            end if
-         else
-            if(i2 == 1) then
-              print*,''
-              print*,'initialize: Redefine the contour: The following supersonic pole is outside:'
-              print*,input_data%sup_poles_list(i1)
-            end if
-         end if
-      end do
-    end if
-
-    END SUBROUTINE check_location_of_zeros_poles 
+     END SUBROUTINE check_location_of_zeros_poles 
 
     SUBROUTINE check_location_wrt_contour(z,switch,contour_data)
 

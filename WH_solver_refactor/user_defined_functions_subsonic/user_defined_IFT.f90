@@ -202,10 +202,7 @@ Module user_defined_IFT
        write(1) ((ABS(GJ_plus_acoustic_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
        close(1)   
 
-
-    end if
-
-    if (input_data%vortswitch .EQ. 0) then
+    else 
        open(1,file='instabilitypr1.out',form='UNFORMATTED')
        write(1) input_data%Nmeshz,input_data%Nmeshr,1
        write(1) ((REAL(instab_pressure1(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)

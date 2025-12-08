@@ -26,7 +26,7 @@ Module user_defined_fplus
 
     call compute_eqn_A1_integral(s_target,int_A1_at_s_target,0,0,1,'not_derivative',input_data,contour_data)
 
-    if ((input_data%farswitch == 1) .OR. (input_data%farswitch == 2)) then
+    if ((input_data%near_far_field_mode == 'far_field')) then
        if (REAL(s_target) >= contour_data%cont_cross_over_pt) then
           k_plus_at_s = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
                LOG(compute_kernel(0,s_target,input_data)/compute_U_s_factor(s_target,input_data)))  !! s_target is above contour; cont_cross_over_pt is crossover pt

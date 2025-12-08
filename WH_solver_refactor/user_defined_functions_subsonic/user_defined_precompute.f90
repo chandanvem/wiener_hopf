@@ -45,36 +45,27 @@ Module user_defined_precompute
  
     PI = 4._dpk*ATAN(1.)
  
-    if ((input_data%vortswitch == 1) .OR. (input_data%vortswitch == 2)) then
-
-      input_data%psi = 1
-
-    else
-
-!! check if the radial wavenumber is negative:
-
-       if((REAL(input_data%mu_plus) < -(input_data%kapT/(1._dpk - ((input_data%kapT)*(input_data%M1)) ))) .OR. &
+   if((REAL(input_data%mu_plus) < -(input_data%kapT/(1._dpk - ((input_data%kapT)*(input_data%M1)) ))) .OR. &
                                                       (REAL(input_data%mu_plus) > (1._dpk/(1._dpk + input_data%M1)))) then 
 
           print*,'Radial wave number(s) is negative: Check the incident wave axial wave number!'
           STOP
-      end if
+   end if
 
       input_data%alpha1 = input_data%omega_r*SQRT((1._dpk - input_data%mu_plus*input_data%M1)**2 - (input_data%mu_plus)**2)
 
-      print*,'precompute: The radial wave numbers:'
-      write(*,'(/A12,2X,2F15.10)') ' alpha1:->', input_data%alpha1
+    print*,'precompute: The radial wave numbers:'
+    write(*,'(/A12,2X,2F15.10)') ' alpha1:->', input_data%alpha1
 
 !! the factor \Psi_{mn}(1) of (3.30) [see the JFM]:
 
-       f1 = bessj(input_data%alpha1,input_data%azim_mode,1)
-       f1 = f1*EXP(ABS(AIMAG(input_data%alpha1)))
-      
-       input_data%psi = f1
-       write(*,'(/A12,2X,2F15.10)') ' psi:->', input_data%psi
-       print*, 'precompute: Evaluated psi for the incident wave'
+    f1 = bessj(input_data%alpha1,input_data%azim_mode,1)
+    f1 = f1*EXP(ABS(AIMAG(input_data%alpha1)))
+    
+    input_data%psi = f1
+    write(*,'(/A12,2X,2F15.10)') ' psi:->', input_data%psi
+    print*, 'precompute: Evaluated psi for the incident wave'
   
-    end if
     
 
     res_mu_plus = ABS(compute_kernel(1,input_data%mu_plus,input_data))
@@ -85,16 +76,14 @@ Module user_defined_precompute
 
 !!  the factor Kt^{-}(\mu_{mn}^{+}):
 
-    if (input_data%vortswitch .EQ. 0) then
      
-        if (REAL(input_data%mu_plus) < contour_data%cont_cross_over_pt) then  !! mu_plus is below the contour; cont_cross_over_pt being the crossover pt
-           print*, ''
-           print*, 'precompute: The incident acoustic mode needs to be INSIDE the contour'
-           print*, ''
-       !   STOP
-       end if
+     if (REAL(input_data%mu_plus) < contour_data%cont_cross_over_pt) then  !! mu_plus is below the contour; cont_cross_over_pt being the crossover pt
+        print*, ''
+        print*, 'precompute: The incident acoustic mode needs to be INSIDE the contour'
+        print*, ''
+    !   STOP
+    end if
 
-     end if
      
     print*, 'precompute: Evaluating kernel at mu_plus'
 
@@ -112,17 +101,14 @@ Module user_defined_precompute
 
 !!  the factor Kt^{+}(s_{z1}):
 
-    if (input_data%vortswitch .EQ. 0) then
-  
-       print*, 'precompute: Evaluating Kt^{+}(s_{z1}) at KH_zero_1'
-       call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,'not_derivative',input_data,contour_data)
+    print*, 'precompute: Evaluating Kt^{+}(s_{z1}) at KH_zero_1'
+    call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,'not_derivative',input_data,contour_data)
 
-       input_data%k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
-       !! NOTE: zero KH_zero_1 has to lie below  !! the contour
+    input_data%k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
+    !! NOTE: zero KH_zero_1 has to lie below  !! the contour
 
-       write(*,'(/A22,2X,2F20.10/)') 'K+ at KH1   :->', input_data%k_plus_sz1
+    write(*,'(/A22,2X,2F20.10/)') 'K+ at KH1   :->', input_data%k_plus_sz1
 
-    end if
   
   END SUBROUTINE precompute_hard_duct_mode
 
