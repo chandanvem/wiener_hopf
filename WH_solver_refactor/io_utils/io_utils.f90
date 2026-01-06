@@ -48,6 +48,7 @@ Module io_utils
       type(input_params_t) :: input_data
       real(dpk)            :: PI, delr, deli
       integer              :: i
+      character(len=40)    :: input_string      
 
       !! the basic data file:
 
@@ -58,9 +59,9 @@ Module io_utils
       open(10, file='input.list.p', status='old')
 
       read(10,*) input_data%near_far_field_mode
-            if (trim(input_data%near_far_field_mode) .NE. 'far_field') then
-                input_data%near_far_field_mode = 'near_field'
-            end if 
+      if (trim(input_data%near_far_field_mode) .NE. 'far_field') then
+          input_data%near_far_field_mode = 'near_field'
+      end if 
 
       read(10,*) input_data%num_of_streams  !!
 
@@ -172,7 +173,15 @@ Module io_utils
       print*,'initialize:  Vortex shedding parameter gamma = ',input_data%vs_param_gamma 
         
   !!============================
-      read(10,*) input_data%prswitch  !! 0 = Potential; 1 = Pressure
+      read(10,*) input_string
+      if (trim(input_string) .EQ. 'pressure_mode') then
+          input_data%prswitch = 1
+      else if (trim(input_string) .EQ. 'potential_mode') then
+          input_data%prswitch = 0
+      else
+          print*, 'initialize: solution mode undefined. Exiting...'
+          STOP 
+      end if 
 
       if (input_data%prswitch == 0) then
          print*,'initialize:  Solution in potential mode'
@@ -180,27 +189,33 @@ Module io_utils
          print*,'initialize:  Solution in pressure mode '
       end if
   !!============================
-      read(10,*) input_data%reflswitch  !! 1 = Reflection mode: incident mode not added
-      if (input_data%reflswitch == 1) then
+     read(10,*) input_string
+     if (trim(input_string) .EQ. 'add_incident_mode') then
+          input_data%reflswitch = 0
+     else
+          input_data%reflswitch = 1
+     end if 
+
+     if (input_data%reflswitch == 1) then
          print*,'initialize:  Reflection mode: incident mode not added'
-      else 
+     else 
          print*,'initialize:  Reflection mode: incident mode added'
-      end if
+     end if
   !!============================
 
-      read(10,*) input_data%fplus_compute_restart  
+     read(10,*) input_data%fplus_compute_restart  
 
-      if (len_trim(input_data%solution_mode) > 0) then
-            read(10,*) input_data%solution_mode
-            if (trim(input_data%solution_mode) == 'guided_jet') then
-               read(10,*) input_data%s_GJ
-               print*, 'initialize: Choosing guided jet mode...'
-            else
-               print*, 'initialize: Choosing hard duct mode:'
-            end if
-      else
-            print*, 'Error: solution_mode not set or missing in input file.'
-      end if
+     if (len_trim(input_data%solution_mode) > 0) then
+          read(10,*) input_data%solution_mode
+          if (trim(input_data%solution_mode) == 'guided_jet') then
+             read(10,*) input_data%s_GJ
+             print*, 'initialize: Choosing guided jet mode...'
+          else
+            print*, 'initialize: Choosing hard duct mode:'
+          end if
+     else
+          print*, 'Error: solution_mode not set or missing in input file.'
+     end if
 
     close(10)
       
