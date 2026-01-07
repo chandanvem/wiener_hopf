@@ -8,7 +8,8 @@ Module user_defined_functions
 
   PUBLIC  :: compute_U_s_factor, compute_kernel, &
              integrand_IFT_pot, integrand_IFT_pr,&
-             compute_Trs_lambda, compute_d_ds_Trs_lambda
+             compute_Trs_lambda, compute_d_ds_Trs_lambda,&
+             dkernel_ds
 
   CONTAINS 
 
@@ -22,8 +23,8 @@ Module user_defined_functions
     type(input_params_t) :: input_data
 
     if (input_data%solution_mode == 'guided_jet') then
-       u_s = (s_target-input_data%KH_zero_1)
-        !*(s_target - input_data%s_GJ)
+       u_s = (s_target-input_data%KH_zero_1)*&
+             (s_target - input_data%s_GJ)
     else 
        u_s = (s_target-input_data%KH_zero_1)
     end if
@@ -322,6 +323,73 @@ FUNCTION compute_d_ds_Trs_lambda(ri, si, stream_idx, input_data) result(dTrs)
 
 END FUNCTION compute_d_ds_Trs_lambda
 
+FUNCTION dkernel_ds(zeta, input_data) result(dK)
+
+   complex(dpk), intent(in) :: zeta
+   type(input_params_t), intent(in) :: input_data
+
+   complex(dpk) :: lambda1, lambda2
+   complex(dpk) :: dlambda1, dlambda2
+   complex(dpk) :: z1, z2
+   complex(dpk) :: F1n, F1d, F1dd, F1fp
+   complex(dpk) :: F2n, F2d, F2dd, F2fp
+   complex(dpk) :: A1, A2
+   complex(dpk) :: dF1, dF2
+   complex(dpk) :: dK
+   real(dpk)    :: M1, M2, om, kapT
+
+   M1   = input_data%M1
+   M2   = input_data%M2
+   om   = input_data%omega_r
+   kapT = input_data%kapT
+
+   lambda1 = sqrt(1._dpk - zeta*(M1 + 1._dpk)) * &
+             sqrt(1._dpk - zeta*(M1 - 1._dpk))
+
+   lambda2 = sqrt(kapT - zeta*(kapT*M2 + 1._dpk)) * &
+             sqrt(kapT - zeta*(kapT*M2 - 1._dpk))
+
+
+   dlambda1 = -((M1+1._dpk)*(1._dpk - zeta*(M1-1._dpk)) + &
+                (M1-1._dpk)*(1._dpk - zeta*(M1+1._dpk))) / &
+              (2._dpk*lambda1)
+
+   dlambda2 = -((kapT*M2+1._dpk)*(kapT - zeta*(kapT*M2-1._dpk)) + &
+                (kapT*M2-1._dpk)*(kapT - zeta*(kapT*M2+1._dpk))) / &
+              (2._dpk*lambda2)
+
+
+   z1 = lambda1 * om
+
+   F1n  = bessj(z1, input_data%azim_mode, 1)   ! J_m
+   F1d  = dbessj(z1, input_data%azim_mode,1)      ! J_m'
+   F1dd = d2bessj(z1, input_data%azim_mode,1)      ! J_m''
+
+   F1fp = om * (1._dpk - F1n * F1dd / (F1d*F1d))
+
+   A1 = 1._dpk - zeta*M1
+
+   dF1 = input_data%kap_rho * ( &
+       (-2._dpk*M1*A1/lambda1 - A1*A1*dlambda1/(lambda1*lambda1)) * (F1n/F1d) &
+       + (A1*A1/lambda1) * F1fp * dlambda1 )
+
+   z2 = lambda2 * om
+
+   F2n  = hank1(z2, input_data%azim_mode, 1)        ! H_m
+   F2d  = dhank1(z2, input_data%azim_mode,1)        ! H_m'
+   F2dd = d2hank1(z2, input_data%azim_mode,1)       ! H_m''
+
+   F2fp = om * (1._dpk - F2n * F2dd / (F2d*F2d))
+
+   A2 = 1._dpk - zeta*M2
+
+   dF2 = (-2._dpk*M2*A2/lambda2 - A2*A2*dlambda2/(lambda2*lambda2)) * (F2n/F2d) &
+         + (A2*A2/lambda2) * F2fp * dlambda2
+
+
+   dK = om * ( dF1 - dF2 )
+
+END FUNCTION dkernel_ds
 
 END MODULE user_defined_functions
 

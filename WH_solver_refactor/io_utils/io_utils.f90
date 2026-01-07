@@ -207,7 +207,8 @@ Module io_utils
 
      if (len_trim(input_data%solution_mode) > 0) then
           read(10,*) input_data%solution_mode
-          if (trim(input_data%solution_mode) == 'guided_jet') then
+          if ( (trim(input_data%solution_mode) == 'guided_jet') .OR. & 
+                   (trim(input_data%solution_mode) == 'guided_jet_mode')) then
              read(10,*) input_data%s_GJ
              print*, 'initialize: Choosing guided jet mode...'
           else

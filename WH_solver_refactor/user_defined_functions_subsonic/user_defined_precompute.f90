@@ -160,7 +160,7 @@ Module user_defined_precompute
    ! write(*,'(/A12,2X,2F15.10)') 'precompute_guided_jet_mode: integral at mu_plus:->', intgrl_A1_at_mu_plus
    write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode: integral at mu_plus:->',intgrl_A1_at_mu_plus
  
-    input_data%k_minus_at_mu_plus = 1._dpk
+    input_data%k_minus_at_mu_plus = dkernel_ds(input_data%mu_plus,input_data)/(input_data%mu_plus - input_data%KH_zero_1)
 
 ! compute_kernel(0,input_data%mu_plus,input_data)/ &
  !                         (k_plus_at_mu_plus*compute_U_s_factor(input_data%mu_plus,input_data)) 
