@@ -11,7 +11,8 @@ MODULE user_defined_residue_functions
               residue_pr_instab_guided_jet_mode,&
               compute_F_GJ, compute_d_ds_Trs_lambda
 
-  PUBLIC  ::  residue_pr_instab, residue_pot_instab
+  PUBLIC  ::  residue_pr_instab, residue_pot_instab, &
+              residue_k_plus_duct
 
   CONTAINS
 
@@ -53,6 +54,38 @@ MODULE user_defined_residue_functions
     end if      
     
   END FUNCTION residue_pr_instab_hard_duct_mode
+
+  FUNCTION residue_k_plus_duct(r,z,input_data) result(residuepr_op)
+
+   real(dpk),    intent(in) :: r, z
+   type(input_params_t), intent(in) :: input_data
+   complex(dpk) :: residuepr_op
+   complex(dpk) :: res, fn, fn_num, fn_den
+
+   if ( z < 0 ) then
+      residuepr_op = 0._dpk
+      return
+   end if 
+
+   if ( r .LE. 1._dpk) then
+      fn_num =  ((1._dpk-(input_data%k_d_plus*input_data%M1))**2)
+      fn_num =  fn_num*((1._dpk-(input_data%mu_plus*input_data%M1)))
+      fn_num =  fn_num*compute_Trs_lambda(r,input_data%k_d_plus,1,input_data)
+     
+
+      fn_den =  (((input_data%mu_plus - input_data%KH_zero_1)*input_data%k_minus_at_mu_plus*&
+                input_data%k_plus_prime_at_k_d_plus*(input_data%mu_plus-input_data%k_d_plus  ))) 
+
+
+      fn = fn_num/fn_den
+
+      residuepr_op = ((input_data%omega_r)**2)*fn*EXP(CMPLX(0.,1._dpk,kind=dpk)*input_data%omega_r*input_data%k_d_plus*z)
+   else  
+      residuepr_op = 0._dpk
+   end if
+
+
+  END FUNCTION residue_k_plus_duct
 
   FUNCTION residue_pr_instab_guided_jet_mode(r,z,input_data) result(residuepr_op)
 

@@ -210,7 +210,12 @@ Module io_utils
           if ( (trim(input_data%solution_mode) == 'guided_jet') .OR. & 
                    (trim(input_data%solution_mode) == 'guided_jet_mode')) then
              read(10,*) input_data%s_GJ
+             read(10,*) input_data%k_d_plus
              print*, 'initialize: Choosing guided jet mode...'
+             print*,'initialize:  s_GJ = ',input_data%s_GJ 
+             print*,'initialize:  k_d_plus = ',input_data%k_d_plus
+
+
           else
             print*, 'initialize: Choosing hard duct mode:'
           end if

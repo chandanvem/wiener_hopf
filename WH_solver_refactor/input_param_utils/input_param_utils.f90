@@ -48,6 +48,8 @@ MODULE input_params
           integer                                    :: GJ_num_int_pts 
           character(len=40)                          :: solution_mode
           complex(dpk)                               :: k_plus_at_GJ
+          complex(dpk)                               :: k_d_plus
+          complex(dpk)                               :: k_plus_prime_at_k_d_plus
      end type input_params_t
 
 

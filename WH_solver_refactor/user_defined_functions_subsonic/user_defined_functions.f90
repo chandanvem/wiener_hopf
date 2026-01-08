@@ -107,6 +107,10 @@ Module user_defined_functions
 
     if (ri .LE. 1) then 
        stream_idx = 1
+       if( (input_data%solution_mode == 'guided_jet') .AND. zi > 0._dpk) then
+            integrandIFTpr = 0._dpk
+            return
+       end if
     else
        stream_idx = 2
     end if
