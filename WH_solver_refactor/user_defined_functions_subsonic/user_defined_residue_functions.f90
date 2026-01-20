@@ -74,7 +74,7 @@ MODULE user_defined_residue_functions
      
 
       fn_den =  (((input_data%mu_plus - input_data%KH_zero_1)*input_data%k_minus_at_mu_plus*&
-                input_data%k_plus_prime_at_k_d_plus*(input_data%mu_plus-input_data%k_d_plus  ))) 
+                input_data%k_plus_at_k_d_plus*(input_data%mu_plus-input_data%k_d_plus  ))) 
 
 
       fn = fn_num/fn_den

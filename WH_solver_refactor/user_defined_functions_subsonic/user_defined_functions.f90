@@ -13,7 +13,7 @@ Module user_defined_functions
 
   CONTAINS 
 
-  FUNCTION compute_U_s_factor(s_target,input_data) result(u_s)
+  FUNCTION compute_U_s_factor(s_target,input_data,kd_plus_correction) result(u_s)
 
 !!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!=!!
 !! 1. The factor U(s)
@@ -21,13 +21,19 @@ Module user_defined_functions
 
     complex(dpk)  :: s_target, u_s
     type(input_params_t) :: input_data
+    character(len=*) :: kd_plus_correction
 
     if (input_data%solution_mode == 'guided_jet') then
        u_s = (s_target-input_data%KH_zero_1)*&
-             (s_target - input_data%s_GJ)
+             (s_target - input_data%mu_plus)
+       if ( kd_plus_correction == 'k_d_plus') then
+           u_s = u_s*(s_target - input_data%k_d_plus)
+       end if
     else 
        u_s = (s_target-input_data%KH_zero_1)
     end if
+
+   
 
   END FUNCTION compute_U_s_factor
 
@@ -107,10 +113,10 @@ Module user_defined_functions
 
     if (ri .LE. 1) then 
        stream_idx = 1
-       if( (input_data%solution_mode == 'guided_jet') .AND. zi > 0._dpk) then
-            integrandIFTpr = 0._dpk
-            return
-       end if
+  !     if( (input_data%solution_mode == 'guided_jet') .AND. zi > 0._dpk) then
+  !          integrandIFTpr = 0._dpk
+  !          return
+  !     end if
     else
        stream_idx = 2
     end if

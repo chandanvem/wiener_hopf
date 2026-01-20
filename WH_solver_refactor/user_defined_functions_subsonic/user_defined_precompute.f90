@@ -65,8 +65,6 @@ Module user_defined_precompute
     input_data%psi = f1
     write(*,'(/A12,2X,2F15.10)') ' psi:->', input_data%psi
     print*, 'precompute: Evaluated psi for the incident wave'
-  
-    
 
     res_mu_plus = ABS(compute_kernel(1,input_data%mu_plus,input_data))
     res_KH_1    = ABS(compute_kernel(1,input_data%KH_zero_1,input_data))
@@ -87,22 +85,25 @@ Module user_defined_precompute
      
     print*, 'precompute: Evaluating kernel at mu_plus'
 
-    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,'not_derivative',input_data,contour_data)
+    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,'not_derivative',&
+                                                                   'mu_plus',input_data,contour_data)
        
     k_plus_at_mu_plus = EXP(-intgrl_A1_at_mu_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
-                        LOG(compute_kernel(0,input_data%mu_plus,input_data)/compute_U_s_factor(input_data%mu_plus,input_data)))
+                        LOG(compute_kernel(0,input_data%mu_plus,input_data)/&
+                                 compute_U_s_factor(input_data%mu_plus,input_data,'mu_plus')))
 
     write(*,'(/A12,2X,2F15.10)') ' integral at mu_plus:->', intgrl_A1_at_mu_plus
  
     input_data%k_minus_at_mu_plus =  compute_kernel(0,input_data%mu_plus,input_data)/ &
-                          (k_plus_at_mu_plus*compute_U_s_factor(input_data%mu_plus,input_data)) 
+                          (k_plus_at_mu_plus*compute_U_s_factor(input_data%mu_plus,input_data,'mu_plus')) 
 
     write(*,'(/A22,2X,2F20.10/)') 'K- at mu+ :->', input_data%k_minus_at_mu_plus 
 
 !!  the factor Kt^{+}(s_{z1}):
 
     print*, 'precompute: Evaluating Kt^{+}(s_{z1}) at KH_zero_1'
-    call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,'not_derivative',input_data,contour_data)
+    call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,&
+                                                             'not_derivative','KH_zero',input_data,contour_data)
 
     input_data%k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
     !! NOTE: zero KH_zero_1 has to lie below  !! the contour
@@ -122,6 +123,7 @@ Module user_defined_precompute
     complex(dpk)          :: f1, f2, f3
     integer               :: f, i1
     real(dpk)             :: PI, res_mu_plus, res_KH_1, res_k_d_plus
+    real(dpk)             :: B_mn
 
     type(input_params_t)   :: input_data
     type(contour_params_t) :: contour_data 
@@ -131,22 +133,20 @@ Module user_defined_precompute
  
     input_data%alpha1 = input_data%omega_r*SQRT((1._dpk - input_data%mu_plus*input_data%M1)**2&
                                                         - (input_data%mu_plus)**2)
-    input_data%alpha2 = input_data%omega_r*SQRT(((input_data%kapT)**2)*(1._dpk - input_data%mu_plus*input_data%M2)**2 &
-                                                        - (input_data%mu_plus)**2)
 
     f1 = bessj(input_data%alpha1,input_data%azim_mode,1)
-    f1 = f1*EXP(ABS(AIMAG(input_data%alpha1)))
+
+    B_mn = 1._dpk
 
     input_data%psi = f1
 
-    input_data%C0 = -1._dpk*input_data%psi
+    input_data%C0 = input_data%psi*B_mn
 
     write(*,'(/A,2X,2F15.10)') 'psi for guided jet mode :->', input_data%psi
  
-    res_mu_plus = ABS(compute_kernel(1,input_data%mu_plus,input_data))
-    res_KH_1    = ABS(compute_kernel(1,input_data%KH_zero_1,input_data))
+    res_mu_plus =  ABS(compute_kernel(1,input_data%mu_plus,input_data))
+    res_KH_1    =  ABS(compute_kernel(1,input_data%KH_zero_1,input_data))
     res_k_d_plus = ABS(compute_kernel(1,input_data%k_d_plus,input_data))
-
 
     write(*,'(/A,2X,2F15.10)') ' Value of K(s) at s = mu plus:->', res_mu_plus
     write(*,'(/A,2X,2F15.10)') ' Value of K(s) at s = KH zero:->', res_KH_1
@@ -154,35 +154,31 @@ Module user_defined_precompute
 
     print*, 'precompute_guided_jet_mode: Evaluating kernel integral at mu_plus'
 
-    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,'not_derivative',input_data,contour_data)
+    call compute_eqn_A1_integral(input_data%mu_plus,intgrl_A1_at_mu_plus,0,0,1,'not_derivative','guided_jet',&
+                                                                     input_data,contour_data)
     k_plus_at_mu_plus = EXP(-intgrl_A1_at_mu_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
     input_data%k_plus_at_mu_plus = k_plus_at_mu_plus
 
-!+ & 
-                    !    LOG(compute_kernel(0,input_data%mu_plus,input_data)/compute_U_s_factor(input_data%mu_plus,input_data)))
-   ! write(*,'(/A12,2X,2F15.10)') 'precompute_guided_jet_mode: integral at mu_plus:->', intgrl_A1_at_mu_plus
-   write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode: integral at mu_plus:->',intgrl_A1_at_mu_plus
+    write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode: k+ at  mu_plus:->',input_data%k_plus_at_mu_plus
  
     input_data%k_minus_at_mu_plus = dkernel_ds(input_data%mu_plus,input_data)/(input_data%mu_plus - input_data%KH_zero_1)
 
-! compute_kernel(0,input_data%mu_plus,input_data)/ &
- !                         (k_plus_at_mu_plus*compute_U_s_factor(input_data%mu_plus,input_data)) 
     write(*,'(/A,2X,2F20.10/)') 'precompute_guided_jet_mode: K- at mu+ :->', input_data%k_minus_at_mu_plus 
 
     print*, 'precompute_guided_jet_mode: Evaluating Kt^{+}(s_{z1}) at KH_zero_1'
-    call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,'not_derivative',input_data,contour_data)
+    call compute_eqn_A1_integral(input_data%KH_zero_1,intgrl_A1_at_KH_zero_1,0,0,1,'not_derivative','KH_mode_1',&
+                                                                                       input_data,contour_data)
     input_data%k_plus_sz1 = EXP(-intgrl_A1_at_KH_zero_1/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
-    !! NOTE: zero KH_zero_1 has to lie below  !! the contour
+    
     write(*,'(/A,2X,2F20.10/)') 'precompute_guided_jet_mode: K+ at KH1   :->', input_data%k_plus_sz1
 
-    call compute_eqn_A1_integral(input_data%k_d_plus,intgrl_A1_derv_at_k_d_plus,0,0,1,'derivative',input_data,contour_data)
-    call compute_eqn_A1_integral(input_data%k_d_plus,intgrl_A1_at_k_d_plus,0,0,1,'not_derivative',input_data,contour_data)
+    call compute_eqn_A1_integral(input_data%k_d_plus,intgrl_A1_derv_at_k_d_plus,0,0,1,'not_derivative','k_d_plus',&
+                                                                            input_data,contour_data)
 
-    input_data%k_plus_prime_at_k_d_plus = -intgrl_A1_at_k_d_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))
-    input_data%k_plus_prime_at_k_d_plus =  input_data%k_plus_prime_at_k_d_plus*intgrl_A1_derv_at_k_d_plus
+    input_data%k_plus_at_k_d_plus =  EXP(-intgrl_A1_derv_at_k_d_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
    
-    write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode: integral A1 derivative at mu_plus:->',&
-                                                                     input_data%k_plus_prime_at_mu_plus
+    write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  k_plus_at_k_d_plus:->',&
+                                                                           input_data%k_plus_at_k_d_plus                                                                
 
   END SUBROUTINE precompute_guided_jet_mode
 

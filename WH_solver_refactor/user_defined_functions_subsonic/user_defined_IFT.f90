@@ -30,7 +30,8 @@ Module user_defined_IFT
      complex(dpk), allocatable, dimension(:,:)     ::  acoustic_comp_pressure,totpressure, &
                                                        instab_pressure1,instab_pressure2,inc_pressure, &
                                                        GJ_comp_pressure,GJ_plus_acoustic_comp_pressure, &
-                                                       k_duct_plus_comp_pressure
+                                                       k_duct_plus_comp_pressure, &
+                                                       acous_plus_duct_plus_comp_pressure
 
      integer                                       :: i,j,k,f, IFT_pt_idx
      integer                                       :: switch
@@ -54,7 +55,8 @@ Module user_defined_IFT
      allocate(inc_pressure(input_data%Nmeshr,input_data%Nmeshz))
      allocate(totpressure(input_data%Nmeshr,input_data%Nmeshz))
      allocate(k_duct_plus_comp_pressure(input_data%Nmeshr,input_data%Nmeshz))
-     
+     allocate(acous_plus_duct_plus_comp_pressure(input_data%Nmeshr,input_data%Nmeshz))
+
      allocate(GJ_comp_pressure(input_data%Nmeshr,input_data%Nmeshz))
      allocate(GJ_plus_acoustic_comp_pressure(input_data%Nmeshr,input_data%Nmeshz))
      
@@ -118,6 +120,10 @@ Module user_defined_IFT
                                   k_duct_plus_comp_pressure(i,j) + &
                                   instab_pressure1(i,j)  !! total part 
 
+
+               acous_plus_duct_plus_comp_pressure(i,j) =  acoustic_comp_pressure(i,j)+ &
+                                                         k_duct_plus_comp_pressure(i,j)
+
             end if
 
            
@@ -174,6 +180,11 @@ Module user_defined_IFT
     open(1,file='k_plus_duct.out',form='UNFORMATTED')
     write(1) input_data%Nmeshz,input_data%Nmeshr,1
     write(1) ((REAL(k_duct_plus_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
+    close(1)   
+
+    open(1,file='acous_plus_k_plus_duct.out',form='UNFORMATTED')
+    write(1) input_data%Nmeshz,input_data%Nmeshr,1
+    write(1) ((REAL(acous_plus_duct_plus_comp_pressure(i,j)),j=1,input_data%Nmeshz),i=1,input_data%Nmeshr)
     close(1)   
 
     open(1,file='instabilitypr1.out',form='UNFORMATTED')

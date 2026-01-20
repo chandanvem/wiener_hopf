@@ -24,12 +24,12 @@ Module user_defined_fplus
 
     PI = 4._dpk*ATAN(1.)
 
-    call compute_eqn_A1_integral(s_target,int_A1_at_s_target,0,0,1,'not_derivative',input_data,contour_data)
+    call compute_eqn_A1_integral(s_target,int_A1_at_s_target,0,0,1,'not_derivative','s_target',input_data,contour_data)
 
     if ((input_data%near_far_field_mode == 'far_field')) then
        if (REAL(s_target) >= contour_data%cont_cross_over_pt) then
           k_plus_at_s = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) + & 
-               LOG(compute_kernel(0,s_target,input_data)/compute_U_s_factor(s_target,input_data)))  !! s_target is above contour; cont_cross_over_pt is crossover pt
+               LOG(compute_kernel(0,s_target,input_data)/compute_U_s_factor(s_target,input_data,'s_target'))) !! s_target is above contour; cont_cross_over_pt is crossover pt
        else
           k_plus_at_s = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! s_target is below
        end if
@@ -37,21 +37,21 @@ Module user_defined_fplus
        k_plus_at_s = EXP(-int_A1_at_s_target/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))  !! s_target is always below normally
     end if
 
-    fplus_num = input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)
+    fplus_num = -input_data%psi*(1._dpk - input_data%mu_plus*input_data%M1)
    
     if (input_data%solution_mode=='guided_jet') then
 
-      fplus_den =  (input_data%mu_plus - input_data%KH_zero_1)* & 
-                   (input_data%k_minus_at_mu_plus*k_plus_at_s)* &
-                   (input_data%mu_plus - s_target)
-                    !*compute_U_s_factor(s_target,input_data)
+      fplus_den =  input_data%k_minus_at_mu_plus*&
+                   k_plus_at_s* &
+                   compute_U_s_factor(s_target,input_data,'s_target')*&
+                   (s_target - input_data%mu_plus )
 
     else 
 
       fplus_num = fplus_num*( ((s_target - input_data%KH_zero_1)/(input_data%mu_plus - s_target)) + input_data%vs_param_gamma) 
 
       fplus_den = (input_data%mu_plus - input_data%KH_zero_1)* &
-                   input_data%k_minus_at_mu_plus*k_plus_at_s*compute_U_s_factor(s_target,input_data)
+                   input_data%k_minus_at_mu_plus*k_plus_at_s*compute_U_s_factor(s_target,input_data,'s_target')
      
     end if 
 
