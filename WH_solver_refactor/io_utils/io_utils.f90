@@ -47,7 +47,7 @@ Module io_utils
 
       type(input_params_t) :: input_data
       real(dpk)            :: PI, delr, deli
-      integer              :: i
+      integer              :: i,j
       character(len=40)    :: input_string      
 
       !! the basic data file:
@@ -212,13 +212,27 @@ Module io_utils
             read(10,*) input_data%solution_mode
             if ( (trim(input_data%solution_mode) == 'guided_jet') .OR. & 
                      (trim(input_data%solution_mode) == 'guided_jet_mode')) then
-               read(10,*) input_data%s_GJ
-               read(10,*) input_data%k_d_plus
+            
                print*, 'initialize: Choosing guided jet mode...'
+
+               read(10,*) input_data%k_d_plus
+               input_data%s_GJ = input_data%mu_plus
                print*,'initialize:  s_GJ = ',input_data%s_GJ 
                print*,'initialize:  k_d_plus = ',input_data%k_d_plus
 
+               read(10,*) input_data%num_duct_modes
 
+               if (input_data%num_duct_modes  < 1) then
+                   print*, 'Error: no downstream moving duct modes specified.Exiting.'
+                   STOP
+               end if
+               allocate(input_data%duct_modes_list(input_data%num_duct_modes))
+                
+               do j = 1, input_data%num_duct_modes
+                    read(10,*) input_data%duct_modes_list(j)
+                    print*,'initialize:  duct mode  = ', input_data%duct_modes_list(j)
+               end do              
+               
             else
               print*, 'initialize: Choosing hard duct mode:'
             end if

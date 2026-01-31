@@ -50,6 +50,9 @@ MODULE input_params
           complex(dpk)                               :: k_plus_at_GJ
           complex(dpk)                               :: k_d_plus
           complex(dpk)                               :: k_plus_at_k_d_plus
+          integer                                    :: num_duct_modes
+          complex(dpk), allocatable, dimension(:)    :: duct_modes_list
+          complex(dpk), allocatable, dimension(:)    :: k_minus_at_duct_modes_list
      end type input_params_t
 
 
