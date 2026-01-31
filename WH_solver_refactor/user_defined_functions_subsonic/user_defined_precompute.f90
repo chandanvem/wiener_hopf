@@ -134,6 +134,10 @@ Module user_defined_precompute
     input_data%alpha1 = input_data%omega_r*SQRT((1._dpk - input_data%mu_plus*input_data%M1)**2&
                                                         - (input_data%mu_plus)**2)
 
+    input_data%alpha2 = input_data%omega_r*SQRT(((input_data%kapT)**2)*(1._dpk -input_data%mu_plus*input_data%M2)**2 - &
+                                                                                       (input_data%mu_plus)**2)
+
+
     f1 = bessj(input_data%alpha1,input_data%azim_mode,1)
 
     B_mn = 1._dpk

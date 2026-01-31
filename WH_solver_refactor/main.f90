@@ -34,7 +34,7 @@ PROGRAM main
   
   call precompute(input_data,contour_data)
 !
-  if ((input_data%near_far_field_mode == 'farfield')) then
+  if ((input_data%near_far_field_mode == 'far_field')) then
 
     print*,''
     print*,'solve: Computing far-field solution:'

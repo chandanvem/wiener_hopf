@@ -189,41 +189,45 @@ Module io_utils
          print*,'initialize:  Solution in pressure mode '
       end if
   !!============================
-     read(10,*) input_string
-     if (trim(input_string) .EQ. 'add_incident_mode') then
-          input_data%reflswitch = 0
-     else
-          input_data%reflswitch = 1
-     end if 
+     if (trim(input_data%near_far_field_mode) == 'near_field') then
+       read(10,*) input_string
+       if (trim(input_string) .EQ. 'add_incident_mode') then
+            input_data%reflswitch = 0
+       else
+            input_data%reflswitch = 1
+       end if 
 
-     if (input_data%reflswitch == 1) then
-         print*,'initialize:  Reflection mode: incident mode not added'
-     else 
-         print*,'initialize:  Reflection mode: incident mode added'
-     end if
-  !!============================
+       if (input_data%reflswitch == 1) then
+           print*,'initialize:  Reflection mode: incident mode not added'
+       else 
+           print*,'initialize:  Reflection mode: incident mode added'
+       end if
+    !!============================
 
-     read(10,*) input_data%fplus_compute_restart  
+       read(10,*) input_data%fplus_compute_restart  
 
-     if (len_trim(input_data%solution_mode) > 0) then
-          read(10,*) input_data%solution_mode
-          if ( (trim(input_data%solution_mode) == 'guided_jet') .OR. & 
-                   (trim(input_data%solution_mode) == 'guided_jet_mode')) then
-             read(10,*) input_data%s_GJ
-             read(10,*) input_data%k_d_plus
-             print*, 'initialize: Choosing guided jet mode...'
-             print*,'initialize:  s_GJ = ',input_data%s_GJ 
-             print*,'initialize:  k_d_plus = ',input_data%k_d_plus
+      end if
+
+      if (len_trim(input_data%solution_mode) > 0) then
+            read(10,*) input_data%solution_mode
+            if ( (trim(input_data%solution_mode) == 'guided_jet') .OR. & 
+                     (trim(input_data%solution_mode) == 'guided_jet_mode')) then
+               read(10,*) input_data%s_GJ
+               read(10,*) input_data%k_d_plus
+               print*, 'initialize: Choosing guided jet mode...'
+               print*,'initialize:  s_GJ = ',input_data%s_GJ 
+               print*,'initialize:  k_d_plus = ',input_data%k_d_plus
 
 
-          else
-            print*, 'initialize: Choosing hard duct mode:'
-          end if
-     else
-          print*, 'Error: solution_mode not set or missing in input file.'
-     end if
+            else
+              print*, 'initialize: Choosing hard duct mode:'
+            end if
+       else
+            print*, 'Error: solution_mode not set or missing in input file.'
+       end if
+    
 
-    close(10)
+      close(10)
       
     delr = 0._dpk   !! for real omega
     deli = PI/2._dpk  !! for purely imaginary omega
