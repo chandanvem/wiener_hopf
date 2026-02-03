@@ -209,8 +209,8 @@ Module user_defined_precompute
      
          do j = 1, input_data%num_duct_modes
                
-             if (j .EQ. 1) then
-                  input_data%A_mn_duct_modes_list(1) =  & 
+             if ( (j .EQ. 1) .AND. (input_data%azim_mode .EQ. 0)  )then
+                  input_data%A_mn_duct_modes_list(j) =  & 
                      -2._dpk*input_data%omega_r*CMPLX(0._dpk,1._dpk,kind=dpk)*&
                      ((1 - (input_data%duct_modes_list(j)*input_data%M1))**2)*&
                       get_fplus_value(input_data%duct_modes_list(j),input_data,contour_data)
