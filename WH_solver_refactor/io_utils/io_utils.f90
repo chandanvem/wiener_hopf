@@ -227,7 +227,8 @@ Module io_utils
                    STOP
                end if
                allocate(input_data%duct_modes_list(input_data%num_duct_modes))
-                
+               allocate(input_data%A_mn_duct_modes_list(input_data%num_duct_modes))
+  
                do j = 1, input_data%num_duct_modes
                     read(10,*) input_data%duct_modes_list(j)
                     print*,'initialize:  duct mode  = ', input_data%duct_modes_list(j)

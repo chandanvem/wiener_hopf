@@ -4,6 +4,8 @@ Module user_defined_precompute
   USE bessel_utils
   USE kernel_integral_utils 
   USE user_defined_functions 
+  USE user_defined_fplus
+
  
   IMPLICIT NONE
   
@@ -117,11 +119,12 @@ Module user_defined_precompute
   SUBROUTINE precompute_guided_jet_mode(input_data,contour_data)
 
     complex(dpk)          :: intgrl_A1_at_mu_plus, intgrl_A1_at_KH_zero_1, intgrl_A1_at_KH_zero_2, intgrl_at_sup_zero
-    complex(dpk)          :: intgrl_A1_derv_at_k_d_plus, intgrl_A1_at_k_d_plus
+    complex(dpk)          :: intgrl_A1_at_k_d_plus, intgrl_A1_at_duct_mode
     complex(dpk)          :: intgrl_A1_at_GJ
     complex(dpk)          :: k_plus_at_mu_plus, k_plus_at_GJ
     complex(dpk)          :: f1, f2, f3
-    integer               :: f, i1
+    complex(dpk)          :: lambda1_at_k_d_plus, A_mn_k_plus_num, A_mn_k_plus_den, limit_term_L_k_d_plus
+    integer               :: f, i1, j
     real(dpk)             :: PI, res_mu_plus, res_KH_1, res_k_d_plus
     real(dpk)             :: B_mn
 
@@ -176,13 +179,59 @@ Module user_defined_precompute
     
     write(*,'(/A,2X,2F20.10/)') 'precompute_guided_jet_mode: K+ at KH1   :->', input_data%k_plus_sz1
 
-    call compute_eqn_A1_integral(input_data%k_d_plus,intgrl_A1_derv_at_k_d_plus,0,0,1,'not_derivative','k_d_plus',&
+    if ((input_data%near_far_field_mode == 'near_field')) then
+
+         call compute_eqn_A1_integral(input_data%k_d_plus,intgrl_A1_at_k_d_plus,0,0,1,'not_derivative','k_d_plus',&
                                                                             input_data,contour_data)
 
-    input_data%k_plus_at_k_d_plus =  EXP(-intgrl_A1_derv_at_k_d_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk))) 
-   
-    write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  k_plus_at_k_d_plus:->',&
+          limit_term_L_k_d_plus = &
+          EXP(-intgrl_A1_at_k_d_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) +&
+              LOG(dkernel_ds(input_data%k_d_plus,input_data)/compute_U_s_factor(input_data%k_d_plus,&
+                                                           input_data,'not_k_d_plus')))
+
+         write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  k_plus_at_k_d_plus:->',&
                                                                            input_data%k_plus_at_k_d_plus                                                                
+
+
+         lambda1_at_k_d_plus = sqrt(1._dpk - input_data%k_d_plus*(input_data%M1+1._dpk)) *&
+                                sqrt(1._dpk-  input_data%k_d_plus*(input_data%M1-1._dpk))
+ 
+         A_mn_k_plus_num = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%C0*(1 - (input_data%mu_plus*input_data%M1))*&
+                                   (1 - (input_data%M1*input_data%k_d_plus))**2
+  
+         A_mn_k_plus_den  = limit_term_L_k_d_plus*input_data%k_minus_at_mu_plus*&
+                             (input_data%k_d_plus - input_data%mu_plus)
+         A_mn_k_plus_den  = A_mn_k_plus_den*compute_U_s_factor(input_data%k_d_plus,input_data,'non_k_d_plus')
+         A_mn_k_plus_den =  A_mn_k_plus_den*lambda1_at_k_d_plus*&
+                           dbessj(lambda1_at_k_d_plus*input_data%omega_r,input_data%azim_mode,1)
+
+         input_data%A_mn_k_plus = A_mn_k_plus_num/A_mn_k_plus_den
+     
+         do j = 1, input_data%num_duct_modes
+               
+             if (j .EQ. 1) then
+                  input_data%A_mn_duct_modes_list(1) =  & 
+                     -2._dpk*input_data%omega_r*CMPLX(0._dpk,1._dpk,kind=dpk)*&
+                     ((1 - (input_data%duct_modes_list(j)*input_data%M1))**2)*&
+                      get_fplus_value(input_data%duct_modes_list(j),input_data,contour_data)
+             else
+                  input_data% A_mn_duct_modes_list(j) =  & 
+                     input_data%omega_r*CMPLX(0._dpk,1._dpk,kind=dpk)*&
+                     ((1 - (input_data%duct_modes_list(j)*input_data%M1))**2)*&
+                      get_fplus_value(input_data%duct_modes_list(j),input_data,contour_data)
+                   input_data%A_mn_duct_modes_list(j) = input_data%A_mn_duct_modes_list(j)/&
+                                 (d2hank1(input_data%duct_modes_list(j), input_data%azim_mode, 1)*&
+                                 (input_data%M1 + (input_data%duct_modes_list(j)*(1._dpk - ( (input_data%M1)**2)))))
+             end if
+            
+             
+             write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  A_mn_duct_modes_list:->',&
+                                                                          input_data%A_mn_duct_modes_list(j)
+
+         end do
+
+     end if
+
 
   END SUBROUTINE precompute_guided_jet_mode
 

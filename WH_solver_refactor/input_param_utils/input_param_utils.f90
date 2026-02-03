@@ -52,7 +52,9 @@ MODULE input_params
           complex(dpk)                               :: k_plus_at_k_d_plus
           integer                                    :: num_duct_modes
           complex(dpk), allocatable, dimension(:)    :: duct_modes_list
-          complex(dpk), allocatable, dimension(:)    :: k_minus_at_duct_modes_list
+          complex(dpk), allocatable, dimension(:)    :: k_plus_at_duct_modes_list
+          complex(dpk), allocatable, dimension(:)    :: A_mn_duct_modes_list
+          complex(dpk)                               :: A_mn_k_plus
      end type input_params_t
 
 
