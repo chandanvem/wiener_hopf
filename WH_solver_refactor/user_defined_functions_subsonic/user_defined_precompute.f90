@@ -193,14 +193,15 @@ Module user_defined_precompute
               LOG(dkernel_ds(input_data%k_d_plus,input_data)/compute_U_s_factor(input_data%k_d_plus,&
                                                            input_data,'not_k_d_plus')))
 
-         write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  k_plus_at_k_d_plus:->',&
-                                                                           input_data%k_plus_at_k_d_plus                                                                
+         write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  limit_term_L_k_d_plus:->',&
+                                                                           limit_term_L_k_d_plus                                                                
 
 
          lambda1_at_k_d_plus = sqrt(1._dpk - input_data%k_d_plus*(input_data%M1+1._dpk)) *&
                                 sqrt(1._dpk-  input_data%k_d_plus*(input_data%M1-1._dpk))
  
-         A_mn_k_plus_num = CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%C0*(1 - (input_data%mu_plus*input_data%M1))*&
+         A_mn_k_plus_num = CMPLX(0._dpk,1._dpk,kind=dpk)*((input_data%omega_r)**2)
+                                   input_data%C0*(1 - (input_data%mu_plus*input_data%M1))*&
                                    (1 - (input_data%M1*input_data%k_d_plus))**2
   
          A_mn_k_plus_den  = limit_term_L_k_d_plus*input_data%k_minus_at_mu_plus*&
@@ -210,7 +211,11 @@ Module user_defined_precompute
                            dbessj(lambda1_at_k_d_plus*input_data%omega_r,input_data%azim_mode,1)
 
          input_data%A_mn_k_plus = A_mn_k_plus_num/A_mn_k_plus_den
-     
+    
+         write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  A_mn_k_plus:->',&
+                                                                          input_data%A_mn_k_plus
+
+ 
          do j = 1, input_data%num_duct_modes
                
              if ( (j .EQ. 1) .AND. (input_data%azim_mode .EQ. 0)  )then
