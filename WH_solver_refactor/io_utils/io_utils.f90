@@ -40,7 +40,8 @@ Module io_utils
      call create_directory('./DataDump/Kernel')
      call create_directory('./DataDump/compute_fplus_log')
      call create_directory('./DataDump/compute_IFT_log')
-  
+     call create_directory('./DataDump/compute_far_field_log')
+
    END SUBROUTINE create_req_dirs
 
    SUBROUTINE define_input_params(input_data)
@@ -219,21 +220,22 @@ Module io_utils
                input_data%s_GJ = input_data%mu_plus
                print*,'initialize:  s_GJ = ',input_data%s_GJ 
                print*,'initialize:  k_d_plus = ',input_data%k_d_plus
+              
+               if ((trim(input_data%near_far_field_mode) == 'near_field')) then
+                 read(10,*) input_data%num_duct_modes
 
-               read(10,*) input_data%num_duct_modes
-
-               if (input_data%num_duct_modes  < 1) then
-                   print*, 'Error: no downstream moving duct modes specified.Exiting.'
-                   STOP
-               end if
-               allocate(input_data%duct_modes_list(input_data%num_duct_modes))
-               allocate(input_data%A_mn_duct_modes_list(input_data%num_duct_modes))
-  
-               do j = 1, input_data%num_duct_modes
-                    read(10,*) input_data%duct_modes_list(j)
-                    print*,'initialize:  duct mode  = ', input_data%duct_modes_list(j)
-               end do              
-               
+                 if (input_data%num_duct_modes  < 1) then
+                     print*, 'Error: no downstream moving duct modes specified.Exiting.'
+                     STOP
+                 end if
+                 allocate(input_data%duct_modes_list(input_data%num_duct_modes))
+                 allocate(input_data%A_mn_duct_modes_list(input_data%num_duct_modes))
+    
+                 do j = 1, input_data%num_duct_modes
+                      read(10,*) input_data%duct_modes_list(j)
+                      print*,'initialize:  duct mode  = ', input_data%duct_modes_list(j)
+                 end do              
+                end if 
             else
               print*, 'initialize: Choosing hard duct mode:'
             end if

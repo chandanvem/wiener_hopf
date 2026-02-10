@@ -24,8 +24,8 @@ Module user_defined_functions
     character(len=*) :: kd_plus_correction
 
     if (input_data%solution_mode == 'guided_jet') then
-       u_s = (s_target-input_data%KH_zero_1)*&
-             (s_target - input_data%mu_plus)
+       u_s = (s_target-input_data%KH_zero_1)
+             !(s_target - input_data%mu_plus)
        if ( kd_plus_correction == 'k_d_plus') then
            u_s = u_s*(s_target - input_data%k_d_plus)
        end if
