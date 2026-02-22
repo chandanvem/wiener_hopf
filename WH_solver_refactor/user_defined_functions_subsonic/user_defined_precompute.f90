@@ -200,7 +200,7 @@ Module user_defined_precompute
          lambda1_at_k_d_plus = sqrt(1._dpk - input_data%k_d_plus*(input_data%M1+1._dpk)) *&
                                 sqrt(1._dpk-  input_data%k_d_plus*(input_data%M1-1._dpk))
  
-         A_mn_k_plus_num = CMPLX(0._dpk,1._dpk,kind=dpk)*((input_data%omega_r)**2)
+         A_mn_k_plus_num = CMPLX(0._dpk,1._dpk,kind=dpk)*((input_data%omega_r)**2)*&
                                    input_data%C0*(1 - (input_data%mu_plus*input_data%M1))*&
                                    (1 - (input_data%M1*input_data%k_d_plus))**2
   
@@ -220,7 +220,7 @@ Module user_defined_precompute
                
              if ( (j .EQ. 1) .AND. (input_data%azim_mode .EQ. 0)  )then
                   input_data%A_mn_duct_modes_list(j) =  & 
-                     -2._dpk*input_data%omega_r*CMPLX(0._dpk,1._dpk,kind=dpk)*&
+                     -1._dpk*input_data%omega_r*CMPLX(0._dpk,1._dpk,kind=dpk)*&
                      ((1 - (input_data%duct_modes_list(j)*input_data%M1))**2)*&
                       get_fplus_value(input_data%duct_modes_list(j),input_data,contour_data)
              else
@@ -229,7 +229,7 @@ Module user_defined_precompute
                      ((1 - (input_data%duct_modes_list(j)*input_data%M1))**2)*&
                       get_fplus_value(input_data%duct_modes_list(j),input_data,contour_data)
                    input_data%A_mn_duct_modes_list(j) = input_data%A_mn_duct_modes_list(j)/&
-                                 (d2hank1(input_data%duct_modes_list(j), input_data%azim_mode, 1)*&
+                                 (d2bessj(input_data%duct_modes_list(j), input_data%azim_mode, 1)*&
                                  (input_data%M1 + (input_data%duct_modes_list(j)*(1._dpk - ( (input_data%M1)**2)))))
              end if
             
