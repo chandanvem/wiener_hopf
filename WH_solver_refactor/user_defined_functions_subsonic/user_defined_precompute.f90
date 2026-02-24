@@ -128,6 +128,8 @@ Module user_defined_precompute
     real(dpk)             :: PI, res_mu_plus, res_KH_1, res_k_d_plus
     real(dpk)             :: B_mn
 
+    complex(dpk)          :: GJ_mode_amp
+
     type(input_params_t)   :: input_data
     type(contour_params_t) :: contour_data 
  
@@ -215,6 +217,12 @@ Module user_defined_precompute
          write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  A_mn_k_plus:->',&
                                                                           input_data%A_mn_k_plus
 
+
+         GJ_mode_amp = input_data%omega_r*(1._dpk - (input_data%mu_plus*input_data%M1))
+
+             write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  guided jet mode amplitude:->',&
+                                                                            GJ_mode_amp
+
  
          do j = 1, input_data%num_duct_modes
                
@@ -236,7 +244,11 @@ Module user_defined_precompute
              
              write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  A_mn_duct_modes_list:->',&
                                                                           input_data%A_mn_duct_modes_list(j)
+           
+             write(*,'(/A,2X,2E20.10)') ' Value of K(s) at s = hard_duct_mode:->',&
+                                     ABS(compute_kernel(1,input_data%duct_modes_list(j),input_data))
 
+         
          end do
 
      end if
