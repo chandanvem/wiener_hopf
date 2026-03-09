@@ -157,8 +157,59 @@ MODULE user_defined_residue_functions
  
   END FUNCTION residue_pr_GJ_guided_jet_mode
 
+  FUNCTION get_hard_duct_pr_from_Amn_GJ(r,z,input_data) result(pressure_op)
 
-!  FUNCTION residue_pr_GJ_guided_jet_mode(r,z,input_data) result(residue_pr_GJ_op)
+    real(dpk)            :: r, z
+    integer              :: j
+    complex(dpk)         :: pressure_op, pre_factor, fn
+    complex(dpk)         :: lambda
+    type(input_params_t) :: input_data
+
+    pressure_op = 0._dpk
+    
+    do j = 1, input_data%num_duct_modes
+
+
+       lambda =  sqrt(1._dpk - input_data%duct_modes_list(j)*(input_data%M1+1._dpk))*&
+                 sqrt(1._dpk - input_data%duct_modes_list(j)*(input_data%M1-1._dpk))
+  
+       pre_factor =  bessj(lambda*input_data%omega_r*r,input_data%azim_mode,1)
+   
+       pre_factor = pre_factor*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%duct_modes_list(j)*z)
+
+       pre_factor = pre_factor*input_data%A_mn_duct_modes_list(j)
+
+       pressure_op = pressure_op + pre_factor
+
+     end do
+
+  END FUNCTION get_hard_duct_pr_from_Amn_GJ
+
+  FUNCTION get_soft_duct_pr_from_Amn_GJ(r,z,input_data) result(pressure_op)
+
+    real(dpk)            :: r, z
+    complex(dpk)         :: pressure_op, pre_factor, fn
+    complex(dpk)         :: lambda
+    type(input_params_t) :: input_data
+
+    pressure_op = 0._dpk
+
+    lambda =  sqrt(1._dpk - input_data%k_d_plus*(input_data%M1+1._dpk))*&
+              sqrt(1._dpk - input_data%k_d_plus*(input_data%M1-1._dpk))
+  
+    pre_factor =  bessj(lambda*input_data%omega_r*r,input_data%azim_mode,1)
+   
+    pre_factor = pre_factor*EXP(CMPLX(0._dpk,1._dpk,kind=dpk)*input_data%omega_r*input_data%k_d_plus*z)
+
+    pre_factor = pre_factor*input_data%A_mn_k_plus
+
+    pressure_op = pressure_op + pre_factor
+
+
+  END FUNCTION get_soft_duct_pr_from_Amn_GJ
+
+
+ !  FUNCTION residue_pr_GJ_guided_jet_mode(r,z,input_data) result(residue_pr_GJ_op)
 !
 !    real(dpk)            :: r, z
 !    integer              :: ii, jj, stream_idx

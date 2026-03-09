@@ -191,9 +191,10 @@ Module user_defined_precompute
                                                                             input_data,contour_data)
 
           limit_term_L_k_d_plus = &
-          EXP(-intgrl_A1_at_k_d_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)) +&
-              LOG(dkernel_ds(input_data%k_d_plus,input_data)/compute_U_s_factor(input_data%k_d_plus,&
-                                                           input_data,'not_k_d_plus')))
+          EXP(-intgrl_A1_at_k_d_plus/(2._dpk*PI*CMPLX(0._dpk,1._dpk,kind=dpk)))
+!+&
+!              LOG(dkernel_ds(input_data%k_d_plus,input_data)/compute_U_s_factor(input_data%k_d_plus,&
+ !                                                          input_data,'not_k_d_plus')))
 
          write(*,'(/A,2X,2F15.10)') 'precompute_guided_jet_mode:  limit_term_L_k_d_plus:->',&
                                                                            limit_term_L_k_d_plus                                                                

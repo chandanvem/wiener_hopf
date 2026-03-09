@@ -110,7 +110,22 @@ Module user_defined_IFT
                                                   !! the incident wave added
 
                end if
+
+
+               if (input_data%solution_mode == 'guided_jet') then
+                  if (input_data%R(i) <= 1._dpk .AND.  input_data%Z(j) <= 0._dpk) then
+
+                      pressure(i,j) = get_hard_duct_pr_from_Amn_GJ(input_data%R(i),input_data%Z(j),input_data)
+                  
+                  else if (input_data%R(i) <= 1._dpk .AND.  input_data%Z(j) >= 0._dpk) then
             
+                      pressure(i,j) = get_soft_duct_pr_from_Amn_GJ(input_data%R(i),input_data%Z(j),input_data)
+
+                  end if 
+                    
+               end if
+
+
                acoustic_comp_pressure(i,j) = pressure(i,j)  !! acoustic part
                instab_pressure1(i,j) = residue_pr_instab(input_data%R(i),input_data%Z(j),input_data)  !! instability wave
                inc_pressure(i,j) = compute_psi_incident(input_data%R(i),input_data%Z(j),input_data)  !! the incident wave               
