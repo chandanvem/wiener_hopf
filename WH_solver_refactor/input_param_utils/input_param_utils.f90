@@ -55,6 +55,12 @@ MODULE input_params
           complex(dpk), allocatable, dimension(:)    :: k_plus_at_duct_modes_list
           complex(dpk), allocatable, dimension(:)    :: A_mn_duct_modes_list
           complex(dpk)                               :: A_mn_k_plus
+
+          complex(dpk), allocatable, dimension(:)    :: RC_St_list, RC_KH_list, RC_k_plus_list, RC_GJM_list
+          integer(dpk)                               :: RC_num_freq
+
+
+  
      end type input_params_t
 
 

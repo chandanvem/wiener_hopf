@@ -9,9 +9,11 @@ PROGRAM main
   USE fplus_utils
   USE IFT_integral_utils
   USE farfield_utils
+  USE refl_coeffs_utils
   USE user_defined_precompute
   USE user_defined_functions
-  USE user_defined_farfield 
+  USE user_defined_farfield
+  USE user_defined_refl_coeffs 
   USE user_defined_IFT 
   USE user_defined_fplus
 
@@ -42,6 +44,14 @@ PROGRAM main
     call init_farfield(input_data,contour_data)
     call compute_farfield(input_data,contour_data)
 
+  else if ((input_data%near_far_field_mode == 'reflection_coeffs')) then
+
+    print*,''
+    print*,'solve: Computing reflection coefficients:'
+    print*,''
+    call init_refl_coeffs(input_data,contour_data)
+    call compute_refl_coeffs(input_data,contour_data)
+    
   else
 
     call meshgrid(input_data)

@@ -5,7 +5,8 @@ Module io_utils
 
   IMPLICIT NONE
   
-  PRIVATE
+  PRIVATE :: define_input_params_near_and_far_field, &
+             define_input_params_refl_coeffs
   PUBLIC  :: create_req_dirs, define_input_params, &
              check_NAN 
 
@@ -45,6 +46,25 @@ Module io_utils
    END SUBROUTINE create_req_dirs
 
    SUBROUTINE define_input_params(input_data)
+
+     type(input_params_t)  :: input_data
+
+     if ((trim(input_data%near_far_field_mode) == 'far_field') .OR. &
+        (trim(input_data%near_far_field_mode) == 'near_field')) then
+
+        call define_input_params_near_and_far_field(input_data)
+
+     else if (trim(input_data%near_far_field_mode) == 'reflection_coeffs_mode') then
+   
+        call define_input_params_refl_coeffs(input_data)
+             
+     end if  
+
+
+   END SUBROUTINE define_input_params 
+
+
+   SUBROUTINE define_input_params_near_and_far_field(input_data)
 
       type(input_params_t) :: input_data
       real(dpk)            :: PI, delr, deli
@@ -270,9 +290,95 @@ Module io_utils
        print*,'initialize: Computing Pressure...'
     end if
 
-   !now allocate for the contour points:
 
- END SUBROUTINE define_input_params 
+   END SUBROUTINE define_input_params_near_and_far_field
+
+
+  SUBROUTINE define_input_params_refl_coeffs(input_data)
+
+      type(input_params_t) :: input_data
+      real(dpk)            :: PI, delr, deli
+      integer              :: i,j
+      character(len=40)    :: input_string      
+
+      !! the basic data file:
+
+      PI = 4._dpk*ATAN(1.)
+
+      input_data%solution_mode = 'hard_duct_mode'
+
+      open(10, file='input.list.p', status='old')
+
+      read(10,*) input_data%near_far_field_mode
+      if (trim(input_data%near_far_field_mode) .NE. 'far_field') then
+          input_data%near_far_field_mode = 'near_field'
+      end if 
+
+      read(10,*) input_data%num_of_streams  !!
+
+      read(10,*) input_data%M1  !! core jet Mach number
+      read(10,*) input_data%M2  !! coflow Mach number
+
+      if (input_data%num_of_streams .EQ. 3) then
+           read(10,*) input_data%M3  !! ambient flow Mach number
+           PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2, A)', &
+                     ' (M1, M2, M3) = (',input_data%M1, input_data%M2, input_data%M3, ')'
+      else
+          PRINT '(A, F8.2, ", ", F8.2, A)', &
+                     ' (M1, M2) = (',input_data%M1, input_data%M2, ')'
+      end if
+ 
+      read(10,*) input_data%h
+
+      read(10,*) input_data%kapT  !! sqrt(temp ratio)
+      read(10,*) input_data%kap_rho  !! density ratio
+      read(10,*) input_data%azim_mode  !! the circumferential mode no
+
+      print*,'azim_mode = ', input_data%azim_mode
+
+      PRINT '(A, F8.2, ", ", F8.2, ", ", F8.2,A)', &
+            ' (h, kapT, kap_rho, azim_mode) = (', input_data%h, input_data%kapT, &
+                                                       input_data%kap_rho , input_data%azim_mode, ')'
+
+
+      read(10,*) input_data%offset  !! the offset between the two integration contours
+      print*,'initialize:  Offset between the IFT and K split contours=', input_data%offset
+
+      read(10,*) input_data%tol  !! the tolerance of the adaptive contour integration routine
+      print*,'initialize:  Tolerance for adaptive contour integration =', input_data%tol
+      
+      PRINT '(A, E12.4, ", ", E12.4,A)', &
+                     ' initialize: (offset, tol) = (', input_data%offset, input_data%tol, ')'
+
+      print*,''
+      print*,'','====== Mesh and contour parameters ======',''
+      
+      read(10,*) input_data%num_ker_pts_loop
+       PRINT '(A, I5, A)', &
+         'initialize:  Number of kernel points in each loop =', input_data%num_ker_pts_loop
+
+      read(10,*) input_data%theta  !! the stretching parameter for kernel contour meshpoints
+      print*,'initialize:  Stretching parameter for kernel contour =', input_data%theta
+
+      read(10,*) input_data%num_IFT_pts_loop
+      print*,'initialize:  Number of IFT points in each loop num_IFT_pts_loop =', input_data%num_IFT_pts_loop
+
+      print*,'=============================='
+
+      read(10,*) input_data%asymplim
+      print*,'initialize:  Asymptotic limit of bess/dbess = ',input_data%asymplim
+
+      read(10,*) input_data%asymplim1
+      print*,'initialize:  Asymptotic limit of hank/dhank = ',input_data%asymplim1
+
+      read(10,*) input_data%vs_param_gamma  !! Default = 1.0 (0,1)
+      print*,'initialize:  Vortex shedding parameter gamma = ',input_data%vs_param_gamma 
+        
+      close(10)
+      
+  !! whether to compute velocity potential or pressure:
+
+  END SUBROUTINE define_input_params_refl_coeffs
 
 
  SUBROUTINE check_NAN(input,is_nan_flag)
