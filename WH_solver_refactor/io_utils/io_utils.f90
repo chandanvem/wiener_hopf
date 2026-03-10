@@ -49,12 +49,19 @@ Module io_utils
 
      type(input_params_t)  :: input_data
 
+     open(10, file='input.list.p', status='old')
+
+       read(10,*) input_data%near_far_field_mode
+
+     close(10)
+
+
      if ((trim(input_data%near_far_field_mode) == 'far_field') .OR. &
         (trim(input_data%near_far_field_mode) == 'near_field')) then
 
         call define_input_params_near_and_far_field(input_data)
 
-     else if (trim(input_data%near_far_field_mode) == 'reflection_coeffs_mode') then
+     else if (trim(input_data%near_far_field_mode) == 'reflection_coeffs') then
    
         call define_input_params_refl_coeffs(input_data)
              
@@ -305,14 +312,9 @@ Module io_utils
 
       PI = 4._dpk*ATAN(1.)
 
-      input_data%solution_mode = 'hard_duct_mode'
-
       open(10, file='input.list.p', status='old')
 
       read(10,*) input_data%near_far_field_mode
-      if (trim(input_data%near_far_field_mode) .NE. 'far_field') then
-          input_data%near_far_field_mode = 'near_field'
-      end if 
 
       read(10,*) input_data%num_of_streams  !!
 
@@ -373,6 +375,8 @@ Module io_utils
 
       read(10,*) input_data%vs_param_gamma  !! Default = 1.0 (0,1)
       print*,'initialize:  Vortex shedding parameter gamma = ',input_data%vs_param_gamma 
+
+      read(10,*) input_data%solution_mode
         
       close(10)
       

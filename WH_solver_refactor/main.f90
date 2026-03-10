@@ -33,9 +33,15 @@ PROGRAM main
   call define_input_params(input_data)
   call compute_contour_params(input_data,contour_data)
   call compute_contours(input_data,contour_data)
+ 
+
+  if ((input_data%near_far_field_mode .NE. 'reflection_coeffs')) then
+
+      call precompute(input_data,contour_data)
+
+  end if
+ 
   
-  call precompute(input_data,contour_data)
-!
   if ((input_data%near_far_field_mode == 'far_field')) then
 
     print*,''
